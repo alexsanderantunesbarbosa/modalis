@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tradutor de Descrições</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Ícones Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Biblioteca para ler/gerar Excel diretamente no navegador -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- CABEÇALHO ARREDONDADO -->
+  <header class="navbar-container">
+    <div class="navbar">
+      <div class="brand">
+        <div class="brand-icon"><i class="ph ph-translate"></i></div>
+        <h2> Modo de Tradução</h2>
+      </div>
+      <nav class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('singular')">
+          <i class="ph ph-text-t"></i> Tradução Singular
+        </button>
+        <button class="tab-btn" onclick="switchTab('massa')">
+          <i class="ph ph-files"></i> Em Massa (Excel)
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+
+    <!-- ==================== 1. TRADUÇÃO SINGULAR (Foto 2) ==================== -->
+    <section id="tab-singular" class="tab-content active">
+      <div class="card card-rounded">
+        <div class="card-title-badge">
+          <i class="ph ph-sparkle"></i> Tradução Individual
+        </div>
+
+        <div class="form-group">
+          <label for="inputDescPT">Descrição da peça:</label>
+          <div class="input-with-button">
+            <input 
+              type="text" 
+              id="inputDescPT" 
+              placeholder="Digite a descrição da peça (ex: Calça baggy cintura média)..."
+            >
+            <button class="btn btn-pill btn-primary" onclick="traduzirSingular()">
+              <i class="ph ph-arrow-right"></i> Traduzir
+            </button>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="form-group">
+          <label for="outputDescEN">Descrição em inglês:</label>
+          <div class="output-box">
+            <input type="text" id="outputDescEN" placeholder="A tradução em inglês aparecerá aqui..." readonly>
+            <button class="btn-copy-icon" onclick="copiarTexto('outputDescEN')" title="Copiar Inglês">
+              <i class="ph ph-copy"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="outputDescES">Descrição em espanhol:</label>
+          <div class="output-box">
+            <input type="text" id="outputDescES" placeholder="A tradução em espanhol aparecerá aqui..." readonly>
+            <button class="btn-copy-icon" onclick="copiarTexto('outputDescES')" title="Copiar Espanhol">
+              <i class="ph ph-copy"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 2. TRADUÇÃO EM MASSA (Foto 1) ==================== -->
+    <section id="tab-massa" class="tab-content">
+      
+      <!-- Área de Upload -->
+      <div class="card card-rounded upload-card" id="uploadArea">
+        <i class="ph ph-file-arrow-up upload-icon"></i>
+        <h3>Arraste sua planilha Excel aqui ou clique para selecionar</h3>
+        <p>A planilha deve conter colunas com <strong>REF</strong> e <strong>PT-BR</strong> (ou Descrição)</p>
+        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" onchange="processarArquivo(event)">
+        <button class="btn btn-pill btn-secondary" onclick="document.getElementById('fileInput').click()">
+          Selecionar Arquivo
+        </button>
+      </div>
+
+      <!-- Tabela de Saída em Massa (Baseada na Foto 1) -->
+      <div class="card card-rounded" id="resultMassaCard" style="display: none;">
+        <div class="card-header-actions">
+          <h3><i class="ph ph-table"></i> Saída em Massa</h3>
+          <span class="badge-count" id="rowCountBadge">0 itens</span>
+        </div>
+
+        <div class="table-container">
+          <table class="custom-table" id="tableMassa">
+            <thead>
+              <tr>
+                <th><div class="th-pill">REF</div></th>
+                <th><div class="th-pill">PT-BR</div></th>
+                <th><div class="th-pill">EN</div></th>
+                <th><div class="th-pill">ES</div></th>
+              </tr>
+            </thead>
+            <tbody id="massaTableBody">
+              <!-- Linhas geradas via JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Botões do Rodapé (Foto 1) -->
+        <div class="card-footer-actions">
+          <button class="btn btn-pill btn-outline" onclick="toggleModoEdicao()" id="btnAlterar">
+            <i class="ph ph-pencil-simple"></i> Alterar / Editar
+          </button>
+          <button class="btn btn-pill btn-success" onclick="baixarExcel()">
+            <i class="ph ph-download-simple"></i> Baixar Excel
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

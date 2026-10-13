@@ -1,0 +1,330 @@
+/* Paleta de Cores e Estilo Arredondado/Divertido */
+:root {
+  --bg-color: #EEF2FF;          /* Azul pastel suave de fundo */
+  --card-bg: #FFFFFF;           /* Cards brancos puros */
+  --primary: #4F46E5;           /* Roxo/Indigo moderno */
+  --primary-hover: #4338CA;
+  --secondary: #6366F1;
+  --success: #10B981;           /* Verde para download */
+  --success-hover: #059669;
+  --text-main: #1E293B;         /* Grafite */
+  --text-muted: #64748B;
+  --border-radius-card: 24px;   /* Bordas bem arredondadas nos cards */
+  --border-radius-pill: 50px;   /* Formato de pílula nos botões e inputs */
+  --shadow-soft: 0 10px 25px -5px rgba(79, 70, 229, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Navbar */
+.navbar-container {
+  padding: 1.5rem 2rem 0.5rem 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.navbar {
+  background: var(--card-bg);
+  border-radius: var(--border-radius-pill);
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-soft);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-icon {
+  background: var(--primary);
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.brand h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.nav-tabs {
+  display: flex;
+  gap: 0.5rem;
+  background: #F1F5F9;
+  padding: 0.3rem;
+  border-radius: var(--border-radius-pill);
+}
+
+.tab-btn {
+  border: none;
+  background: transparent;
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--border-radius-pill);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tab-btn.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* Conteúdo Principal */
+.main-content {
+  max-width: 1100px;
+  width: 100%;
+  margin: 1.5rem auto;
+  padding: 0 1.5rem;
+  flex: 1;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Cards Arredondados */
+.card-rounded {
+  background: var(--card-bg);
+  border-radius: var(--border-radius-card);
+  padding: 2rem;
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 1.5rem;
+}
+
+.card-title-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #EEF2FF;
+  color: var(--primary);
+  padding: 0.4rem 1rem;
+  border-radius: var(--border-radius-pill);
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Formulário de Tradução Singular (Foto 2) */
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+.input-with-button {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.input-with-button input {
+  flex: 1;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  border: 2px solid #E2E8F0;
+  border-radius: var(--border-radius-pill);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  background: #F8FAFC;
+}
+
+input[type="text"]:focus {
+  border-color: var(--primary);
+  background: #fff;
+}
+
+.output-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.output-box input {
+  background: #F1F5F9;
+  color: #334155;
+  font-weight: 600;
+  padding-right: 3rem;
+}
+
+.btn-copy-icon {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 50%;
+}
+
+.btn-copy-icon:hover {
+  background: #E0E7FF;
+}
+
+.divider {
+  border: none;
+  height: 1px;
+  background: #E2E8F0;
+  margin: 1.5rem 0;
+}
+
+/* Botões Arredondados (Pills) */
+.btn-pill {
+  border-radius: var(--border-radius-pill);
+  padding: 0.8rem 1.5rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  transition: transform 0.1s, background-color 0.2s;
+}
+
+.btn-pill:active {
+  transform: scale(0.98);
+}
+
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+
+.btn-secondary { background: var(--secondary); color: #fff; }
+
+.btn-success { background: var(--success); color: #fff; }
+.btn-success:hover { background: var(--success-hover); }
+
+.btn-outline {
+  background: transparent;
+  border: 2px solid #CBD5E1;
+  color: var(--text-main);
+}
+.btn-outline:hover { background: #F1F5F9; }
+
+/* Upload Card (Em massa) */
+.upload-card {
+  text-align: center;
+  padding: 3rem 2rem;
+  border: 2px dashed #C7D2FE;
+  background: #F5F3FF;
+  position: relative;
+}
+
+.upload-icon {
+  font-size: 3.5rem;
+  color: var(--primary);
+  margin-bottom: 1rem;
+}
+
+.upload-card input[type="file"] {
+  display: none;
+}
+
+/* Tabela Estilizada (Foto 1 - REF, PT-BR, EN, ES) */
+.table-container {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 0.5rem;
+}
+
+.custom-table th {
+  padding: 0 0.5rem;
+}
+
+.th-pill {
+  background: #312E81;
+  color: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: var(--border-radius-pill);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.custom-table td {
+  background: #F8FAFC;
+  padding: 0.85rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-top: 1px solid #E2E8F0;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.custom-table td:first-child {
+  border-left: 1px solid #E2E8F0;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  text-align: center;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.custom-table td:last-child {
+  border-right: 1px solid #E2E8F0;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.card-header-actions, .card-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.badge-count {
+  background: #E0E7FF;
+  color: var(--primary);
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--border-radius-pill);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
