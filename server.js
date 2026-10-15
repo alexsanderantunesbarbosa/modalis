@@ -6,7 +6,8 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 require('dotenv').config();
 const http = require('http');
-const { processarTraducaoLocal } = require('./processadorTexto');
+const { processarTraducaoLocal, montarContextoGlossario } = require('./processadorTexto');
+const { sugerirCorrecaoGrafia } = require('./correcoesOrtograficas');
 
 const PORT = process.env.PORT || 3000;
 const DEEPL_API_KEY = process.env.DEEPL_API_KEY;
@@ -21,16 +22,23 @@ async function traduzirViaDeepL(textos, targetLang) {
     throw new Error('Chave da API DeepL não configurada no .env');
   }
 
+  // Consulta a tabela local antes da chamada. A descrição original segue inteira
+  // para o DeepL, que traduz PT→EN e pode reorganizar a frase naturalmente.
+  // O contexto orienta o vocabulário; ele não substitui um glossário nativo.
+  const corpo = {
+    text: textos,
+    target_lang: targetLang.toUpperCase()
+  };
+  const contextoGlossario = montarContextoGlossario(textos, targetLang);
+  if (contextoGlossario) corpo.context = contextoGlossario;
+
   const response = await fetch(DEEPL_URL, {
     method: 'POST',
     headers: {
       'Authorization': `DeepL-Auth-Key ${DEEPL_API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      text: textos,
-      target_lang: targetLang.toUpperCase()
-    })
+    body: JSON.stringify(corpo)
   });
 
   const data = await response.json();
@@ -103,6 +111,28 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ traducoes: resultados }));
 
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // Sugestões locais de grafia; não chama o DeepL nem altera o texto de origem.
+  if (req.method === 'POST' && req.url === '/api/sugerir-correcoes') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { textos } = JSON.parse(body);
+        if (!Array.isArray(textos) || textos.some(texto => typeof texto !== 'string')) {
+          throw new Error('O campo textos precisa ser uma lista de strings.');
+        }
+
+        const sugestoes = textos.map(sugerirCorrecaoGrafia);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ sugestoes }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));

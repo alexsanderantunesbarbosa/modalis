@@ -314,6 +314,48 @@ input[type="text"]:focus {
   border-bottom-right-radius: 12px;
 }
 
+.massa-status {
+  color: var(--text-main);
+  font-size: 0.9rem;
+  margin: 0.75rem 0;
+}
+
+.texto-correcao {
+  min-width: 12rem;
+}
+
+.acoes-correcao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.btn-small {
+  border-radius: var(--border-radius-pill);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.65rem;
+}
+
+.custom-table td small {
+  color: #64748B;
+  display: block;
+  font-size: 0.72rem;
+  margin-top: 0.35rem;
+}
+
+.celula-editavel {
+  background: #FFF7ED !important;
+  outline: 2px solid #FDBA74;
+}
+
+#btnTraduzirMassa:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .card-header-actions, .card-footer-actions {
   display: flex;
   justify-content: space-between;

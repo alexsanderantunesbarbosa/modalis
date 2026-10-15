@@ -84,7 +84,7 @@
       <div class="card card-rounded upload-card" id="uploadArea">
         <i class="ph ph-file-arrow-up upload-icon"></i>
         <h3>Arraste sua planilha Excel aqui ou clique para selecionar</h3>
-        <p>A planilha deve conter colunas com <strong>REF</strong> e <strong>PT-BR</strong> (ou Descrição)</p>
+        <p>Use a planilha SAP com os cabeçalhos <strong>Referencia</strong> e <strong>Descrição</strong>. “Português” e “Z_ENCAIXE” não são a descrição da peça.</p>
         <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" onchange="processarArquivo(event)">
         <button class="btn btn-pill btn-secondary" onclick="document.getElementById('fileInput').click()">
           Selecionar Arquivo
@@ -98,14 +98,17 @@
           <span class="badge-count" id="rowCountBadge">0 itens</span>
         </div>
 
+        <p id="massaStatus" class="massa-status" aria-live="polite"></p>
+
         <div class="table-container">
           <table class="custom-table" id="tableMassa">
             <thead>
               <tr>
-                <th><div class="th-pill">REF</div></th>
-                <th><div class="th-pill">PT-BR</div></th>
-                <th><div class="th-pill">EN</div></th>
-                <th><div class="th-pill">ES</div></th>
+                <th><div class="th-pill">REFERÊNCIA</div></th>
+                <th><div class="th-pill">DESCRIÇÃO PT ORIGINAL</div></th>
+                <th><div class="th-pill">DESCRIÇÃO PT CORRIGIDA</div></th>
+                <th><div class="th-pill">DESCRIÇÃO EN</div></th>
+                <th><div class="th-pill">DESCRIÇÃO ES</div></th>
               </tr>
             </thead>
             <tbody id="massaTableBody">
@@ -116,6 +119,9 @@
 
         <!-- Botões do Rodapé (Foto 1) -->
         <div class="card-footer-actions">
+          <button class="btn btn-pill btn-secondary" onclick="traduzirMassa()" id="btnTraduzirMassa">
+            <i class="ph ph-translate"></i> Traduzir inglês
+          </button>
           <button class="btn btn-pill btn-outline" onclick="toggleModoEdicao()" id="btnAlterar">
             <i class="ph ph-pencil-simple"></i> Alterar / Editar
           </button>
