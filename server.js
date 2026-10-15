@@ -6,7 +6,11 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 require('dotenv').config();
 const http = require('http');
-const { processarTraducaoLocal, montarContextoGlossario } = require('./processadorTexto');
+const {
+  processarTraducaoLocal,
+  montarContextoGlossario,
+  agruparTextosPorContexto
+} = require('./processadorTexto');
 const { sugerirCorrecaoGrafia } = require('./correcoesOrtograficas');
 
 const PORT = process.env.PORT || 3000;
@@ -17,7 +21,7 @@ const DEEPL_URL = DEEPL_API_KEY && DEEPL_API_KEY.endsWith(':fx')
   ? 'https://api-free.deepl.com/v2/translate'
   : 'https://api.deepl.com/v2/translate';
 
-async function traduzirViaDeepL(textos, targetLang) {
+async function traduzirViaDeepL(textos, targetLang, contextoEspecifico) {
   if (!DEEPL_API_KEY) {
     throw new Error('Chave da API DeepL não configurada no .env');
   }
@@ -29,7 +33,7 @@ async function traduzirViaDeepL(textos, targetLang) {
     text: textos,
     target_lang: targetLang.toUpperCase()
   };
-  const contextoGlossario = montarContextoGlossario(textos, targetLang);
+  const contextoGlossario = contextoEspecifico ?? montarContextoGlossario(textos, targetLang);
   if (contextoGlossario) corpo.context = contextoGlossario;
 
   const response = await fetch(DEEPL_URL, {
@@ -102,7 +106,14 @@ const server = http.createServer((req, res) => {
 
         let resultados;
         try {
-          resultados = await traduzirViaDeepL(textos, targetLang);
+          resultados = new Array(textos.length);
+          const grupos = agruparTextosPorContexto(textos, targetLang);
+          for (const grupo of grupos) {
+            const traducoes = await traduzirViaDeepL(grupo.textos, targetLang, grupo.contexto);
+            grupo.indices.forEach((indice, posicao) => {
+              resultados[indice] = traducoes[posicao];
+            });
+          }
         } catch (apiError) {
           console.warn('Fallback em massa ativado:', apiError.message);
           resultados = textos.map(t => processarTraducaoLocal(t, targetLang));

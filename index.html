@@ -100,6 +100,23 @@
 
         <p id="massaStatus" class="massa-status" aria-live="polite"></p>
 
+        <div id="correcoesPendentes" class="correcoes-pendentes" aria-live="polite"></div>
+
+        <div class="massa-toolbar" aria-label="Ações da tradução em massa">
+          <button class="btn btn-pill btn-secondary" onclick="traduzirMassa()" id="btnTraduzirMassa">
+            <i class="ph ph-translate"></i> Traduzir inglês
+          </button>
+          <button class="btn btn-pill btn-primary" onclick="aplicarTodasCorrecoes()" id="btnAplicarTodas" disabled>
+            <i class="ph ph-checks"></i> Aplicar todas as correções
+          </button>
+          <button class="btn btn-pill btn-outline" onclick="toggleModoEdicao()" id="btnAlterar">
+            <i class="ph ph-pencil-simple"></i> Alterar / Editar
+          </button>
+          <button class="btn btn-pill btn-success" onclick="baixarExcel()">
+            <i class="ph ph-download-simple"></i> Baixar Excel
+          </button>
+        </div>
+
         <div class="table-container">
           <table class="custom-table" id="tableMassa">
             <thead>
@@ -110,6 +127,13 @@
                 <th><div class="th-pill">DESCRIÇÃO EN</div></th>
                 <th><div class="th-pill">DESCRIÇÃO ES</div></th>
               </tr>
+              <tr class="linha-filtros">
+                <th><input class="filtro-coluna" type="search" data-coluna="0" placeholder="Filtrar referência" aria-label="Filtrar por referência"></th>
+                <th><input class="filtro-coluna" type="search" data-coluna="1" placeholder="Filtrar descrição PT" aria-label="Filtrar por descrição PT original"></th>
+                <th><input class="filtro-coluna" type="search" data-coluna="2" placeholder="Filtrar correção" aria-label="Filtrar por descrição PT corrigida"></th>
+                <th><input class="filtro-coluna" type="search" data-coluna="3" placeholder="Filtrar inglês" aria-label="Filtrar por descrição EN"></th>
+                <th><input class="filtro-coluna" type="search" data-coluna="4" placeholder="Filtrar espanhol" aria-label="Filtrar por descrição ES"></th>
+              </tr>
             </thead>
             <tbody id="massaTableBody">
               <!-- Linhas geradas via JavaScript -->
@@ -117,18 +141,6 @@
           </table>
         </div>
 
-        <!-- Botões do Rodapé (Foto 1) -->
-        <div class="card-footer-actions">
-          <button class="btn btn-pill btn-secondary" onclick="traduzirMassa()" id="btnTraduzirMassa">
-            <i class="ph ph-translate"></i> Traduzir inglês
-          </button>
-          <button class="btn btn-pill btn-outline" onclick="toggleModoEdicao()" id="btnAlterar">
-            <i class="ph ph-pencil-simple"></i> Alterar / Editar
-          </button>
-          <button class="btn btn-pill btn-success" onclick="baixarExcel()">
-            <i class="ph ph-download-simple"></i> Baixar Excel
-          </button>
-        </div>
       </div>
 
     </section>

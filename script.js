@@ -92,6 +92,71 @@ function setMassaStatus(texto) {
   if (status) status.textContent = texto;
 }
 
+function normalizarValorFiltro(valor) {
+  return String(valor ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function filtrarTabelaMassa() {
+  const filtros = Array.from(document.querySelectorAll('.filtro-coluna'))
+    .map(input => ({ coluna: Number(input.dataset.coluna), valor: normalizarValorFiltro(input.value) }))
+    .filter(filtro => filtro.valor);
+  let visiveis = 0;
+
+  document.querySelectorAll('#massaTableBody tr').forEach(linha => {
+    const valores = Array.from(linha.cells).map(celula => celula.dataset.valorFiltro ?? celula.textContent);
+    const corresponde = filtros.every(filtro => normalizarValorFiltro(valores[filtro.coluna]).includes(filtro.valor));
+    linha.hidden = !corresponde;
+    if (corresponde) visiveis += 1;
+  });
+
+  const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente').length;
+  const badge = document.getElementById('rowCountBadge');
+  if (badge) badge.textContent = `${visiveis} de ${dadosProcessados.length} itens · ${pendentes} correções pendentes`;
+}
+
+function renderCorrecoesPendentes() {
+  const container = document.getElementById('correcoesPendentes');
+  if (!container) return;
+
+  const pendentes = dadosProcessados
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.estadoCorrecao === 'pendente');
+  container.replaceChildren();
+
+  const botaoAplicar = document.getElementById('btnAplicarTodas');
+  if (botaoAplicar) botaoAplicar.disabled = pendentes.length === 0;
+  if (pendentes.length === 0) return;
+
+  const titulo = document.createElement('h4');
+  titulo.textContent = `Referências que precisam de correção (${pendentes.length})`;
+  container.appendChild(titulo);
+
+  const lista = document.createElement('div');
+  lista.className = 'lista-refs-pendentes';
+  pendentes.forEach(({ item, index }) => {
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'ref-pendente';
+    botao.textContent = item.ref || `Linha ${item.linhaOrigem}`;
+    botao.title = `Ir para ${botao.textContent}`;
+    botao.addEventListener('click', () => {
+      document.querySelectorAll('.filtro-coluna').forEach(input => { input.value = ''; });
+      filtrarTabelaMassa();
+      const linha = document.querySelector(`#massaTableBody tr[data-item-index="${index}"]`);
+      if (linha) {
+        linha.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+    lista.appendChild(botao);
+  });
+  container.appendChild(lista);
+}
+
 async function processarArquivo(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -219,16 +284,23 @@ function renderTabelaMassa() {
 
   dadosProcessados.forEach((item, index) => {
     const tr = document.createElement('tr');
+    tr.dataset.itemIndex = index;
     tr.appendChild(criarCelula(item.ref));
     tr.appendChild(criarCelula(item.ptOriginal));
 
     const celulaCorrecao = document.createElement('td');
-    const textoCorrigido = item.estadoCorrecao === 'aceita' || item.estadoCorrecao === 'recusada' || item.estadoCorrecao === 'sem-sugestao'
-      ? item.pt
-      : item.ptSugerido;
+    const temCorrecao = item.correcoesSugeridas.length > 0;
+    const textoCorrigido = !temCorrecao
+      ? ''
+      : item.estadoCorrecao === 'aceita'
+        ? item.pt
+        : item.estadoCorrecao === 'pendente'
+          ? item.ptSugerido
+          : '';
     const texto = document.createElement('div');
     texto.className = 'texto-correcao';
     texto.textContent = textoCorrigido;
+    celulaCorrecao.dataset.valorFiltro = textoCorrigido;
     celulaCorrecao.appendChild(texto);
 
     if (item.estadoCorrecao === 'pendente') {
@@ -243,10 +315,6 @@ function renderTabelaMassa() {
     } else if (item.estadoCorrecao === 'aceita') {
       const selo = document.createElement('small');
       selo.textContent = 'Correção aceita';
-      celulaCorrecao.appendChild(selo);
-    } else if (item.estadoCorrecao === 'recusada') {
-      const selo = document.createElement('small');
-      selo.textContent = 'Original mantido';
       celulaCorrecao.appendChild(selo);
     }
     tr.appendChild(celulaCorrecao);
@@ -264,9 +332,24 @@ function renderTabelaMassa() {
     tbody.appendChild(tr);
   });
 
-  const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente').length;
-  document.getElementById('rowCountBadge').textContent = `${dadosProcessados.length} itens · ${pendentes} sugestões`;
+  renderCorrecoesPendentes();
   document.getElementById('resultMassaCard').style.display = 'block';
+  filtrarTabelaMassa();
+}
+
+function aplicarTodasCorrecoes() {
+  const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente');
+  if (!pendentes.length) return;
+
+  pendentes.forEach(item => {
+    item.pt = item.ptSugerido;
+    item.estadoCorrecao = 'aceita';
+    item.en = '';
+    item.es = '';
+  });
+
+  renderTabelaMassa();
+  setMassaStatus(`${pendentes.length} correção(ões) aplicada(s). Revise as descrições antes de traduzir.`);
 }
 
 async function traduzirMassa() {
@@ -319,7 +402,8 @@ function toggleModoEdicao() {
 }
 
 function atualizarDadosAposEdicao() {
-  document.querySelectorAll('#massaTableBody tr').forEach((tr, index) => {
+  document.querySelectorAll('#massaTableBody tr').forEach(tr => {
+    const index = Number(tr.dataset.itemIndex);
     const celulas = tr.querySelectorAll('td');
     if (dadosProcessados[index]) {
       dadosProcessados[index].en = celulas[3].innerText.trim().toUpperCase();
@@ -376,3 +460,7 @@ function copiarTexto(elementId) {
   navigator.clipboard.writeText(input.value);
   alert('Texto copiado para a área de transferência!');
 }
+
+document.querySelectorAll('.filtro-coluna').forEach(input => {
+  input.addEventListener('input', filtrarTabelaMassa);
+});

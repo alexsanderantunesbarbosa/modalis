@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const {
   listarCorrespondencias,
   montarContextoGlossario,
+  agruparTextosPorContexto,
   processarTraducaoLocal
 } = require('../processadorTexto');
 const { indices, termosPendentes, expressoesCompostas, dicionarioTermos } = require('../tabelaMestra');
@@ -52,6 +53,23 @@ test('só termos fechados entram no contexto antes da API', () => {
   assert.match(contexto, /CALÇA = PANTS/);
   assert.match(contexto, /CINTURA ALTA = HIGH-RISE/);
   assert.doesNotMatch(contexto, /TRICOLINE/);
+});
+
+test('separa contextos do glossário por descrição na tradução em massa', () => {
+  const grupos = agruparTextosPorContexto([
+    'calça cintura alta',
+    'camisa jeans',
+    'calça cintura alta'
+  ], 'EN-US');
+
+  assert.equal(grupos.length, 2);
+  const grupoCalca = grupos.find(grupo => grupo.indices.includes(0));
+  const grupoCamisa = grupos.find(grupo => grupo.indices.includes(1));
+  assert.deepEqual(grupoCalca.indices, [0, 2]);
+  assert.match(grupoCalca.contexto, /CINTURA ALTA = HIGH-RISE/);
+  assert.doesNotMatch(grupoCalca.contexto, /DENIM/);
+  assert.match(grupoCamisa.contexto, /JEANS = DENIM/);
+  assert.doesNotMatch(grupoCamisa.contexto, /HIGH-RISE/);
 });
 
 test('preserva as traduções legadas em espanhol', () => {

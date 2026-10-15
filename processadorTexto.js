@@ -177,6 +177,20 @@ function montarContextoGlossario(textosPT, idiomaDestino = 'EN') {
   return `Use estas traduções técnicas para os termos encontrados: ${Array.from(pares.values()).join('; ')}.`;
 }
 
+function agruparTextosPorContexto(textosPT, idiomaDestino = 'EN') {
+  const grupos = new Map();
+
+  textosPT.forEach((texto, indice) => {
+    const contexto = montarContextoGlossario([texto], idiomaDestino);
+    if (!grupos.has(contexto)) grupos.set(contexto, { contexto, textos: [], indices: [] });
+    const grupo = grupos.get(contexto);
+    grupo.textos.push(texto);
+    grupo.indices.push(indice);
+  });
+
+  return Array.from(grupos.values());
+}
+
 /**
  * Fallback local legado. Aplica apenas termos FECHADOS da tabela; não chama API.
  * A ordem dos componentes continua seguindo a ordem do texto de entrada.
@@ -215,5 +229,6 @@ module.exports = {
   normalizarParaBusca,
   listarCorrespondencias,
   montarContextoGlossario,
+  agruparTextosPorContexto,
   processarTraducaoLocal
 };
