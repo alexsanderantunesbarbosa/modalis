@@ -1,52 +1,75 @@
-# Modalis
+# MODALIS
 
-**Tradutor de descrições e composições de peças de vestuário, com glossário próprio e DeepL.**
+Aplicação em desenvolvimento para revisar e padronizar descrições de peças de vestuário em português e gerar descrições em inglês. O sistema combina um glossário próprio com a API DeepL e permite processar uma descrição ou uma planilha.
 
-Ferramenta interna da La Moda para o setor Garantia da Informação: traduz descrições de peças do português para inglês e espanhol, respeitando o limite de caracteres do SAP e padronizando os termos técnicos do setor.
+O repositório contém uma implementação funcional para uso local, mas ainda há requisitos parcialmente implementados. Este README descreve o comportamento encontrado no código; não representa uma declaração de prontidão para produção.
 
-## Fluxo principal
+## Fluxo atual
 
+```text
+Descrição ou planilha SAP
+  → revisão de sugestões ortográficas (em massa)
+  → API local do MODALIS
+  → contexto do glossário + DeepL, ou fallback local
+  → revisão manual
+  → exportação .xlsx
 ```
-SAP (planilha) → Modalis (glossário + DeepL) → Ajuste manual → Download .xlsx → Import manual no SAP
-```
 
-O glossário é consultado **antes** da API externa, para que termos técnicos do setor saiam sempre padronizados. O que o glossário não cobre vai para o DeepL.
+O servidor consulta as correspondências do glossário local para montar um contexto enviado ao DeepL junto com o texto original. Esse contexto orienta a tradução, mas não garante que o DeepL aplique cada termo exatamente como definido. Se a chamada ao DeepL falhar, o servidor usa o processador local como fallback; a interface não diferencia visualmente esse resultado de uma tradução feita pelo DeepL.
 
-## Funcionalidades
+## Funcionalidades implementadas
 
-- **Modo singular:** digite a descrição de uma peça e receba as versões em inglês e espanhol, além da Descrição Ecom.
-- **Modo em massa:** envie a planilha base e receba a mesma estrutura preenchida.
-- **Limite de 40 caracteres:** descrições em PT/EN/ES acima de 40 caracteres geram aviso visual (campo e excesso) e bloqueiam o download até a correção. A Descrição Ecom não tem limite.
-- **Ajuste manual** das descrições antes de baixar.
-- **Exportação para `.xlsx`.**
+- **Tradução individual para inglês:** envia uma descrição ao servidor, que tenta usar o DeepL e recorre ao processamento local em caso de falha.
+- **Importação em massa:** aceita `.xlsx`, `.xls` e `.csv`, lê a primeira aba e exige as colunas `Referencia` e `Descrição`. As colunas `Português` e `Z_ENCAIXE` não substituem `Descrição`.
+- **Sugestões ortográficas:** regras locais mostram o texto original e uma versão sugerida. É possível aceitar ou manter cada sugestão; o original não é alterado automaticamente.
+- **Revisão em massa:** inclui filtros por coluna, referências com correção pendente, aplicação de todas as sugestões e edição manual de EN/ES.
+- **Tradução em massa para inglês:** as descrições são agrupadas por contexto do glossário. O servidor processa os grupos sequencialmente, então arquivos grandes podem levar tempo, sobretudo quando há muitos contextos distintos.
+- **Exportação `.xlsx`:** gera uma planilha com as oito colunas do modelo abaixo.
 
-### Estrutura da planilha
+### Limites e conteúdo exportado
 
-| Coluna | Conteúdo |
+| Coluna | Valor exportado atualmente |
 |---|---|
-| `REFERÊNCIA` | Referência da peça |
-| `DESCRIÇÃO` | Descrição original da peça (português) |
-| `Descrição EN` | Tradução para inglês (máx. 40 caracteres) |
-| `Descrição ES` | Tradução para espanhol (máx. 40 caracteres) |
-| `TEXTO ECOM` | Mesmo texto da descrição, sem limite de caracteres |
-| `Z_COMPOS_PT` | Composição em português |
-| `Z_COMPOS_EN` | Composição em inglês |
-| `Z_COMPOS_ES` | Composição em espanhol |
+| `REFERÊNCIA` | Referência importada da planilha |
+| `DESCRIÇÃO` | Texto PT atual; se uma correção for aceita, exporta o texto corrigido |
+| `Descrição EN` | Tradução ou edição manual em inglês |
+| `Descrição ES` | Campo disponível para edição, mas sem tradução automática nesta etapa |
+| `TEXTO ECOM` | Valor lido da coluna ECOM de entrada, quando encontrada; não é preenchido automaticamente com a descrição |
+| `Z_COMPOS_PT` | Composição em português importada, quando encontrada |
+| `Z_COMPOS_EN` | Composição em inglês importada, quando encontrada |
+| `Z_COMPOS_ES` | Composição em espanhol importada, quando encontrada |
 
-A tradução da composição (`Z_COMPOS_EN` e `Z_COMPOS_ES`) está fora de escopo nesta fase (ver [Roadmap](#roadmap)).
+A saída contém somente essas oito colunas. Outras colunas da planilha de entrada não são copiadas. A interface mantém a descrição original durante a revisão, mas a saída não tem uma coluna separada para ela: após aceitar uma correção, `DESCRIÇÃO` contém a versão corrigida.
 
-## Stack
+O download é bloqueado se houver sugestões ortográficas pendentes, descrições EN vazias ou valores PT/EN acima de 40 caracteres. A validação de 40 caracteres para ES ainda não está implementada. ECOM não entra nessa validação. O usuário informa que o SAP já entrega a descrição PT dentro de 40 caracteres; o sistema também valida esse limite antes do download.
 
-| Camada | Tecnologia |
+## O que ainda não está implementado ou confirmado
+
+- A tradução automática para espanhol está adiada; a tela informa que será incluída depois.
+- ECOM deveria reproduzir a descrição PT sem limite, mas hoje o código apenas importa o valor de uma coluna ECOM existente.
+- A tradução da composição têxtil não é feita. Se as colunas de composição existirem na entrada, seus valores são carregados e exportados sem tradução.
+- O glossário nativo da DeepL não é usado nem sincronizado. A decisão de usá-lo permanece em avaliação; o glossário local é a referência do projeto.
+- O fallback local pode devolver um resultado sem indicar na interface que o DeepL falhou.
+- O servidor não hospeda os arquivos da interface; `script.js` chama a API em `http://localhost:3000`.
+- A importação lê apenas a primeira aba da planilha.
+
+## Tecnologias
+
+| Parte | Tecnologia atual |
 |---|---|
-| Frontend | HTML + CSS + JavaScript |
-| Backend | Node.js |
-| Tradução | DeepL API |
-| Glossário | Tabela-mestra (`tabelaMestra.js`) |
+| Interface | HTML, CSS e JavaScript puro |
+| Servidor e rotas | Node.js com o módulo nativo `http` |
+| Configuração local | `dotenv` para carregar variáveis de ambiente |
+| Glossário e processamento | `tabelaMestra.js` e `processadorTexto.js` |
+| Sugestões ortográficas | `correcoesOrtograficas.js` |
+| Tradução externa | DeepL API |
+| Leitura e geração de planilhas | SheetJS carregado por CDN no navegador |
 
-## Como rodar
+O HTML também carrega os ícones Phosphor por CDN. Para usar a interface, o navegador precisa conseguir acessar esses CDNs; para tradução via DeepL, o servidor precisa de acesso à API.
 
-Pré-requisito: [Node.js](https://nodejs.org/) instalado e uma chave da API do DeepL.
+## Executar localmente
+
+Pré-requisitos: Node.js 18 ou superior e uma chave válida da DeepL API para tradução externa. O pacote `dotenv` é uma dependência declarada no projeto.
 
 ```bash
 git clone https://github.com/alexsanderantunesbarbosa/modalis.git
@@ -54,68 +77,57 @@ cd modalis
 npm install
 ```
 
-Crie o arquivo `.env` a partir do exemplo e preencha a chave:
+Crie `.env` a partir de `.env.example` somente se ainda não houver um arquivo local. Não sobrescreva um `.env` existente:
 
 ```powershell
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # só na primeira vez
+if (-not (Test-Path -LiteralPath .env)) { Copy-Item .env.example .env }
 ```
 
-```env
-DEEPL_API_KEY=sua-chave-aqui
-```
+No arquivo `.env` local, configure `DEEPL_API_KEY` com sua chave. O exemplo versionado mantém o valor vazio; não coloque chaves reais no código, no README ou no Git.
 
-> **Não repita a cópia com o `.env` já existente:** o comando sobrescreve o arquivo e apaga a sua chave.
-
-Suba o servidor:
+Inicie o servidor:
 
 ```bash
 node server.js
 ```
 
-Depois abra o endereço mostrado no terminal (ex.: `http://localhost:3000`).
+Por padrão, a API escuta na porta `3000`; também aceita a variável `PORT`. Abra `index.html` separadamente no navegador ou sirva-o por um servidor estático local. O servidor Node deste projeto atende as rotas da API, não os arquivos HTML/CSS/JS. A interface atualmente chama `localhost:3000` diretamente.
 
-## Estrutura do repositório
+Para executar os testes automatizados locais:
 
-```
-modalis/
-├── index.html           # Interface (modos singular e em massa)
-├── styles.css           # Estilos
-├── script.js            # Lógica do front-end
-├── server.js            # Servidor Node e chamadas ao DeepL
-├── processadorTexto.js  # Normalização e processamento dos textos
-├── tabelaMestra.js      # Glossário de expressões-chave
-├── .env.example         # Modelo das variáveis de ambiente
-└── .gitignore
+```bash
+npm test
 ```
 
-## Segurança
+Esse comando usa o test runner nativo do Node.js. A existência do comando não significa que os testes tenham sido executados nesta revisão do README.
 
-- A chave do DeepL fica **somente** no backend, via `.env`. Nunca em código client-side.
-- `.env` está no `.gitignore` e não deve ser versionado nem compartilhado.
-- Os dados da planilha devem ser validados e sanitizados antes de seguirem para a API de tradução.
-- Se uma chave for exposta por engano, revogue-a no painel do DeepL e gere outra. Apagar o arquivo depois não remove a chave do histórico do Git.
+## Estrutura principal
 
-## Estado atual
+```text
+index.html                    Interface e carregamento das bibliotecas do navegador
+styles.css                    Estilos
+script.js                     Interface, importação, revisão e exportação
+server.js                     Servidor HTTP, rotas e integração com DeepL
+processadorTexto.js            Correspondências do glossário e processamento local
+tabelaMestra.js                Dados terminológicos
+correcoesOrtograficas.js       Sugestões locais de grafia
+tests/                         Testes automatizados
+```
 
-| Item | Situação |
-|---|---|
-| Tradução singular | Concluída |
-| Interface singular | Concluída |
-| Interface em massa | Concluída |
-| Normalização de termos compostos | Em andamento (~50%): regras definidas, ainda dentro do código |
-| Glossário servido pela API | Pendente (hoje está em `tabelaMestra.js`) |
-| Exportação `.xlsx` | A confirmar |
+## Segurança e limitações de uso
 
-## Roadmap
+- A chave é lida pelo servidor via `process.env.DEEPL_API_KEY`; `.env` está listado no `.gitignore` e `.env.example` contém somente a variável vazia.
+- O código atual define `NODE_TLS_REJECT_UNAUTHORIZED` como `0`, desativando a validação de certificados TLS no processo Node. Isso reduz a segurança das conexões HTTPS. Em uma rede corporativa com inspeção TLS, a alternativa adequada é configurar `NODE_EXTRA_CA_CERTS` com o certificado confiável da empresa e validar a conexão, após revisão da configuração.
+- O servidor permite CORS de qualquer origem (`Access-Control-Allow-Origin: *`) e não implementa autenticação.
+- O front-end e a API estão configurados para uso local; o código não deve ser considerado pronto para hospedagem pública antes de revisar TLS, CORS, autenticação e configuração de ambiente.
 
-- Mover o glossário para a API/backend, separado da credencial.
-- Tradução de composição têxtil (EN/ES), com glossário separado do de descrição de peça.
-- Padronizar a nomenclatura de fibras (ex.: Elastano → Spandex ou Elastane).
-- Autenticação e controle de acesso.
-- Log/histórico de edições.
-- Hospedagem para acesso da equipe, fora do localhost.
-- Tratamento de linhas malformadas na planilha em massa.
+Não compartilhe arquivos `.env`. Se uma chave real já tiver sido exposta em um commit ou em outro local público, revogue-a no painel da DeepL e gere outra.
 
-## Contexto
+## Próximas etapas em avaliação
 
-Projeto desenvolvido para o setor Garantia da Informação da La Moda. O import da planilha final de volta ao SAP é manual nesta fase.
+- Consolidar e validar o fluxo de inglês com o glossário como autoridade e investigar a lentidão em massa.
+- Avaliar se vale manter o glossário somente local ou sincronizar uma cópia com o glossário nativo DeepL.
+- Implementar e validar o espanhol e o preenchimento automático de ECOM.
+- Definir o tratamento dos limites de ES e a preservação dos dados originais necessários no fluxo SAP.
+- Adiar a tradução de composição têxtil até a etapa de descrições estar validada.
+- Avaliar autenticação, histórico e hospedagem somente quando houver decisão de disponibilizar o sistema a outros usuários.
