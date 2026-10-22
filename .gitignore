@@ -1,2 +1,7 @@
 node_modules/
 .env
+
+# Dados da empresa (planilhas de coleções e exportações da tabela mestra)
+docs/amostras/
+*.xlsx
+*.XLSX

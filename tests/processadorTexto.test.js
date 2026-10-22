@@ -8,13 +8,18 @@ const {
 } = require('../processadorTexto');
 const { indices, termosPendentes, expressoesCompostas, dicionarioTermos } = require('../tabelaMestra');
 
-test('carrega os doze índices revisados e deriva as expressões compostas deles', () => {
-  assert.equal(indices.length, 12);
+test('carrega os dezesseis índices recategorizados e deriva as expressões compostas deles', () => {
+  assert.equal(indices.length, 16);
+  assert.equal(indices.flatMap(indice => indice.termos).length, 805);
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'CINTURA ALTA'));
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'MINI-SAIA'));
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'BOLSO FACA' && item.target === 'SLASH POCKET'));
-  assert.ok(termosPendentes.some(item => item.pt === 'TRICOLINE' && item.status === 'VALIDAR'));
+  assert.ok(termosPendentes.every(item => item.status === 'VALIDAR'));
+  assert.ok(expressoesCompostas.EN.some(item => item.pt === 'MALHA PESADA' && item.target === 'HEAVY KNIT'));
   assert.equal(dicionarioTermos.EN.PIJAMA, 'PAJAMAS');
+  assert.equal(dicionarioTermos.EN.ACETINADA, 'SATIN');
+  assert.equal(dicionarioTermos.EN.TRICOT, 'KNIT');
+  assert.ok(expressoesCompostas.EN.some(item => item.pt === 'GOLA ALTA' && item.contexto === 'AGASALHO' && item.target === 'HIGH COLLAR'));
 });
 
 test('prioriza expressões compostas e respeita o índice revisado', () => {
@@ -44,15 +49,21 @@ test('resolve expressões contextuais de jeans e moletom', () => {
   assert.equal(processarTraducaoLocal('calça jeans bootcut', 'EN'), 'JEANS BOOTCUT');
   assert.equal(processarTraducaoLocal('moletom canguru', 'EN'), 'HOODIE');
   assert.equal(processarTraducaoLocal('calça de moletom', 'EN'), 'SWEATPANTS');
-  assert.equal(processarTraducaoLocal('camisa jeans', 'EN'), 'SHIRT DENIM');
+  assert.equal(processarTraducaoLocal('camisa jeans', 'EN'), 'DENIM SHIRT');
+  assert.equal(processarTraducaoLocal('short jeans comfort', 'EN'), 'JORTS COMFORT');
+  assert.equal(processarTraducaoLocal('bermuda jeans', 'EN'), 'JORTS');
+  assert.equal(processarTraducaoLocal('bermuda sarja', 'EN'), 'SHORTS TWILL');
+  assert.equal(processarTraducaoLocal('short de moletom', 'EN'), 'SWEAT SHORTS');
+  assert.equal(processarTraducaoLocal('calça pijama listrada', 'EN'), 'PAJAMA PANTS STRIPED');
 });
 
 test('só termos fechados entram no contexto antes da API', () => {
-  const contexto = montarContextoGlossario(['calça cintura alta e tricoline'], 'EN');
+  const contexto = montarContextoGlossario(['calça cintura alta e xyzzy'], 'EN');
 
   assert.match(contexto, /CALÇA = PANTS/);
   assert.match(contexto, /CINTURA ALTA = HIGH-RISE/);
-  assert.doesNotMatch(contexto, /TRICOLINE/);
+  assert.doesNotMatch(contexto, /XYZZY/);
+  assert.match(montarContextoGlossario(['tricoline'], 'EN'), /TRICOLINE = POPLIN/);
 });
 
 test('separa contextos do glossário por descrição na tradução em massa', () => {

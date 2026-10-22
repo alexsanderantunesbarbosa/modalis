@@ -43,9 +43,7 @@ test('mantém texto sem candidatos exatamente como foi recebido', () => {
 test('não sugere correções para exemplos reais ainda sem decisão', () => {
   const exemplos = [
     '1000% COTTO',
-    '100ALGODÓN',
-    'CALÇA JCALÇA JEANS BOOTCUT',
-    'SHHORT SARJA BAGGY'
+    '100ALGODÓN'
   ];
 
   for (const texto of exemplos) {
@@ -54,4 +52,13 @@ test('não sugere correções para exemplos reais ainda sem decisão', () => {
     assert.equal(resultado.textoSugerido, texto);
     assert.deepEqual(resultado.ocorrencias, []);
   }
+});
+
+test('corrige os erros recorrentes do lote de 22/10/2026', () => {
+  assert.equal(sugerirCorrecaoGrafia('CALÇA JCALÇA JEANS BOOTCUT').textoSugerido, 'CALÇA CALÇA JEANS BOOTCUT');
+  assert.equal(sugerirCorrecaoGrafia('SHHORT SARJA BAGGY').textoSugerido, 'SHORT SARJA BAGGY');
+  assert.equal(sugerirCorrecaoGrafia('VESTIDO SUPER MID OMBRO ÚNICO').textoSugerido, 'VESTIDO SUPER MIDI OMBRO ÚNICO');
+  assert.equal(sugerirCorrecaoGrafia('T-SHIRT BABYLOOK MANGA CURTA').textoSugerido, 'T-SHIRT BABY LOOK MANGA CURTA');
+  assert.equal(sugerirCorrecaoGrafia('CALÇA CORROT COM TERMO').textoSugerido, 'CALÇA CARROT COM TERMO');
+  assert.equal(sugerirCorrecaoGrafia('SUPER MIDI').ocorrencias.length, 0);
 });

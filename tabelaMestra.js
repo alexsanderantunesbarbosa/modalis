@@ -1,6 +1,9 @@
 /**
  * Tabela mestra MODALIS.
- * Os índices 1–12 vieram da versão revisada pelo negócio.
+ * Os índices 1–12 vieram da versão revisada pelo negócio; o índice 13 guarda nomes de linha.
+ * Lote de 22/10/2026: validação IN27/AI27 e lista do setor consolidadas no literal abaixo.
+ * Recategorização de 22/10/2026: 805 entradas em 16 índices
+ * (14 modelagens de jaqueta/casaco, 15 acessórios/outros produtos, 16 praia/íntimo/dormir).
  * Novos termos ainda em revisão ficam com status VALIDAR e não são aplicados.
  */
 
@@ -25,7 +28,7 @@ const indices = [
         "pt": "T-SHIRT",
         "en": "T-SHIRT",
         "status": "FECHADO",
-        "tipo": "termo"
+        "tipo": "expressao"
       },
       {
         "pt": "CAMISETA",
@@ -101,7 +104,7 @@ const indices = [
       },
       {
         "pt": "BERMUDA",
-        "en": "BERMUDA SHORTS",
+        "en": "SHORTS",
         "status": "FECHADO",
         "tipo": "termo"
       },
@@ -160,34 +163,264 @@ const indices = [
         "tipo": "termo"
       },
       {
-        "pt": "BIKINI",
-        "en": "BIKINI",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "BIQUÍNI",
-        "en": "BIKINI",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "MAIÔ",
-        "en": "ONE-PIECE SWIMSUIT",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "SAÍDA DE PRAIA",
-        "en": "BEACH COVER-UP",
+        "pt": "VESTIDO T-DRESS",
+        "en": "T-DRESS",
         "status": "FECHADO",
         "tipo": "expressao"
       },
       {
-        "pt": "PIJAMA",
-        "en": "PAJAMAS",
+        "pt": "BLUSA BABY LOOK",
+        "en": "BABY TEE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BODY CAVADO",
+        "en": "HIGH-CUT BODYSUIT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CAMISETA BABY LOOK",
+        "en": "BABY TEE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "JARDINEIRA",
+        "en": "OVERALLS",
         "status": "FECHADO",
         "tipo": "termo"
+      },
+      {
+        "pt": "KIT",
+        "en": "SET",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SHORTS",
+        "en": "SHORTS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "T-SHIRT BABY LOOK",
+        "en": "BABY TEE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BABY BOOT",
+        "en": "BABY BOOT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CONJUNTO",
+        "en": "SET",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "POLO",
+        "en": "POLO",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SAIA LÁPIS",
+        "en": "PENCIL SKIRT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SWEATER",
+        "en": "SWEATER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "T-DRESS",
+        "en": "T-DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "TERNO",
+        "en": "SUIT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CALÇA JEANS",
+        "en": "JEANS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "expressão protegida do índice revisado"
+      },
+      {
+        "pt": "CALÇA DE JEANS",
+        "en": "JEANS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "expressão protegida do índice revisado"
+      },
+      {
+        "pt": "CALÇA MOLETOM",
+        "en": "SWEATPANTS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "expressão protegida do índice revisado"
+      },
+      {
+        "pt": "CALÇA DE MOLETOM",
+        "en": "SWEATPANTS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "expressão protegida do índice revisado"
+      },
+      {
+        "pt": "MOLETOM CALÇA",
+        "en": "SWEATPANTS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "expressão protegida do índice revisado"
+      },
+      {
+        "pt": "MOLETOM CANGURU",
+        "en": "HOODIE",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "expressão protegida do índice revisado"
+      },
+      {
+        "pt": "MOLETOM CARECA",
+        "en": "SWEATSHIRT",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "expressão protegida do índice revisado"
+      },
+      {
+        "pt": "MOLETOM GOLA CARECA",
+        "en": "SWEATSHIRT",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "expressão protegida do índice revisado"
+      },
+      {
+        "pt": "SHORT JEANS",
+        "en": "JORTS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SHORTS JEANS",
+        "en": "JORTS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BERMUDA JEANS",
+        "en": "JORTS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SAIA JEANS",
+        "en": "DENIM SKIRT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "JAQUETA JEANS",
+        "en": "DENIM JACKET",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CAMISA JEANS",
+        "en": "DENIM SHIRT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BLUSA JEANS",
+        "en": "DENIM BLOUSE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "VESTIDO JEANS",
+        "en": "DENIM DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "COLETE JEANS",
+        "en": "DENIM VEST",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BLAZER JEANS",
+        "en": "DENIM BLAZER",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MACACÃO JEANS",
+        "en": "DENIM JUMPSUIT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "JARDINEIRA JEANS",
+        "en": "DENIM OVERALLS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CORSET JEANS",
+        "en": "DENIM CORSET",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SHORT DE MOLETOM",
+        "en": "SWEAT SHORTS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SHORTS DE MOLETOM",
+        "en": "SWEAT SHORTS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SHORT MOLETOM",
+        "en": "SWEAT SHORTS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "JAQUETA DE MOLETOM",
+        "en": "FLEECE JACKET",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "COLETE DE MOLETOM",
+        "en": "FLEECE VEST",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BLAZER DE MOLETOM",
+        "en": "FLEECE BLAZER",
+        "status": "FECHADO",
+        "tipo": "expressao"
       }
     ]
   },
@@ -232,12 +465,6 @@ const indices = [
         "tipo": "termo"
       },
       {
-        "pt": "RELAXED",
-        "en": "RELAXED",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
         "pt": "AMPLO",
         "en": "WIDE",
         "status": "FECHADO",
@@ -263,31 +490,13 @@ const indices = [
       },
       {
         "pt": "DESCOLADO",
-        "en": "RELAXED FIT",
+        "en": "LOOSE FIT",
         "status": "FECHADO",
         "tipo": "termo"
       },
       {
         "pt": "DESCOLADA",
-        "en": "RELAXED FIT",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "CROPPED",
-        "en": "CROPPED",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "ALONGADO",
-        "en": "LONGLINE",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "ALONGADA",
-        "en": "LONGLINE",
+        "en": "LOOSE FIT",
         "status": "FECHADO",
         "tipo": "termo"
       },
@@ -380,6 +589,139 @@ const indices = [
         "en": "UTILITY",
         "status": "FECHADO",
         "tipo": "termo"
+      },
+      {
+        "pt": "ASSIMÉTRICA",
+        "en": "ASYMMETRIC",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "AJUSTADO",
+        "en": "FITTED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "AJUSTADA",
+        "en": "FITTED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "EVASÊ",
+        "en": "A-LINE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PEPLUM",
+        "en": "PEPLUM",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BALONÊ",
+        "en": "BALLOON",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BOY",
+        "en": "BOY",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "OVER",
+        "en": "OVERSIZED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GODÊ",
+        "en": "FLARED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GRANDE",
+        "en": "LARGE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "LADY LIKE",
+        "en": "LADYLIKE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "LOOSE",
+        "en": "LOOSE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SEREIA",
+        "en": "MERMAID",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SPORT",
+        "en": "SPORT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CORSET",
+        "en": "CORSET",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BABY LOOK",
+        "en": "BABY TEE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MUSCLE",
+        "en": "MUSCLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MUSCLE TEE",
+        "en": "MUSCLE TEE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SECOND SKIN",
+        "en": "SECOND SKIN",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DIFERENCIADA",
+        "en": "PREMIUM",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DIFERENCIADO",
+        "en": "PREMIUM",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GESTANTE",
+        "en": "MATERNITY",
+        "status": "FECHADO",
+        "tipo": "termo"
       }
     ]
   },
@@ -390,12 +732,6 @@ const indices = [
       {
         "pt": "RETA",
         "en": "STRAIGHT",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "SLIM",
-        "en": "SLIM",
         "status": "FECHADO",
         "tipo": "termo"
       },
@@ -457,7 +793,7 @@ const indices = [
         "pt": "X-BOYFRIEND",
         "en": "X-BOYFRIEND",
         "status": "FECHADO",
-        "tipo": "termo"
+        "tipo": "expressao"
       },
       {
         "pt": "MOM",
@@ -598,12 +934,6 @@ const indices = [
         "tipo": "termo"
       },
       {
-        "pt": "PIJAMA",
-        "en": "PAJAMA",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
         "pt": "BAGGY BALLOON",
         "en": "BAGGY BALLOON",
         "status": "FECHADO",
@@ -634,12 +964,6 @@ const indices = [
         "tipo": "expressao"
       },
       {
-        "pt": "FULL LENGTH",
-        "en": "FULL LENGTH",
-        "status": "FECHADO",
-        "tipo": "expressao"
-      },
-      {
         "pt": "PALAZZO",
         "en": "PALAZZO",
         "status": "FECHADO",
@@ -660,12 +984,6 @@ const indices = [
       {
         "pt": "HOTPANTS",
         "en": "HOTPANTS",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "MICRO",
-        "en": "MICRO",
         "status": "FECHADO",
         "tipo": "termo"
       },
@@ -692,6 +1010,108 @@ const indices = [
         "en": "SKORT",
         "status": "FECHADO",
         "tipo": "expressao"
+      },
+      {
+        "pt": "ARC",
+        "en": "ARC",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ARC LEG",
+        "en": "ARC LEG",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "FUSEAU",
+        "en": "STIRRUP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FUSÔ",
+        "en": "STIRRUP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TAPERED LEG",
+        "en": "TAPERED LEG",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CIGARETE",
+        "en": "CIGARETTE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CLOCHARD",
+        "en": "CLOCHARD",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CORROT",
+        "en": "CARROT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "NEW CAPRI",
+        "en": "NEW CAPRI",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "RETO",
+        "en": "STRAIGHT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "VERY SKINNY",
+        "en": "VERY SKINNY",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BOXER",
+        "en": "BOXER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "HOT PANTS",
+        "en": "HOT PANTS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CALÇA PIJAMA",
+        "en": "PAJAMA PANTS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "COMFORT",
+        "en": "COMFORT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COMFY FIT",
+        "en": "COMFY FIT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "RELAXED",
+        "en": "RELAXED",
+        "status": "FECHADO",
+        "tipo": "termo"
       }
     ]
   },
@@ -725,13 +1145,13 @@ const indices = [
       },
       {
         "pt": "MÉDIO",
-        "en": "MID",
+        "en": "MID-LENGTH",
         "status": "FECHADO",
         "tipo": "termo"
       },
       {
         "pt": "MÉDIA",
-        "en": "MID",
+        "en": "MID-LENGTH",
         "status": "FECHADO",
         "tipo": "termo"
       },
@@ -748,12 +1168,6 @@ const indices = [
         "tipo": "expressao"
       },
       {
-        "pt": "SUPER-MIDI",
-        "en": "SUPER MIDI",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
         "pt": "FULL LENGTH",
         "en": "FULL LENGTH",
         "status": "FECHADO",
@@ -762,6 +1176,115 @@ const indices = [
       {
         "pt": "CROPPED",
         "en": "CROPPED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MINI-SAIA",
+        "en": "MINI SKIRT",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "expressão composta legada validada"
+      },
+      {
+        "pt": "MINI",
+        "en": "MINI",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MAXI",
+        "en": "MAXI",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SAIA LONGA",
+        "en": "LONG SKIRT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SAIA MIDI",
+        "en": "MIDI SKIRT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SAIA CURTA",
+        "en": "SHORT SKIRT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "VESTIDO LONGO",
+        "en": "LONG DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "VESTIDO MIDI",
+        "en": "MIDI DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "VESTIDO CURTO",
+        "en": "SHORT DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MULLET",
+        "en": "HIGH-LOW",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TOCO",
+        "en": "MICRO",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ANKLE",
+        "en": "ANKLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COMPRIMENTO",
+        "en": "LENGTH",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MICRO",
+        "en": "MICRO",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ALONGADO",
+        "en": "LONGLINE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ALONGADA",
+        "en": "LONGLINE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ENFRALDADA",
+        "en": "LONGLINE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "LONGLINE",
+        "en": "LONGLINE",
         "status": "FECHADO",
         "tipo": "termo"
       }
@@ -797,13 +1320,13 @@ const indices = [
       },
       {
         "pt": "SUPER HIGH",
-        "en": "SUPER HIGH-RISE",
+        "en": "SUPER HIGH",
         "status": "FECHADO",
         "tipo": "expressao"
       },
       {
         "pt": "MEGA HIGH",
-        "en": "MEGA HIGH-RISE",
+        "en": "MEGA HIGH",
         "status": "FECHADO",
         "tipo": "expressao"
       },
@@ -818,6 +1341,48 @@ const indices = [
         "en": "ELASTIC WAISTBAND",
         "status": "FECHADO",
         "tipo": "expressao"
+      },
+      {
+        "pt": "CÓS DUPLO",
+        "en": "DOUBLE WAISTBAND",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DOUBLE BELT",
+        "en": "DOUBLE WAISTBAND",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "GANCHO",
+        "en": "RISE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "HIGH",
+        "en": "HIGH-RISE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "LOW",
+        "en": "LOW-RISE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "QUADRIL",
+        "en": "HIP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "RISE",
+        "en": "RISE",
+        "status": "FECHADO",
+        "tipo": "termo"
       }
     ]
   },
@@ -902,12 +1467,79 @@ const indices = [
         "en": "ELONGATED SLEEVE",
         "status": "FECHADO",
         "tipo": "expressao"
+      },
+      {
+        "pt": "MANGA 3/4",
+        "en": "3/4 SLEEVE",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "expressão composta legada preservada"
+      },
+      {
+        "pt": "MANGAS CURTAS",
+        "en": "SHORT SLEEVE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MANGAS LONGAS",
+        "en": "LONG SLEEVE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MANGA CAPA",
+        "en": "CAPE SLEEVE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MANGA DE CAPA",
+        "en": "CAPE SLEEVE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MANGAS",
+        "en": "SLEEVES",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "RAGLAN",
+        "en": "RAGLAN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BUFANTE",
+        "en": "PUFF",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MANGA BUFANTE",
+        "en": "PUFF SLEEVE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MANGAS BUFANTES",
+        "en": "PUFF SLEEVES",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "RAGLÃ",
+        "en": "RAGLAN",
+        "status": "FECHADO",
+        "tipo": "termo"
       }
     ]
   },
   {
     "id": 7,
-    "nome": "GOLA / DECOTE",
+    "nome": "GOLA / DECOTE / ALÇAS",
     "termos": [
       {
         "pt": "GOLA",
@@ -1019,7 +1651,7 @@ const indices = [
       },
       {
         "pt": "FRENTE ÚNICA",
-        "en": "HALTER NECK",
+        "en": "HALTER",
         "status": "FECHADO",
         "tipo": "expressao"
       },
@@ -1032,6 +1664,157 @@ const indices = [
       {
         "pt": "OMBRO A OMBRO",
         "en": "OFF-SHOULDER",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ALÇA",
+        "en": "STRAP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ALÇAS",
+        "en": "STRAPS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GOLA REDONDA",
+        "en": "CREW NECK",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "GOLA V",
+        "en": "V-NECK",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "COM ALÇAS",
+        "en": "WITH STRAPS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DE ALÇAS",
+        "en": "STRAPPY",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DECOTE COSTAS",
+        "en": "LOW BACK",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DECOTE DUPLO",
+        "en": "DOUBLE NECKLINE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DECOTE EM U",
+        "en": "U-NECK",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DECOTE NAS COSTAS",
+        "en": "LOW BACK",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DEGAGÊ",
+        "en": "COWL",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DEGAGÊ COSTAS",
+        "en": "COWL BACK",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "GOLA CARECA",
+        "en": "CREW NECK",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "GOLA DUPLA",
+        "en": "DOUBLE COLLAR",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CIGANINHA",
+        "en": "OFF-SHOULDER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DECOTADA",
+        "en": "LOW-CUT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DECOTADO",
+        "en": "LOW-CUT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DECOTE CRUZADO",
+        "en": "CROSSOVER NECKLINE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "GOTA",
+        "en": "KEYHOLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "OMBRO A MOSTRA",
+        "en": "OFF-SHOULDER",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "OMBROS À MOSTRA",
+        "en": "OFF-SHOULDER",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ROLOTÊ",
+        "en": "SPAGHETTI STRAP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GOLA ALTA",
+        "en": "HIGH COLLAR",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "contexto": "AGASALHO"
+      },
+      {
+        "pt": "DECOTE GOTA",
+        "en": "KEYHOLE NECKLINE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "GOLA LAÇO",
+        "en": "TIE-NECK",
         "status": "FECHADO",
         "tipo": "expressao"
       }
@@ -1336,12 +2119,6 @@ const indices = [
         "contexto": "TECIDO DE OUTRAS PEÇAS"
       },
       {
-        "pt": "MATELASSÊ",
-        "en": "QUILTED",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
         "pt": "CREPE",
         "en": "CREPE",
         "status": "FECHADO",
@@ -1352,12 +2129,192 @@ const indices = [
         "en": "CREPE PATOU",
         "status": "FECHADO",
         "tipo": "expressao"
+      },
+      {
+        "pt": "JERSEY",
+        "en": "JERSEY",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TWEED",
+        "en": "TWEED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TRICOLINE",
+        "en": "POPLIN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COTELÊ",
+        "en": "CORDUROY",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GEORGETTE",
+        "en": "GEORGETTE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PELO",
+        "en": "FAUX FUR",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DRY FIT",
+        "en": "DRY FIT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "LÃ BATIDA",
+        "en": "BOILED WOOL",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MALHA LEVE",
+        "en": "LIGHT KNIT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MALHA PESADA",
+        "en": "HEAVY KNIT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MALHA TRICOT",
+        "en": "KNIT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MISTURA DE TECIDO",
+        "en": "MIXED FABRICS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MISTURA DE TECIDOS",
+        "en": "MIXED FABRICS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "PLANO",
+        "en": "WOVEN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PLANO LEVE",
+        "en": "LIGHT WOVEN",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "PLANO PESADO",
+        "en": "HEAVY WOVEN",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "TECIDO PLANO",
+        "en": "WOVEN",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "TECIDO TECNOLÓGICO",
+        "en": "TECHNICAL FABRIC",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "TECNOLÓGICO",
+        "en": "TECHNICAL",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TRICOT",
+        "en": "KNIT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "VINIL",
+        "en": "VINYL",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COMPOSÊ",
+        "en": "MIXED FABRICS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FIBRA",
+        "en": "FIBER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FLAME",
+        "en": "SLUB",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GORGURÃO",
+        "en": "GROSGRAIN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MATERIAL SINTÉTICO",
+        "en": "SYNTHETIC MATERIAL",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "TECIDO",
+        "en": "FABRIC",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "LEVE",
+        "en": "LIGHT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PESADA",
+        "en": "HEAVY",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PROTEÇÃO UV",
+        "en": "UV PROTECTION",
+        "status": "FECHADO",
+        "tipo": "expressao"
       }
     ]
   },
   {
     "id": 9,
-    "nome": "TEXTURAS / ACABAMENTOS",
+    "nome": "TEXTURAS / ACABAMENTOS / ESTAMPAS",
     "termos": [
       {
         "pt": "CANELADO",
@@ -1367,7 +2324,7 @@ const indices = [
       },
       {
         "pt": "ACETINADO",
-        "en": "SATINATED",
+        "en": "SATIN",
         "status": "FECHADO",
         "tipo": "termo"
       },
@@ -1408,18 +2365,6 @@ const indices = [
         "tipo": "termo"
       },
       {
-        "pt": "DRAPEADO",
-        "en": "DRAPED",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "FRANZIDO",
-        "en": "GATHERED",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
         "pt": "DESFIADO",
         "en": "FRAYED",
         "status": "FECHADO",
@@ -1451,7 +2396,7 @@ const indices = [
       },
       {
         "pt": "COM RELEVO",
-        "en": "WITH EMBOSSED",
+        "en": "WITH EMBOSSING",
         "status": "FECHADO",
         "tipo": "expressao"
       },
@@ -1487,13 +2432,13 @@ const indices = [
       },
       {
         "pt": "COM ESTAMPA E BRILHO",
-        "en": "WITH PRINT AND SHINE",
+        "en": "WITH PRINT AND SHIMMER",
         "status": "FECHADO",
         "tipo": "expressao"
       },
       {
         "pt": "COM ESTAMPA E BRILHOS",
-        "en": "WITH PRINT AND SHINE",
+        "en": "WITH PRINT AND SHIMMER",
         "status": "FECHADO",
         "tipo": "expressao"
       },
@@ -1544,6 +2489,408 @@ const indices = [
         "en": "PINSTRIPE",
         "status": "FECHADO",
         "tipo": "expressao"
+      },
+      {
+        "pt": "CANELADA",
+        "en": "RIBBED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "CANELADOS",
+        "en": "RIBBED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural do índice revisado"
+      },
+      {
+        "pt": "CANELADAS",
+        "en": "RIBBED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural feminino do índice revisado"
+      },
+      {
+        "pt": "ACETINADA",
+        "en": "SATIN",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "ACETINADOS",
+        "en": "SATIN",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural do índice revisado"
+      },
+      {
+        "pt": "ACETINADAS",
+        "en": "SATIN",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural feminino do índice revisado"
+      },
+      {
+        "pt": "TEXTURIZADA",
+        "en": "TEXTURED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "TEXTURIZADOS",
+        "en": "TEXTURED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural do índice revisado"
+      },
+      {
+        "pt": "TEXTURIZADAS",
+        "en": "TEXTURED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural feminino do índice revisado"
+      },
+      {
+        "pt": "FLOCADA",
+        "en": "FLOCKED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "FLOCADOS",
+        "en": "FLOCKED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural do índice revisado"
+      },
+      {
+        "pt": "FLOCADAS",
+        "en": "FLOCKED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural feminino do índice revisado"
+      },
+      {
+        "pt": "RESINADA",
+        "en": "RESIN-COATED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "RESINADOS",
+        "en": "RESIN-COATED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural do índice revisado"
+      },
+      {
+        "pt": "RESINADAS",
+        "en": "RESIN-COATED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural feminino do índice revisado"
+      },
+      {
+        "pt": "METALIZADA",
+        "en": "METALLIC",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "METALIZADOS",
+        "en": "METALLIC",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural do índice revisado"
+      },
+      {
+        "pt": "METALIZADAS",
+        "en": "METALLIC",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural feminino do índice revisado"
+      },
+      {
+        "pt": "PLISSADA",
+        "en": "PLEATED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "PLISSADOS",
+        "en": "PLEATED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural do índice revisado"
+      },
+      {
+        "pt": "PLISSADAS",
+        "en": "PLEATED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural feminino do índice revisado"
+      },
+      {
+        "pt": "DESFIADA",
+        "en": "FRAYED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "DESFIADOS",
+        "en": "FRAYED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural do índice revisado"
+      },
+      {
+        "pt": "DESFIADAS",
+        "en": "FRAYED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural feminino do índice revisado"
+      },
+      {
+        "pt": "TRANÇADA",
+        "en": "BRAIDED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "TRANÇADOS",
+        "en": "BRAIDED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural do índice revisado"
+      },
+      {
+        "pt": "TRANÇADAS",
+        "en": "BRAIDED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural feminino do índice revisado"
+      },
+      {
+        "pt": "TORCIDA",
+        "en": "TWISTED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "forma feminina do índice revisado"
+      },
+      {
+        "pt": "TORCIDOS",
+        "en": "TWISTED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural do índice revisado"
+      },
+      {
+        "pt": "TORCIDAS",
+        "en": "TWISTED",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "plural feminino do índice revisado"
+      },
+      {
+        "pt": "BRILHO",
+        "en": "SHIMMER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CONTRASTE",
+        "en": "CONTRAST",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MESCLA",
+        "en": "HEATHERED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ESTAMPA LOCAL",
+        "en": "PLACEMENT PRINT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ARTE",
+        "en": "GRAPHIC",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BRILHOS",
+        "en": "SHIMMER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CONTRASTANTE",
+        "en": "CONTRAST",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DEGRADÊ",
+        "en": "OMBRÉ",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ESPINHA DE PEIXE",
+        "en": "HERRINGBONE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ESTONADA",
+        "en": "STONEWASHED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ESTONADO",
+        "en": "STONEWASHED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MONOGRAMA",
+        "en": "MONOGRAM",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PADRONAGEM",
+        "en": "PATTERN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PATCHWORK",
+        "en": "PATCHWORK",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PIED POULE",
+        "en": "HOUNDSTOOTH",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "RESINA",
+        "en": "RESIN COATING",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SILK",
+        "en": "SCREEN PRINT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TRICOLOR",
+        "en": "TRICOLOR",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "A FIO",
+        "en": "DISTRESSED",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CUSTOMIZADO",
+        "en": "CUSTOMIZED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ESTAMPA DE FLORES",
+        "en": "FLORAL PRINT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ESTAMPA FLORAL",
+        "en": "FLORAL PRINT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "FLOR",
+        "en": "FLOWER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FLORES",
+        "en": "FLORAL",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FLUTED",
+        "en": "FLUTED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GEOMÉTRICO",
+        "en": "GEOMETRIC",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MIX",
+        "en": "MIX",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "REVESTIMENTO",
+        "en": "COATING",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SHINE",
+        "en": "SHINE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TEXTURA",
+        "en": "TEXTURE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BLACK",
+        "en": "BLACK",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ACABAMENTO",
+        "en": "FINISH",
+        "status": "FECHADO",
+        "tipo": "termo"
       }
     ]
   },
@@ -2180,6 +3527,228 @@ const indices = [
         "en": "WITH BELT LOOPS",
         "status": "FECHADO",
         "tipo": "expressao"
+      },
+      {
+        "pt": "OMBREIRA",
+        "en": "SHOULDER PAD",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "OMBREIRAS",
+        "en": "SHOULDER PADS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COM BRILHO",
+        "en": "WITH SHIMMER",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "COM CACHECOL",
+        "en": "WITH SCARF",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "AJUSTE",
+        "en": "ADJUSTER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ALFINETE",
+        "en": "SAFETY PIN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "AMARRAÇÕES",
+        "en": "TIES",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "APLICAÇÕES DE BRILHO",
+        "en": "SHIMMER APPLIQUÉS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "AVIÔ",
+        "en": "TRIM",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "AVIÔS",
+        "en": "TRIMS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COM AVIÔ",
+        "en": "WITH TRIM",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "COM BRILHOS",
+        "en": "WITH SHIMMER",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "COM TERMO",
+        "en": "WITH HOTFIX",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "COM TERMOCOLANTE",
+        "en": "WITH HOTFIX",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ETIQUETA",
+        "en": "LABEL",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FAIXA NO PESCOÇO",
+        "en": "NECK TIE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "FECHO",
+        "en": "CLASP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FECHOS",
+        "en": "CLASPS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ILHÓSES",
+        "en": "EYELETS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "NAME",
+        "en": "NAME",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PLACA",
+        "en": "PLAQUE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "REGULAGEM",
+        "en": "ADJUSTER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "REGULÁVEL",
+        "en": "ADJUSTABLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TERMO",
+        "en": "HOTFIX",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TERMOCOLANTE",
+        "en": "HOTFIX",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ZÍPER FRONTAL",
+        "en": "FRONT ZIPPER",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "AJUSTÁVEL",
+        "en": "ADJUSTABLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "APLICAÇÃO DE FLORES",
+        "en": "FLOWER APPLIQUÉS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CORDÃO",
+        "en": "DRAWSTRING",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PATCH",
+        "en": "PATCH",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SIANINHA",
+        "en": "RICKRACK",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BABADO",
+        "en": "RUFFLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BABADOS",
+        "en": "RUFFLES",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "RETILÍNEA",
+        "en": "RIB TRIM",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FRUFRU",
+        "en": "RUFFLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ELÁSTICO",
+        "en": "ELASTIC",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FAIXA NA CINTURA",
+        "en": "WAIST SASH",
+        "status": "FECHADO",
+        "tipo": "expressao"
       }
     ]
   },
@@ -2187,18 +3756,6 @@ const indices = [
     "id": 11,
     "nome": "BOLSOS",
     "termos": [
-      {
-        "pt": "BOLSA",
-        "en": "BAG",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "BOLSAS",
-        "en": "BAGS",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
       {
         "pt": "BOLSO",
         "en": "POCKET",
@@ -2228,12 +3785,30 @@ const indices = [
         "en": "POCKET LINING",
         "status": "FECHADO",
         "tipo": "expressao"
+      },
+      {
+        "pt": "BOLSO CHAPADO",
+        "en": "PATCH POCKET",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BOLSOS CHAPADOS",
+        "en": "PATCH POCKETS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BOLSOS LATERAIS",
+        "en": "SIDE POCKETS",
+        "status": "FECHADO",
+        "tipo": "expressao"
       }
     ]
   },
   {
     "id": 12,
-    "nome": "CONSTRUÇÃO / MODELAGEM DA PEÇA",
+    "nome": "CONSTRUÇÃO / PARTES DA PEÇA",
     "termos": [
       {
         "pt": "RECORTE",
@@ -2326,12 +3901,6 @@ const indices = [
         "tipo": "termo"
       },
       {
-        "pt": "GOLA",
-        "en": "COLLAR",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
         "pt": "PALA",
         "en": "YOKE",
         "status": "FECHADO",
@@ -2344,28 +3913,10 @@ const indices = [
         "tipo": "termo"
       },
       {
-        "pt": "CÓS",
-        "en": "WAISTBAND",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
-        "pt": "PASSANTE",
-        "en": "BELT LOOP",
-        "status": "FECHADO",
-        "tipo": "termo"
-      },
-      {
         "pt": "FORRO",
         "en": "LINING",
         "status": "FECHADO",
         "tipo": "termo"
-      },
-      {
-        "pt": "FORRO DE BOLSO",
-        "en": "POCKET LINING",
-        "status": "FECHADO",
-        "tipo": "expressao"
       },
       {
         "pt": "CAPUZ",
@@ -2522,6 +4073,915 @@ const indices = [
         "en": "FOLDED",
         "status": "FECHADO",
         "tipo": "termo"
+      },
+      {
+        "pt": "AMARRAÇÃO",
+        "en": "TIE DETAIL",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "origem": "terminologia previamente decidida"
+      },
+      {
+        "pt": "COSTAS À MOSTRA",
+        "en": "BACKLESS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "terminologia previamente decidida"
+      },
+      {
+        "pt": "COSTAS VAZADAS",
+        "en": "CUTOUT BACK",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "origem": "terminologia previamente decidida"
+      },
+      {
+        "pt": "COSTAS ABERTAS",
+        "en": "OPEN BACK",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ALFAIATARIA",
+        "en": "TAILORED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ABOTOAMENTO",
+        "en": "BUTTON CLOSURE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CORTE A LASER",
+        "en": "LASER-CUT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CORTE EVASÊ",
+        "en": "A-LINE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CORTE RETO",
+        "en": "STRAIGHT CUT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SEM COSTURA",
+        "en": "SEAMLESS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SEM COSTURAS",
+        "en": "SEAMLESS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ABERTURA COSTAS",
+        "en": "BACK OPENING",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ABERTURA FRENTE",
+        "en": "FRONT OPENING",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ABERTURA FRONTAL",
+        "en": "FRONT OPENING",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ABERTURA LATERAL",
+        "en": "SIDE OPENING",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ABERTURA NAS COSTAS",
+        "en": "BACK OPENING",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CACHEQUER",
+        "en": "WRAP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CAPA",
+        "en": "CAPE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CAVADA",
+        "en": "DEEP ARMHOLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CAVADO",
+        "en": "DEEP ARMHOLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COM CUT OFF",
+        "en": "WITH CUT-OFF",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "COSTAS",
+        "en": "BACK",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COSTAS CORSET",
+        "en": "CORSET BACK",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CUT OFF",
+        "en": "CUT-OFF",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CUT OUT",
+        "en": "CUTOUT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DEDINHO",
+        "en": "THUMBHOLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DETALHE COSTAS",
+        "en": "BACK DETAIL",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DIAGONAL",
+        "en": "DIAGONAL",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DUPLA",
+        "en": "DOUBLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DUPLA FACE",
+        "en": "REVERSIBLE",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "DUPLO",
+        "en": "DOUBLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FRONTAIS",
+        "en": "FRONT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "FRONTAL",
+        "en": "FRONT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "INTERNO",
+        "en": "INNER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "LATERAIS",
+        "en": "SIDE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "LATERAL",
+        "en": "SIDE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "OMBRO ASSIMÉTRICO",
+        "en": "ASYMMETRIC SHOULDER",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "OMBRO DESLOCADO",
+        "en": "DROP SHOULDER",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "PREGA COSTAS",
+        "en": "BACK PLEAT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "PREGAS FRONTAIS",
+        "en": "FRONT PLEATS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "REMOVÍVEL",
+        "en": "REMOVABLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SEAMLESS",
+        "en": "SEAMLESS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BAINHA",
+        "en": "HEM",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BUSTO",
+        "en": "BUST",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CACHAQUER",
+        "en": "WRAP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CAVA",
+        "en": "ARMHOLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COSTA",
+        "en": "BACK",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CRUZADO",
+        "en": "CRISS-CROSS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "EMBUTIDA",
+        "en": "BUILT-IN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "EMBUTIDAS",
+        "en": "BUILT-IN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "EMBUTIDO",
+        "en": "BUILT-IN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "EMBUTIDOS",
+        "en": "BUILT-IN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ENVELOPE",
+        "en": "WRAP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "OMBRO",
+        "en": "SHOULDER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PESPONTOS",
+        "en": "TOPSTITCHING",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "VINCO",
+        "en": "CREASE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "WRAP",
+        "en": "WRAP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "OMBROS BUFANTE",
+        "en": "PUFF SHOULDERS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "OMBROS BUFANTES",
+        "en": "PUFF SHOULDERS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ASA DELTA",
+        "en": "HIGH-CUT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "QUADRADO",
+        "en": "SQUARE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COULISSÊ",
+        "en": "SHIRRED",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PONTO",
+        "en": "STITCH",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COM CAPUZ",
+        "en": "HOODED",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "nome": "NOMES DE LINHA / LICENÇAS",
+    "termos": [
+      {
+        "pt": "AFRODITE",
+        "en": "AFRODITE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ATENA",
+        "en": "ATENA",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "DIANA",
+        "en": "DIANA",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GAIA",
+        "en": "GAIA",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "HERA",
+        "en": "HERA",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "HÉSTIA",
+        "en": "HÉSTIA",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "LUNA",
+        "en": "LUNA",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MINERVA",
+        "en": "MINERVA",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "NIX",
+        "en": "NIX",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PAX",
+        "en": "PAX",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SELENE",
+        "en": "SELENE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TALASSA",
+        "en": "TALASSA",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TOMAS",
+        "en": "TOMAS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "VENUS",
+        "en": "VENUS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "VESTA",
+        "en": "VESTA",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ÍRIS",
+        "en": "ÍRIS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SIGNATURE",
+        "en": "SIGNATURE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MICKEY",
+        "en": "MICKEY",
+        "status": "FECHADO",
+        "tipo": "termo"
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "nome": "MODELAGENS DE JAQUETA / CASACO",
+    "termos": [
+      {
+        "pt": "TRENCH COAT",
+        "en": "TRENCH COAT",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BOMBER",
+        "en": "BOMBER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BIKER",
+        "en": "BIKER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CORTA VENTO",
+        "en": "WINDBREAKER",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "PARKA",
+        "en": "PARKA",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PERFECTO",
+        "en": "PERFECTO",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PUFFER",
+        "en": "PUFFER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TRUCKER",
+        "en": "TRUCKER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SPENCER",
+        "en": "SPENCER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      }
+    ]
+  },
+  {
+    "id": 15,
+    "nome": "ACESSÓRIOS / OUTROS PRODUTOS",
+    "termos": [
+      {
+        "pt": "CACHECOL",
+        "en": "SCARF",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "LENÇO",
+        "en": "SCARF",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TOUCA",
+        "en": "BEANIE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ABOTOADURA",
+        "en": "CUFFLINK",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ACESSÓRIOS",
+        "en": "ACCESSORIES",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ALMOFADA",
+        "en": "PILLOW",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ANEL",
+        "en": "RING",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BOINA",
+        "en": "BERET",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BONÉ",
+        "en": "CAP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CANECA",
+        "en": "MUG",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CHAPÉU",
+        "en": "HAT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CHINELO",
+        "en": "FLIP-FLOPS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CHOKER",
+        "en": "CHOKER",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COLAR",
+        "en": "NECKLACE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GORRO",
+        "en": "BEANIE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GRAVATA",
+        "en": "NECKTIE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "GUARDA-CHUVA",
+        "en": "UMBRELLA",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "LATA",
+        "en": "CAN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "LUVA",
+        "en": "GLOVES",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MEIA",
+        "en": "SOCKS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MOCHILA",
+        "en": "BACKPACK",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "NECESSAIRE",
+        "en": "TOILETRY BAG",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "PANTUFA",
+        "en": "SLIPPERS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SUSPENSÓRIO",
+        "en": "SUSPENDERS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TOALHA",
+        "en": "TOWEL",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "VISEIRA",
+        "en": "VISOR",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ÓCULOS",
+        "en": "GLASSES",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "ÓCULOS DE SOL",
+        "en": "SUNGLASSES",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "BOLSA",
+        "en": "BAG",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BOLSAS",
+        "en": "BAGS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      }
+    ]
+  },
+  {
+    "id": 16,
+    "nome": "PRAIA / ÍNTIMO / DORMIR",
+    "termos": [
+      {
+        "pt": "BIKINI",
+        "en": "BIKINI",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BIQUÍNI",
+        "en": "BIKINI",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MAIÔ",
+        "en": "ONE-PIECE SWIMSUIT",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SAÍDA DE PRAIA",
+        "en": "BEACH COVER-UP",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "PIJAMA",
+        "en": "PAJAMAS",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "VESTIDO SLEEP DRESS",
+        "en": "SLEEP DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "ANÁGUA",
+        "en": "SLIP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SLEEP",
+        "en": "SLEEP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "SLEEP DRESS",
+        "en": "SLEEP DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "SLIP",
+        "en": "SLIP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "BABY DOLL",
+        "en": "BABYDOLL",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CALCINHA",
+        "en": "PANTIES",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CAMISOLA",
+        "en": "NIGHTGOWN",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CORSELET",
+        "en": "CORSELET",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CORSELETE",
+        "en": "CORSELET",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CORTININHA",
+        "en": "TRIANGLE TOP",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "CORTININHA COM BOJO",
+        "en": "PADDED TRIANGLE TOP",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "CORTININHA FRUFRU",
+        "en": "RUFFLE TRIANGLE TOP",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "FIO DENTAL",
+        "en": "THONG",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "LINGERIE",
+        "en": "LINGERIE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "MEIA TAÇA",
+        "en": "HALF CUP",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MEIA TAÇA TORCIDA",
+        "en": "TWISTED HALF CUP",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "MEIA TAÇA TORCIDO",
+        "en": "TWISTED HALF CUP",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
+        "pt": "PAREÔ",
+        "en": "SARONG",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "TRIÂNGULO",
+        "en": "TRIANGLE",
+        "status": "FECHADO",
+        "tipo": "termo"
+      },
+      {
+        "pt": "COPO",
+        "en": "CUP",
+        "status": "FECHADO",
+        "tipo": "termo"
       }
     ]
   }
@@ -2549,156 +5009,6 @@ function adicionarTermos(indiceId, termos) {
     });
   }
 }
-
-// Formas femininas e flexionadas usam a tradução já aprovada para o masculino.
-adicionarTermos(2, [
-  ['ASSIMÉTRICA', 'ASYMMETRIC', 'FECHADO', 'forma feminina do índice revisado'],
-  ['AJUSTADO', 'FITTED', 'VALIDAR', 'IN27'],
-  ['AJUSTADA', 'FITTED', 'VALIDAR', 'forma feminina de AJUSTADO; IN27'],
-  ['COMFORT', 'COMFORT', 'VALIDAR', 'IN27'],
-  ['EVASÊ', 'A-LINE', 'VALIDAR', 'IN27; confirmar aplicação por tipo de peça']
-]);
-
-adicionarTermos(4, [
-  ['MINI-SAIA', 'MINI SKIRT', 'FECHADO', 'expressão composta legada validada'],
-  ['MINI SAIA', 'MINI SKIRT', 'FECHADO', 'expressão composta legada validada'],
-  ['MINI', 'MINI', 'VALIDAR', 'IN27'],
-  ['MAXI', 'MAXI', 'VALIDAR', 'IN27'],
-  ['SAIA LONGA', 'MAXI SKIRT', 'VALIDAR', 'expressão composta legada'],
-  ['SAIA MIDI', 'MIDI SKIRT', 'VALIDAR', 'expressão composta legada'],
-  ['SAIA CURTA', 'MINI SKIRT', 'VALIDAR', 'expressão composta legada'],
-  ['VESTIDO LONGO', 'MAXI DRESS', 'VALIDAR', 'expressão composta legada'],
-  ['VESTIDO MIDI', 'MIDI DRESS', 'VALIDAR', 'expressão composta legada'],
-  ['VESTIDO CURTO', 'SHORT DRESS', 'VALIDAR', 'expressão composta legada']
-]);
-
-adicionarTermos(6, [
-  ['MANGA 3/4', '3/4 SLEEVE', 'FECHADO', 'expressão composta legada preservada'],
-  ['MANGAS CURTAS', 'SHORT SLEEVES', 'VALIDAR', 'expressão composta legada'],
-  ['MANGAS LONGAS', 'LONG SLEEVES', 'VALIDAR', 'expressão composta legada']
-]);
-
-adicionarTermos(7, [
-  ['ALÇA', 'STRAP', 'VALIDAR', 'IN27'],
-  ['ALÇAS', 'STRAPS', 'VALIDAR', 'IN27'],
-  ['GOLA REDONDA', 'ROUND COLLAR', 'VALIDAR', 'expressão composta legada'],
-  ['GOLA V', 'V-NECK', 'VALIDAR', 'expressão composta legada']
-]);
-
-adicionarTermos(8, [
-  ['JERSEY', 'JERSEY', 'VALIDAR', 'IN27'],
-  ['TWEED', 'TWEED', 'VALIDAR', 'IN27'],
-  ['TRICOLINE', 'POPLIN', 'VALIDAR', 'IN27'],
-  ['COTELÊ', 'CORDUROY', 'VALIDAR', 'IN27'],
-  ['GEORGETTE', 'GEORGETTE', 'VALIDAR', 'IN27'],
-  ['PELO', 'FUR', 'VALIDAR', 'IN27; depende do contexto'],
-  ['CALÇA JEANS', 'JEANS', 'FECHADO', 'expressão protegida do índice revisado'],
-  ['CALÇA DE JEANS', 'JEANS', 'FECHADO', 'expressão protegida do índice revisado'],
-  ['CALÇA MOLETOM', 'SWEATPANTS', 'FECHADO', 'expressão protegida do índice revisado'],
-  ['CALÇA DE MOLETOM', 'SWEATPANTS', 'FECHADO', 'expressão protegida do índice revisado'],
-  ['MOLETOM CALÇA', 'SWEATPANTS', 'FECHADO', 'expressão protegida do índice revisado'],
-  ['MOLETOM CANGURU', 'HOODIE', 'FECHADO', 'expressão protegida do índice revisado'],
-  ['MOLETOM CARECA', 'SWEATSHIRT', 'FECHADO', 'expressão protegida do índice revisado'],
-  ['MOLETOM GOLA CARECA', 'SWEATSHIRT', 'FECHADO', 'expressão protegida do índice revisado']
-]);
-
-adicionarTermos(9, [
-  ['CANELADA', 'RIBBED', 'FECHADO', 'forma feminina do índice revisado'],
-  ['CANELADOS', 'RIBBED', 'FECHADO', 'plural do índice revisado'],
-  ['CANELADAS', 'RIBBED', 'FECHADO', 'plural feminino do índice revisado'],
-  ['ACETINADA', 'SATINATED', 'FECHADO', 'forma feminina do índice revisado'],
-  ['ACETINADOS', 'SATINATED', 'FECHADO', 'plural do índice revisado'],
-  ['ACETINADAS', 'SATINATED', 'FECHADO', 'plural feminino do índice revisado'],
-  ['TEXTURIZADA', 'TEXTURED', 'FECHADO', 'forma feminina do índice revisado'],
-  ['TEXTURIZADOS', 'TEXTURED', 'FECHADO', 'plural do índice revisado'],
-  ['TEXTURIZADAS', 'TEXTURED', 'FECHADO', 'plural feminino do índice revisado'],
-  ['FLOCADA', 'FLOCKED', 'FECHADO', 'forma feminina do índice revisado'],
-  ['FLOCADOS', 'FLOCKED', 'FECHADO', 'plural do índice revisado'],
-  ['FLOCADAS', 'FLOCKED', 'FECHADO', 'plural feminino do índice revisado'],
-  ['RESINADA', 'RESIN-COATED', 'FECHADO', 'forma feminina do índice revisado'],
-  ['RESINADOS', 'RESIN-COATED', 'FECHADO', 'plural do índice revisado'],
-  ['RESINADAS', 'RESIN-COATED', 'FECHADO', 'plural feminino do índice revisado'],
-  ['METALIZADA', 'METALLIC', 'FECHADO', 'forma feminina do índice revisado'],
-  ['METALIZADOS', 'METALLIC', 'FECHADO', 'plural do índice revisado'],
-  ['METALIZADAS', 'METALLIC', 'FECHADO', 'plural feminino do índice revisado'],
-  ['PLISSADA', 'PLEATED', 'FECHADO', 'forma feminina do índice revisado'],
-  ['PLISSADOS', 'PLEATED', 'FECHADO', 'plural do índice revisado'],
-  ['PLISSADAS', 'PLEATED', 'FECHADO', 'plural feminino do índice revisado'],
-  ['DESFIADA', 'FRAYED', 'FECHADO', 'forma feminina do índice revisado'],
-  ['DESFIADOS', 'FRAYED', 'FECHADO', 'plural do índice revisado'],
-  ['DESFIADAS', 'FRAYED', 'FECHADO', 'plural feminino do índice revisado'],
-  ['TRANÇADA', 'BRAIDED', 'FECHADO', 'forma feminina do índice revisado'],
-  ['TRANÇADOS', 'BRAIDED', 'FECHADO', 'plural do índice revisado'],
-  ['TRANÇADAS', 'BRAIDED', 'FECHADO', 'plural feminino do índice revisado'],
-  ['TORCIDA', 'TWISTED', 'FECHADO', 'forma feminina do índice revisado'],
-  ['TORCIDOS', 'TWISTED', 'FECHADO', 'plural do índice revisado'],
-  ['TORCIDAS', 'TWISTED', 'FECHADO', 'plural feminino do índice revisado'],
-  ['BRILHO', 'SHIMMER', 'VALIDAR', 'IN27'],
-  ['CONTRASTE', 'CONTRAST', 'VALIDAR', 'IN27'],
-  ['MESCLA', 'HEATHERED', 'VALIDAR', 'IN27']
-]);
-
-adicionarTermos(10, [
-  ['OMBREIRA', 'SHOULDER PAD', 'VALIDAR', 'IN27'],
-  ['OMBREIRAS', 'SHOULDER PADS', 'VALIDAR', 'IN27'],
-  ['COM BRILHO', 'WITH SHIMMER', 'VALIDAR', 'expressão composta legada'],
-  ['COM CACHECOL', 'WITH SCARF', 'VALIDAR', 'expressão composta legada'],
-  ['COM CAPUZ', 'WITH HOOD', 'VALIDAR', 'expressão composta legada']
-]);
-
-adicionarTermos(12, [
-  ['AMARRAÇÃO', 'TIE DETAIL', 'FECHADO', 'terminologia previamente decidida'],
-  ['COSTAS À MOSTRA', 'BACKLESS', 'FECHADO', 'terminologia previamente decidida'],
-  ['COSTAS VAZADAS', 'CUTOUT BACK', 'FECHADO', 'terminologia previamente decidida'],
-  ['COSTAS ABERTAS', 'OPEN BACK', 'VALIDAR', 'IN27'],
-  ['ALFAIATARIA', 'TAILORED', 'VALIDAR', 'IN27; depende da construção da frase'],
-  ['ABOTOAMENTO', 'BUTTON CLOSURE', 'VALIDAR', 'IN27'],
-  ['ELÁSTICO', 'ELASTIC', 'VALIDAR', 'IN27; depende da função na peça'],
-  ['CORTE A LASER', 'LASER-CUT', 'VALIDAR', 'expressão composta legada'],
-  ['CORTE EVASÊ', 'A-LINE CUT', 'VALIDAR', 'expressão composta legada'],
-  ['CORTE RETO', 'STRAIGHT CUT', 'VALIDAR', 'expressão composta legada'],
-  ['SEM COSTURA', 'SEAMLESS', 'VALIDAR', 'expressão composta legada'],
-  ['SEM COSTURAS', 'SEAMLESS', 'VALIDAR', 'expressão composta legada']
-]);
-
-adicionarTermos(1, [
-  ['CORSET', 'CORSET', 'VALIDAR', 'IN27'],
-  ['TRENCH COAT', 'TRENCH COAT', 'VALIDAR', 'IN27'],
-  ['BOMBER', 'BOMBER JACKET', 'VALIDAR', 'IN27'],
-  ['BOXER', 'BOXER SHORTS', 'VALIDAR', 'IN27; confirmar se é peça ou modelagem'],
-  ['BABY LOOK', 'BABY TEE', 'VALIDAR', 'IN27'],
-  ['CACHECOL', 'SCARF', 'VALIDAR', 'IN27'],
-  ['LENÇO', 'SCARF', 'VALIDAR', 'IN27']
-]);
-
-adicionarTermos(2, [
-  ['PEPLUM', 'PEPLUM', 'VALIDAR', 'IN27'],
-  ['LEVE', 'LIGHTWEIGHT', 'VALIDAR', 'IN27'],
-  ['PESADA', 'HEAVYWEIGHT', 'VALIDAR', 'IN27']
-]);
-
-adicionarTermos(4, [
-  ['MULLET', 'HIGH-LOW', 'VALIDAR', 'IN27; confirmar uso como comprimento']
-]);
-
-adicionarTermos(8, [
-  ['TRICÔ', 'KNIT', 'FECHADO', 'variante ortográfica vista na IN27']
-]);
-
-// Registros compostos antigos que não fazem parte dos índices revisados são
-// mantidos para revisão, sem competir com os termos fechados.
-adicionarTermos(3, [
-  ['SHORT-SAIA', 'SKORT', 'FECHADO', 'variante de busca já decidida'],
-  ['SHORTS-SAIA', 'SKORT', 'FECHADO', 'variante de busca já decidida']
-]);
-
-adicionarTermos(1, [
-  ['VESTIDO T-DRESS', 'T-DRESS', 'VALIDAR', 'expressão composta legada']
-]);
-
-adicionarTermos(9, [
-  ['ESTAMPA LOCAL', 'PLACEMENT PRINT', 'VALIDAR', 'expressão composta legada']
-]);
 
 const termosPendentes = indices.flatMap(indice => indice.termos
   .filter(termo => termo.status === 'VALIDAR')

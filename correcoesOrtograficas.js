@@ -14,7 +14,22 @@ const sugestoesGrafia = [
   { de: 'JEASN', para: 'JEANS' },
   { de: 'REAGATA', para: 'REGATA' },
   { de: 'BODY BODY', para: 'BODY' },
-  { de: 'TRICOT', para: 'TRICÔ' }
+  { de: 'TRICOT', para: 'TRICÔ' },
+  // Lote 22/10/2026: erros recorrentes nas planilhas IN27 e AI27.
+  { de: 'CONFORT', para: 'COMFORT' },
+  { de: 'MOLETAM', para: 'MOLETOM' },
+  { de: 'MOLETON', para: 'MOLETOM' },
+  { de: 'SUPER MID', para: 'SUPER MIDI' },
+  { de: 'TDRESS', para: 'T-DRESS' },
+  { de: 'TRENCHCOAT', para: 'TRENCH COAT' },
+  { de: 'BABYLOOK', para: 'BABY LOOK' },
+  { de: 'TSHIRT', para: 'T-SHIRT' },
+  { de: 'JCALÇA', para: 'CALÇA' },
+  { de: 'ILHÓSES', para: 'ILHOSES' },
+  { de: 'CORROT', para: 'CARROT' },
+  { de: 'AVIO', para: 'AVIÔ' },
+  { de: 'CINNTURA', para: 'CINTURA' },
+  { de: 'SHHORT', para: 'SHORT' }
 ];
 
 function escaparRegex(texto) {
