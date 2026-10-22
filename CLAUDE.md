@@ -17,7 +17,7 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 
 - Node.js 18+, servidor HTTP nativo (`server.js`, porta 3000), front em HTML/JS puro
   (`index.html`, `script.js`), SheetJS por CDN no navegador. Dependência: `dotenv`.
-- `node server.js` sobe a API; `npm test` roda `node --test` (19 testes em `tests/`).
+- `node server.js` sobe a API; `npm test` roda `node --test` (20 testes em `tests/`).
 - A tabela foi sincronizada com a planilha v2 em 22/10/2026 (`tabelaMestra.js` = 805
   entradas, 16 índices). Ao receber arquivos do Desktop, conferir se o JS acompanha a planilha.
 - `.env` com `DEEPL_API_KEY` (chave `:fx` = plano Free). Nunca versionar chaves.
@@ -30,8 +30,9 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 |---|---|
 | `tabelaMestra.js` | Glossário: literal `indices` (16 índices) + derivados `termosGlossario`, `expressoesCompostas`, `dicionarioTermos`. Função `adicionarTermos` existe para uso futuro. |
 | `processadorTexto.js` | Matching dos termos no texto (expressão mais longa vence; empate → índice menor), regras de contexto (`escolherContexto`), montagem do `context` para a DeepL e fallback local `processarTraducaoLocal`. |
-| `correcoesOrtograficas.js` | Sugestões de grafia (24 regras); nunca aplicadas sem aceite do usuário. |
-| `server.js` | Rotas `/api/traduzir`, `/api/traduzir-massa`, `/api/sugerir-correcoes`; DeepL com fallback local. |
+| `correcoesOrtograficas.js` | Sugestões de grafia (24 regras + colapso de palavra repetida em sequência); nunca aplicadas sem aceite do usuário. |
+| `server.js` | Rotas `/api/traduzir` (devolve também `termos` aplicados), `/api/traduzir-massa`, `/api/sugerir-correcoes` e `GET /api/glossario` (tabela mestra + ES da lista do setor, somente leitura); DeepL com fallback local **por grupo**, e cada resposta traz `origem` (`deepl` ou `local`) e o erro. A interface marca as linhas do fallback. |
+| `index.html`, `styles.css`, `script.js` | Interface com a linguagem visual do START (barra preta, painéis cinza, botões azul/verde, tabelas com borda), em escala menor. Três abas sempre visíveis: Individual, Em massa e Glossário (estilo relatório, com busca, filtro por índice/tipo e exportação). CSS próprio, sem Bootstrap. |
 | `docs/decisoes-glossario-2026-10-22.md` | Registro completo das decisões de terminologia, categorização e estrutura da frase. |
 | `docs/glossario-setor-pt-en-es.tsv` | Lista PT/EN/ES do setor (403 linhas). O **espanhol** fica aqui para a feature ES. |
 | `docs/amostras/` | Planilhas das coleções IN27 e AI27 (base de teste; AI27 traz EN anterior, de qualidade desigual). |
@@ -109,6 +110,19 @@ português e precisa do reordenador por índice (item 2 da fila).
   (restante: erros de digitação, agora cobertos pelas correções, e JEANS/MOLETOM
   não contíguos, que dependem da regra geral abaixo).
 - Pendência de tradução: PALHA DE SEDA = SILK STRAW (confirmar o tecido).
+- Teste prático de 22/10/2026: a DeepL ignora parte do `context` (manteve SHORT JEANS em vez
+  de JORTS, acrescentou PANTS em CALÇA JEANS). Reforça os itens 2 e 5 da fila; avaliar se o
+  motor local + reordenador vira o caminho principal e a DeepL fica para o que a tabela não cobre.
+
+## Pendências anotadas em 22/10/2026 (teste prático do dono do projeto)
+
+- Hífen inconsistente nos termos em inglês (MID-RISE, V-NECK, HIGH-CUT com hífen; outros
+  compostos sem). Decidir uma regra e aplicar na tabela de uma vez.
+- Algumas descrições ainda saem erradas no teste em massa (a maioria ficou certa). Coletar
+  exemplos na próxima sessão e levar para o conjunto de referência (item 4 da fila).
+- Tela "Em massa": aprovada, mas o dono quer uma segunda rodada de refino no visual.
+- Glossário: a coluna ES vem da lista do setor (395 de 805 termos); o restante fica vazio até
+  a feature de espanhol.
 
 ## Fila de código (ordem acordada)
 

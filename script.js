@@ -7,12 +7,9 @@ let dadosProcessados = [];
 let modoEdicao = false;
 
 function switchTab(tabName) {
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-  const index = tabName === 'singular' ? 0 : 1;
-  document.querySelectorAll('.tab-btn')[index]?.classList.add('active');
-  document.getElementById(tabName === 'singular' ? 'tab-singular' : 'tab-massa')?.classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.toggle('active', content.id === `tab-${tabName}`));
+  if (tabName === 'glossario') carregarGlossario();
 }
 
 async function chamarApiTraduzir(textoPT, targetLang) {
@@ -24,7 +21,7 @@ async function chamarApiTraduzir(textoPT, targetLang) {
 
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || `Erro HTTP: ${response.status}`);
-  return data.traducao;
+  return data;
 }
 
 async function chamarApiTraduzirMassa(textosPT, targetLang) {
@@ -36,7 +33,39 @@ async function chamarApiTraduzirMassa(textosPT, targetLang) {
 
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || `Erro HTTP: ${response.status}`);
-  return data.traducoes;
+  return data;
+}
+
+function setSingularStatus(texto, alerta = false) {
+  const status = document.getElementById('singularStatus');
+  if (!status) return;
+  status.textContent = texto;
+  status.classList.toggle('status-alerta', alerta);
+}
+
+function atualizarContadorEN(texto) {
+  const contador = document.getElementById('contadorEN');
+  if (!contador) return;
+  if (!texto) {
+    contador.textContent = '';
+    contador.classList.remove('estourou');
+    return;
+  }
+  contador.textContent = `${texto.length} / 40 caracteres`;
+  contador.classList.toggle('estourou', texto.length > 40);
+}
+
+function renderTermosAplicados(termos = []) {
+  const caixa = document.getElementById('termosAplicados');
+  if (!caixa) return;
+  const lista = caixa.querySelector('.termos-lista');
+  lista.replaceChildren();
+  termos.forEach(({ pt, en }) => {
+    const chip = document.createElement('span');
+    chip.textContent = `${pt} = ${en}`;
+    lista.appendChild(chip);
+  });
+  caixa.hidden = termos.length === 0;
 }
 
 async function chamarApiSugerirCorrecoes(textos) {
@@ -58,10 +87,21 @@ async function traduzirSingular() {
   const inputEN = document.getElementById('outputDescEN');
   const inputES = document.getElementById('outputDescES');
   inputEN.value = 'Traduzindo...';
-  inputES.value = 'ES será incluído em uma etapa posterior.';
+  inputES.value = '';
+  setSingularStatus('');
+  atualizarContadorEN('');
+  renderTermosAplicados([]);
 
   try {
-    inputEN.value = await chamarApiTraduzir(textoPT, 'EN-US');
+    const resultado = await chamarApiTraduzir(textoPT, 'EN-US');
+    inputEN.value = resultado.traducao;
+    atualizarContadorEN(resultado.traducao);
+    renderTermosAplicados(resultado.termos);
+    if (resultado.origem === 'local') {
+      setSingularStatus(`A DeepL não respondeu; esta tradução veio do motor local. Motivo: ${resultado.erro}`, true);
+    } else {
+      setSingularStatus('Tradução feita pela DeepL com o contexto do glossário.');
+    }
   } catch (error) {
     console.error('Erro na tradução singular:', error);
     alert('Não foi possível realizar a tradução. Verifique se o servidor Node.js está rodando.\n\nDetalhes: ' + error.message);
@@ -87,9 +127,11 @@ function obterValor(row, index) {
   return String(row[index]);
 }
 
-function setMassaStatus(texto) {
+function setMassaStatus(texto, aviso = false) {
   const status = document.getElementById('massaStatus');
-  if (status) status.textContent = texto;
+  if (!status) return;
+  status.textContent = texto;
+  status.classList.toggle('aviso', aviso);
 }
 
 function normalizarValorFiltro(valor) {
@@ -102,21 +144,26 @@ function normalizarValorFiltro(valor) {
 }
 
 function filtrarTabelaMassa() {
-  const filtros = Array.from(document.querySelectorAll('.filtro-coluna'))
-    .map(input => ({ coluna: Number(input.dataset.coluna), valor: normalizarValorFiltro(input.value) }))
+  const filtros = Array.from(document.querySelectorAll('#tableMassa .filtro-coluna'))
+    .map(campo => ({ coluna: Number(campo.dataset.coluna), seletor: campo.tagName === 'SELECT', valor: campo.value }))
     .filter(filtro => filtro.valor);
   let visiveis = 0;
 
   document.querySelectorAll('#massaTableBody tr').forEach(linha => {
+    const item = dadosProcessados[Number(linha.dataset.itemIndex)];
     const valores = Array.from(linha.cells).map(celula => celula.dataset.valorFiltro ?? celula.textContent);
-    const corresponde = filtros.every(filtro => normalizarValorFiltro(valores[filtro.coluna]).includes(filtro.valor));
+    const corresponde = filtros.every(filtro => filtro.seletor
+      ? item?.estadoCorrecao === filtro.valor
+      : normalizarValorFiltro(valores[filtro.coluna]).includes(normalizarValorFiltro(filtro.valor)));
     linha.hidden = !corresponde;
     if (corresponde) visiveis += 1;
   });
 
   const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente').length;
   const badge = document.getElementById('rowCountBadge');
-  if (badge) badge.textContent = `${visiveis} de ${dadosProcessados.length} itens · ${pendentes} correções pendentes`;
+  if (badge) badge.textContent = `· ${dadosProcessados.length} itens · ${pendentes} correções pendentes`;
+  const rodape = document.getElementById('massaRodape');
+  if (rodape) rodape.textContent = `Mostrando ${visiveis} de ${dadosProcessados.length} itens`;
 }
 
 function renderCorrecoesPendentes() {
@@ -214,8 +261,10 @@ async function processarArquivo(event) {
 
       modoEdicao = false;
       document.getElementById('btnAlterar').classList.remove('btn-primary');
-      document.getElementById('btnAlterar').classList.add('btn-outline');
-      document.getElementById('btnAlterar').innerHTML = '<i class="ph ph-pencil-simple"></i> Alterar / Editar';
+      document.getElementById('btnAlterar').classList.add('btn-default');
+      document.getElementById('btnAlterar').textContent = 'Alterar / Editar';
+      document.getElementById('massaArquivo').textContent = file.name;
+      document.getElementById('uploadArea').style.display = 'none';
       renderTabelaMassa();
 
       const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente').length;
@@ -285,6 +334,7 @@ function renderTabelaMassa() {
   dadosProcessados.forEach((item, index) => {
     const tr = document.createElement('tr');
     tr.dataset.itemIndex = index;
+    if (item.estadoCorrecao === 'pendente') tr.classList.add('pendente');
     tr.appendChild(criarCelula(item.ref));
     tr.appendChild(criarCelula(item.ptOriginal));
 
@@ -307,7 +357,7 @@ function renderTabelaMassa() {
       const acoes = document.createElement('div');
       acoes.className = 'acoes-correcao';
       acoes.appendChild(criarBotaoCorrecao('Aplicar', 'btn-primary', () => aceitarCorrecao(index)));
-      acoes.appendChild(criarBotaoCorrecao('Manter original', 'btn-outline', () => manterOriginal(index)));
+      acoes.appendChild(criarBotaoCorrecao('Manter original', 'btn-default', () => manterOriginal(index)));
       celulaCorrecao.appendChild(acoes);
       const detalhe = document.createElement('small');
       detalhe.textContent = `Candidata(s): ${item.correcoesSugeridas.join(', ')}`;
@@ -321,6 +371,13 @@ function renderTabelaMassa() {
 
     const en = criarCelula(item.en);
     const es = criarCelula(item.es);
+    if (item.origemEN === 'local' && item.en && !modoEdicao) {
+      en.dataset.valorFiltro = item.en;
+      const selo = document.createElement('small');
+      selo.className = 'selo-local';
+      selo.textContent = 'Motor local (DeepL falhou)';
+      en.appendChild(selo);
+    }
     if (modoEdicao) {
       en.contentEditable = 'true';
       es.contentEditable = 'true';
@@ -369,12 +426,18 @@ async function traduzirMassa() {
   btn.disabled = true;
   setMassaStatus(`Enviando ${dadosProcessados.length} descrições para tradução em inglês...`);
   try {
-    const traducoesEN = await chamarApiTraduzirMassa(dadosProcessados.map(item => item.pt), 'EN-US');
+    const { traducoes, origens = [], erros = [] } = await chamarApiTraduzirMassa(dadosProcessados.map(item => item.pt), 'EN-US');
     dadosProcessados.forEach((item, index) => {
-      item.en = traducoesEN[index] || '';
+      item.en = traducoes[index] || '';
       item.es = '';
+      item.origemEN = origens[index] || 'deepl';
     });
-    setMassaStatus('Tradução em inglês concluída. O espanhol será incluído em uma etapa posterior.');
+    const locais = dadosProcessados.filter(item => item.origemEN === 'local').length;
+    if (locais) {
+      setMassaStatus(`A DeepL falhou em ${locais} de ${dadosProcessados.length} descrições; elas vieram do motor local e estão marcadas na tabela. Motivo: ${erros.join(' | ')}`, true);
+    } else {
+      setMassaStatus('Tradução em inglês concluída pela DeepL. O espanhol será incluído em uma etapa posterior.');
+    }
     renderTabelaMassa();
   } catch (error) {
     console.error('Erro ao traduzir planilha:', error);
@@ -390,13 +453,13 @@ function toggleModoEdicao() {
   modoEdicao = !modoEdicao;
   const btn = document.getElementById('btnAlterar');
   if (modoEdicao) {
-    btn.classList.remove('btn-outline');
+    btn.classList.remove('btn-default');
     btn.classList.add('btn-primary');
-    btn.innerHTML = '<i class="ph ph-check"></i> Salvar Alterações';
+    btn.textContent = 'Salvar alterações';
   } else {
     btn.classList.remove('btn-primary');
-    btn.classList.add('btn-outline');
-    btn.innerHTML = '<i class="ph ph-pencil-simple"></i> Alterar / Editar';
+    btn.classList.add('btn-default');
+    btn.textContent = 'Alterar / Editar';
   }
   renderTabelaMassa();
 }
@@ -461,6 +524,108 @@ function copiarTexto(elementId) {
   alert('Texto copiado para a área de transferência!');
 }
 
-document.querySelectorAll('.filtro-coluna').forEach(input => {
-  input.addEventListener('input', filtrarTabelaMassa);
+document.querySelectorAll('#tableMassa .filtro-coluna').forEach(campo => {
+  campo.addEventListener(campo.tagName === 'SELECT' ? 'change' : 'input', filtrarTabelaMassa);
 });
+
+/* ==================== Glossário (consulta à tabela mestra) ==================== */
+
+let glossarioIndices = null;
+let glossarioCarregando = false;
+
+// Posição do termo na frase em inglês, pela especificação do CLAUDE.md.
+const POSICAO_POR_INDICE = {
+  1: 'NÚCLEO', 2: '2', 3: '3', 4: '9', 5: '1', 6: '4', 7: '5', 8: '8', 9: '7',
+  10: 'APÓS NÚCLEO', 11: 'APÓS NÚCLEO', 12: '6 / APÓS NÚCLEO', 13: 'IDENTIDADE',
+  14: '3', 15: 'NÚCLEO', 16: 'NÚCLEO'
+};
+
+async function carregarGlossario() {
+  if (glossarioIndices || glossarioCarregando) return;
+  glossarioCarregando = true;
+  const contador = document.getElementById('glossarioContador');
+  if (contador) contador.textContent = 'Carregando...';
+  try {
+    const response = await fetch('http://localhost:3000/api/glossario');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Erro HTTP: ${response.status}`);
+    glossarioIndices = data.indices;
+
+    const seletor = document.getElementById('glossarioIndice');
+    glossarioIndices.forEach(indice => {
+      const opcao = document.createElement('option');
+      opcao.value = String(indice.id);
+      opcao.textContent = `${indice.id} — ${indice.nome}`;
+      seletor.appendChild(opcao);
+    });
+
+    const total = glossarioIndices.reduce((soma, indice) => soma + indice.termos.length, 0);
+    document.getElementById('glossarioTitulo').textContent = `GLOSSÁRIO — TABELA MESTRA · ${total} TERMOS · ${glossarioIndices.length} ÍNDICES`;
+    document.getElementById('glossarioData').textContent = `CONSULTADO EM ${new Date().toLocaleDateString('pt-BR')}`;
+    renderGlossario();
+  } catch (error) {
+    console.error('Erro ao carregar o glossário:', error);
+    if (contador) contador.textContent = 'Não foi possível carregar o glossário. Verifique se o servidor está rodando.';
+  } finally {
+    glossarioCarregando = false;
+  }
+}
+
+function listarTermosGlossario() {
+  if (!glossarioIndices) return [];
+  const busca = normalizarValorFiltro(document.getElementById('glossarioBusca').value);
+  const indiceFiltro = document.getElementById('glossarioIndice').value;
+  const tipoFiltro = document.getElementById('glossarioTipo').value;
+
+  return glossarioIndices.flatMap(indice => indice.termos.map(termo => ({ ...termo, indice: indice.id, nomeIndice: indice.nome })))
+    .filter(termo => !indiceFiltro || String(termo.indice) === indiceFiltro)
+    .filter(termo => !tipoFiltro || termo.tipo === tipoFiltro)
+    .filter(termo => !busca || [termo.pt, termo.en, termo.es].some(valor => normalizarValorFiltro(valor).includes(busca)));
+}
+
+function renderGlossario() {
+  const tbody = document.getElementById('glossarioTableBody');
+  if (!tbody || !glossarioIndices) return;
+  const termos = listarTermosGlossario();
+  const total = glossarioIndices.reduce((soma, indice) => soma + indice.termos.length, 0);
+
+  tbody.replaceChildren();
+  termos.forEach((termo, posicao) => {
+    const tr = document.createElement('tr');
+    [
+      String(posicao + 1),
+      termo.pt,
+      termo.en,
+      termo.es,
+      termo.tipo === 'expressao' ? 'EXPRESSÃO' : 'TERMO',
+      termo.contexto,
+      termo.status,
+      POSICAO_POR_INDICE[termo.indice] || '',
+      termo.nomeIndice,
+      String(termo.indice)
+    ].forEach(valor => tr.appendChild(criarCelula(valor)));
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('glossarioContador').textContent = `Mostrando ${termos.length} de ${total}`;
+}
+
+function exportarGlossario() {
+  const termos = listarTermosGlossario();
+  if (!termos.length) return;
+  const ws = XLSX.utils.json_to_sheet(termos.map((termo, posicao) => ({
+    '#': posicao + 1,
+    'PORTUGUÊS': termo.pt,
+    'INGLÊS': termo.en,
+    'ESPANHOL': termo.es,
+    'TIPO': termo.tipo === 'expressao' ? 'EXPRESSÃO' : 'TERMO',
+    'CONTEXTO': termo.contexto,
+    'STATUS': termo.status,
+    'POSIÇÃO NA FRASE': POSICAO_POR_INDICE[termo.indice] || '',
+    'NOME DO ÍNDICE': termo.nomeIndice,
+    'ÍNDICE': termo.indice
+  })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Glossário');
+  XLSX.writeFile(wb, 'MODALIS_Glossario.xlsx');
+}

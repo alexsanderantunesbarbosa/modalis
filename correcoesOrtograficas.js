@@ -51,6 +51,14 @@ function sugerirCorrecaoGrafia(textoOriginal) {
     if (encontrou) ocorrencias.push(regra.de);
   }
 
+  // Palavra repetida em sequência (CALÇA CALÇA, BODY BODY), inclusive a que
+  // sobra depois de uma regra como JCALÇA → CALÇA. Vira uma única ocorrência.
+  const repetida = /(^|[^\p{L}\p{N}])([\p{L}\p{N}-]+)(?:\s+\2)+(?=$|[^\p{L}\p{N}])/giu;
+  textoSugerido = textoSugerido.replace(repetida, (trecho, prefixo, palavra) => {
+    ocorrencias.push(trecho.slice(prefixo.length));
+    return prefixo + palavra;
+  });
+
   return {
     textoOriginal,
     textoSugerido: ocorrencias.length ? textoSugerido : textoOriginal,

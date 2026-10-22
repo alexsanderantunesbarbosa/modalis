@@ -6,14 +6,58 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 require('dotenv').config();
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const {
   processarTraducaoLocal,
   montarContextoGlossario,
-  agruparTextosPorContexto
+  agruparTextosPorContexto,
+  listarCorrespondencias
 } = require('./processadorTexto');
 const { sugerirCorrecaoGrafia } = require('./correcoesOrtograficas');
+const { indices } = require('./tabelaMestra');
 
 const PORT = process.env.PORT || 3000;
+
+// Espanhol da lista do setor (PT<TAB>EN<TAB>ES). A tabela mestra ainda não tem ES;
+// a aba Glossário mostra o ES do setor quando o PT coincide. Primeira ocorrência vence.
+function carregarEspanholDoSetor() {
+  const caminho = path.join(__dirname, 'docs', 'glossario-setor-pt-en-es.tsv');
+  const espanhol = new Map();
+  try {
+    for (const linha of fs.readFileSync(caminho, 'utf8').split(/\r?\n/)) {
+      const [pt, , es] = linha.split('\t');
+      if (pt && es && !espanhol.has(pt.trim())) espanhol.set(pt.trim(), es.trim());
+    }
+  } catch (erro) {
+    console.warn('Lista PT/EN/ES do setor não encontrada; a coluna ES do glossário fica vazia.', erro.message);
+  }
+  return espanhol;
+}
+
+const espanholDoSetor = carregarEspanholDoSetor();
+
+function montarGlossario() {
+  return indices.map(indice => ({
+    id: indice.id,
+    nome: indice.nome,
+    termos: indice.termos.map(termo => ({
+      pt: termo.pt,
+      en: termo.en,
+      es: espanholDoSetor.get(termo.pt) || '',
+      tipo: termo.tipo,
+      contexto: termo.contexto || '',
+      status: termo.status
+    }))
+  }));
+}
+
+function termosAplicados(textoPT, targetLang) {
+  const vistos = new Set();
+  return listarCorrespondencias(textoPT, targetLang)
+    .map(item => ({ pt: item.termo.pt, en: item.termo.en }))
+    .filter(par => !vistos.has(`${par.pt}|${par.en}`) && vistos.add(`${par.pt}|${par.en}`));
+}
 const DEEPL_API_KEY = process.env.DEEPL_API_KEY;
 
 // Identifica automaticamente se a chave é do plano Free ou Pro
@@ -57,7 +101,7 @@ async function traduzirViaDeepL(textos, targetLang, contextoEspecifico) {
 const server = http.createServer((req, res) => {
   // Configuração do CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -74,19 +118,24 @@ const server = http.createServer((req, res) => {
       try {
         const { textoPT, targetLang } = JSON.parse(body);
 
-        let textoTraduzido;
+        // A resposta diz de onde veio a tradução: a interface precisa distinguir
+        // o fallback local de uma tradução da DeepL.
+        let resposta;
         try {
-          // Tenta via DeepL
           const resDeepL = await traduzirViaDeepL([textoPT], targetLang);
-          textoTraduzido = resDeepL[0];
+          resposta = { traducao: resDeepL[0], origem: 'deepl' };
         } catch (apiError) {
           console.warn('Fallback ativado:', apiError.message);
-          // Fallback seguro usando motor de regras local
-          textoTraduzido = processarTraducaoLocal(textoPT, targetLang);
+          resposta = {
+            traducao: processarTraducaoLocal(textoPT, targetLang),
+            origem: 'local',
+            erro: apiError.message
+          };
         }
+        resposta.termos = termosAplicados(textoPT, targetLang);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ traducao: textoTraduzido }));
+        res.end(JSON.stringify(resposta));
 
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -104,29 +153,44 @@ const server = http.createServer((req, res) => {
       try {
         const { textos, targetLang } = JSON.parse(body);
 
-        let resultados;
-        try {
-          resultados = new Array(textos.length);
-          const grupos = agruparTextosPorContexto(textos, targetLang);
-          for (const grupo of grupos) {
+        // O fallback é por grupo de contexto: uma falha da DeepL não derruba o lote
+        // inteiro, e cada descrição informa de onde veio (deepl ou local).
+        const resultados = new Array(textos.length);
+        const origens = new Array(textos.length);
+        const erros = [];
+        const grupos = agruparTextosPorContexto(textos, targetLang);
+        for (const grupo of grupos) {
+          try {
             const traducoes = await traduzirViaDeepL(grupo.textos, targetLang, grupo.contexto);
             grupo.indices.forEach((indice, posicao) => {
               resultados[indice] = traducoes[posicao];
+              origens[indice] = 'deepl';
+            });
+          } catch (apiError) {
+            console.warn(`Fallback em massa ativado para ${grupo.textos.length} descrição(ões):`, apiError.message);
+            erros.push(apiError.message);
+            grupo.indices.forEach((indice, posicao) => {
+              resultados[indice] = processarTraducaoLocal(grupo.textos[posicao], targetLang);
+              origens[indice] = 'local';
             });
           }
-        } catch (apiError) {
-          console.warn('Fallback em massa ativado:', apiError.message);
-          resultados = textos.map(t => processarTraducaoLocal(t, targetLang));
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ traducoes: resultados }));
+        res.end(JSON.stringify({ traducoes: resultados, origens, erros: [...new Set(erros)] }));
 
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
       }
     });
+    return;
+  }
+
+  // ROTA: Glossário (somente leitura) para a aba de consulta.
+  if (req.method === 'GET' && req.url === '/api/glossario') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ indices: montarGlossario() }));
     return;
   }
 

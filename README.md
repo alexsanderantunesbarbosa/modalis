@@ -15,7 +15,7 @@ Descrição ou planilha SAP
   → exportação .xlsx
 ```
 
-O servidor consulta as correspondências do glossário local para montar um contexto enviado ao DeepL junto com o texto original. Esse contexto orienta a tradução, mas não garante que o DeepL aplique cada termo exatamente como definido. Se a chamada ao DeepL falhar, o servidor usa o processador local como fallback; a interface não diferencia visualmente esse resultado de uma tradução feita pelo DeepL.
+O servidor consulta as correspondências do glossário local para montar um contexto enviado ao DeepL junto com o texto original. Esse contexto orienta a tradução, mas não garante que o DeepL aplique cada termo exatamente como definido. Se a chamada ao DeepL falhar, o servidor usa o processador local como fallback e devolve a origem de cada tradução; a interface marca as linhas vindas do fallback e mostra o motivo da falha.
 
 ## Funcionalidades implementadas
 
@@ -25,6 +25,7 @@ O servidor consulta as correspondências do glossário local para montar um cont
 - **Revisão em massa:** inclui filtros por coluna, referências com correção pendente, aplicação de todas as sugestões e edição manual de EN/ES.
 - **Tradução em massa para inglês:** as descrições são agrupadas por contexto do glossário. O servidor processa os grupos sequencialmente, então arquivos grandes podem levar tempo, sobretudo quando há muitos contextos distintos.
 - **Exportação `.xlsx`:** gera uma planilha com as oito colunas do modelo abaixo.
+- **Glossário (consulta):** aba com a tabela mestra completa (PT, EN, ES do setor quando existe, tipo, contexto, status, posição na frase e índice), busca, filtros e exportação para Excel. Somente leitura; a edição dos termos continua na validação de terminologia.
 
 ### Limites e conteúdo exportado
 
@@ -49,7 +50,7 @@ O download é bloqueado se houver sugestões ortográficas pendentes, descriçõ
 - ECOM deveria reproduzir a descrição PT sem limite, mas hoje o código apenas importa o valor de uma coluna ECOM existente.
 - A tradução da composição têxtil não é feita. Se as colunas de composição existirem na entrada, seus valores são carregados e exportados sem tradução.
 - O glossário nativo da DeepL não é usado nem sincronizado. A decisão de usá-lo permanece em avaliação; o glossário local é a referência do projeto.
-- O fallback local pode devolver um resultado sem indicar na interface que o DeepL falhou.
+- Quando o DeepL falha, o servidor usa o fallback local por grupo de contexto e informa a origem de cada tradução (`origem: deepl | local`); a interface marca essas linhas e mostra o motivo no status. O fallback ainda não reordena os termos (ver fila de código no `CLAUDE.md`).
 - O servidor não hospeda os arquivos da interface; `script.js` chama a API em `http://localhost:3000`.
 - A importação lê apenas a primeira aba da planilha.
 
@@ -65,7 +66,7 @@ O download é bloqueado se houver sugestões ortográficas pendentes, descriçõ
 | Tradução externa | DeepL API |
 | Leitura e geração de planilhas | SheetJS carregado por CDN no navegador |
 
-O HTML também carrega os ícones Phosphor por CDN. Para usar a interface, o navegador precisa conseguir acessar esses CDNs; para tradução via DeepL, o servidor precisa de acesso à API.
+A interface segue a linguagem visual do sistema interno START (padrão Bootstrap 3), com CSS próprio. O único recurso externo do HTML é o SheetJS por CDN; para tradução via DeepL, o servidor precisa de acesso à API.
 
 ## Executar localmente
 

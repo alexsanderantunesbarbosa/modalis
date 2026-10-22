@@ -3,136 +3,139 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tradutor de Descrições</title>
+  <title>MODALIS — Tradução de descrições</title>
   <link rel="stylesheet" href="styles.css">
-  <!-- Ícones Phosphor Icons -->
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <!-- Biblioteca para ler/gerar Excel diretamente no navegador -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
-  <!-- CABEÇALHO ARREDONDADO -->
-  <header class="navbar-container">
-    <div class="navbar">
-      <div class="brand">
-        <div class="brand-icon"><i class="ph ph-translate"></i></div>
-        <h2> Modo de Tradução</h2>
-      </div>
-      <nav class="nav-tabs">
-        <button class="tab-btn active" onclick="switchTab('singular')">
-          <i class="ph ph-text-t"></i> Tradução Singular
-        </button>
-        <button class="tab-btn" onclick="switchTab('massa')">
-          <i class="ph ph-files"></i> Em Massa (Excel)
-        </button>
-      </nav>
-    </div>
+  <!-- BARRA SUPERIOR: marca + três abas, sempre visíveis -->
+  <header class="navbar">
+    <button type="button" class="brand" data-tab="singular" onclick="switchTab('singular')" title="Página principal">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h9M8.5 3v2M11 5c-.6 3.2-2.6 6-6 8.5"/><path d="M6 8.5c1.2 2 3 3.8 5.5 5"/><path d="M13 20l5-11 5 11M15 16h6"/></svg>
+      <span>MODALIS</span>
+    </button>
+    <nav class="nav-tabs" aria-label="Seções">
+      <button type="button" class="tab-btn active" data-tab="singular" onclick="switchTab('singular')">Individual</button>
+      <button type="button" class="tab-btn" data-tab="massa" onclick="switchTab('massa')">Em massa</button>
+      <button type="button" class="tab-btn" data-tab="glossario" onclick="switchTab('glossario')">Glossário</button>
+    </nav>
   </header>
 
   <main class="main-content">
 
-    <!-- ==================== 1. TRADUÇÃO SINGULAR (Foto 2) ==================== -->
+    <!-- ==================== 1. TRADUÇÃO INDIVIDUAL ==================== -->
     <section id="tab-singular" class="tab-content active">
-      <div class="card card-rounded">
-        <div class="card-title-badge">
-          <i class="ph ph-sparkle"></i> Tradução Individual
-        </div>
+      <div class="page-head">
+        <h1>Tradução individual</h1>
+      </div>
 
-        <div class="form-group">
-          <label for="inputDescPT">Descrição da peça:</label>
-          <div class="input-with-button">
-            <input 
-              type="text" 
-              id="inputDescPT" 
-              placeholder="Digite a descrição da peça (ex: Calça baggy cintura média)..."
-            >
-            <button class="btn btn-pill btn-primary" onclick="traduzirSingular()">
-              <i class="ph ph-arrow-right"></i> Traduzir
-            </button>
+      <div class="coluna-estreita">
+        <section class="panel">
+          <h2 class="panel-heading">Descrição da peça</h2>
+          <div class="panel-body">
+            <label for="inputDescPT">Português (SAP)</label>
+            <div class="linha-campo">
+              <input type="text" id="inputDescPT" placeholder="Ex.: CALÇA BAGGY CINTURA MÉDIA" onkeydown="if (event.key === 'Enter') traduzirSingular()">
+              <button type="button" class="btn btn-primary" onclick="traduzirSingular()">Traduzir</button>
+            </div>
+            <p class="ajuda">Separe os termos com espaço; o limite do SAP é de 40 caracteres.</p>
           </div>
-        </div>
+        </section>
 
-        <hr class="divider">
+        <section class="panel">
+          <h2 class="panel-heading">Resultado</h2>
+          <div class="panel-body">
+            <label for="outputDescEN">Inglês</label>
+            <div class="input-group">
+              <input type="text" id="outputDescEN" placeholder="A tradução em inglês aparecerá aqui..." readonly>
+              <button type="button" class="btn-addon" onclick="copiarTexto('outputDescEN')" title="Copiar inglês" aria-label="Copiar inglês">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg>
+              </button>
+            </div>
+            <div class="linha-status">
+              <span id="singularStatus" class="status-texto" aria-live="polite"></span>
+              <span id="contadorEN" class="contador"></span>
+            </div>
 
-        <div class="form-group">
-          <label for="outputDescEN">Descrição em inglês:</label>
-          <div class="output-box">
-            <input type="text" id="outputDescEN" placeholder="A tradução em inglês aparecerá aqui..." readonly>
-            <button class="btn-copy-icon" onclick="copiarTexto('outputDescEN')" title="Copiar Inglês">
-              <i class="ph ph-copy"></i>
-            </button>
+            <label for="outputDescES">Espanhol</label>
+            <div class="input-group">
+              <input type="text" id="outputDescES" placeholder="ES será incluído em uma etapa posterior." readonly>
+              <button type="button" class="btn-addon" onclick="copiarTexto('outputDescES')" title="Copiar espanhol" aria-label="Copiar espanhol">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg>
+              </button>
+            </div>
+
+            <div id="termosAplicados" class="termos-aplicados" hidden>
+              <span class="termos-titulo">Termos do glossário aplicados</span>
+              <div class="termos-lista"></div>
+            </div>
           </div>
-        </div>
-
-        <div class="form-group">
-          <label for="outputDescES">Descrição em espanhol:</label>
-          <div class="output-box">
-            <input type="text" id="outputDescES" placeholder="A tradução em espanhol aparecerá aqui..." readonly>
-            <button class="btn-copy-icon" onclick="copiarTexto('outputDescES')" title="Copiar Espanhol">
-              <i class="ph ph-copy"></i>
-            </button>
-          </div>
-        </div>
+        </section>
       </div>
     </section>
 
-    <!-- ==================== 2. TRADUÇÃO EM MASSA (Foto 1) ==================== -->
+    <!-- ==================== 2. TRADUÇÃO EM MASSA ==================== -->
     <section id="tab-massa" class="tab-content">
-      
-      <!-- Área de Upload -->
-      <div class="card card-rounded upload-card" id="uploadArea">
-        <i class="ph ph-file-arrow-up upload-icon"></i>
-        <h3>Arraste sua planilha Excel aqui ou clique para selecionar</h3>
-        <p>Use a planilha SAP com os cabeçalhos <strong>Referencia</strong> e <strong>Descrição</strong>. “Português” e “Z_ENCAIXE” não são a descrição da peça.</p>
-        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" onchange="processarArquivo(event)">
-        <button class="btn btn-pill btn-secondary" onclick="document.getElementById('fileInput').click()">
-          Selecionar Arquivo
-        </button>
+      <div class="page-head">
+        <h1>Tradução em massa</h1>
+        <div class="acoes">
+          <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" onchange="processarArquivo(event)" hidden>
+          <button type="button" class="btn btn-primary btn-lg" onclick="document.getElementById('fileInput').click()">Importar planilha SAP</button>
+          <button type="button" class="btn btn-success btn-lg" onclick="baixarExcel()">Baixar Excel</button>
+        </div>
       </div>
 
-      <!-- Tabela de Saída em Massa (Baseada na Foto 1) -->
-      <div class="card card-rounded" id="resultMassaCard" style="display: none;">
-        <div class="card-header-actions">
-          <h3><i class="ph ph-table"></i> Saída em Massa</h3>
-          <span class="badge-count" id="rowCountBadge">0 itens</span>
+      <!-- Antes de carregar um arquivo -->
+      <section class="panel" id="uploadArea">
+        <div class="panel-body panel-vazio">
+          <p><strong>Nenhuma planilha carregada.</strong> Use “Importar planilha SAP” com um arquivo que tenha os cabeçalhos <strong>Referencia</strong> e <strong>Descrição</strong>.</p>
+          <p class="ajuda">“Português” e “Z_ENCAIXE” não são a descrição da peça. Formatos aceitos: .xlsx, .xls, .csv (primeira aba).</p>
+        </div>
+      </section>
+
+      <!-- Tabela de saída -->
+      <section class="panel" id="resultMassaCard" style="display: none;">
+        <div class="panel-heading panel-heading-acoes">
+          <h2>
+            <span id="massaArquivo">planilha</span>
+            <span class="badge-count" id="rowCountBadge">0 itens</span>
+          </h2>
+          <div class="massa-toolbar" aria-label="Ações da tradução em massa">
+            <button type="button" class="btn btn-primary" onclick="traduzirMassa()" id="btnTraduzirMassa">Traduzir inglês</button>
+            <button type="button" class="btn btn-default" onclick="aplicarTodasCorrecoes()" id="btnAplicarTodas" disabled>Aplicar todas as correções</button>
+            <button type="button" class="btn btn-default" onclick="toggleModoEdicao()" id="btnAlterar">Alterar / Editar</button>
+          </div>
         </div>
 
-        <p id="massaStatus" class="massa-status" aria-live="polite"></p>
+        <p id="massaStatus" class="faixa-status" aria-live="polite"></p>
 
         <div id="correcoesPendentes" class="correcoes-pendentes" aria-live="polite"></div>
 
-        <div class="massa-toolbar" aria-label="Ações da tradução em massa">
-          <button class="btn btn-pill btn-secondary" onclick="traduzirMassa()" id="btnTraduzirMassa">
-            <i class="ph ph-translate"></i> Traduzir inglês
-          </button>
-          <button class="btn btn-pill btn-primary" onclick="aplicarTodasCorrecoes()" id="btnAplicarTodas" disabled>
-            <i class="ph ph-checks"></i> Aplicar todas as correções
-          </button>
-          <button class="btn btn-pill btn-outline" onclick="toggleModoEdicao()" id="btnAlterar">
-            <i class="ph ph-pencil-simple"></i> Alterar / Editar
-          </button>
-          <button class="btn btn-pill btn-success" onclick="baixarExcel()">
-            <i class="ph ph-download-simple"></i> Baixar Excel
-          </button>
-        </div>
-
         <div class="table-container">
-          <table class="custom-table" id="tableMassa">
+          <table class="tabela" id="tableMassa">
             <thead>
               <tr>
-                <th><div class="th-pill">REFERÊNCIA</div></th>
-                <th><div class="th-pill">DESCRIÇÃO PT ORIGINAL</div></th>
-                <th><div class="th-pill">DESCRIÇÃO PT CORRIGIDA</div></th>
-                <th><div class="th-pill">DESCRIÇÃO EN</div></th>
-                <th><div class="th-pill">DESCRIÇÃO ES</div></th>
+                <th>REFERÊNCIA</th>
+                <th>DESCRIÇÃO PT</th>
+                <th>CORREÇÃO</th>
+                <th>DESCRIÇÃO EN</th>
+                <th>DESCRIÇÃO ES</th>
               </tr>
               <tr class="linha-filtros">
-                <th><input class="filtro-coluna" type="search" data-coluna="0" placeholder="Filtrar referência" aria-label="Filtrar por referência"></th>
-                <th><input class="filtro-coluna" type="search" data-coluna="1" placeholder="Filtrar descrição PT" aria-label="Filtrar por descrição PT original"></th>
-                <th><input class="filtro-coluna" type="search" data-coluna="2" placeholder="Filtrar correção" aria-label="Filtrar por descrição PT corrigida"></th>
-                <th><input class="filtro-coluna" type="search" data-coluna="3" placeholder="Filtrar inglês" aria-label="Filtrar por descrição EN"></th>
-                <th><input class="filtro-coluna" type="search" data-coluna="4" placeholder="Filtrar espanhol" aria-label="Filtrar por descrição ES"></th>
+                <th><input class="filtro-coluna" type="search" data-coluna="0" placeholder="REFERÊNCIA" aria-label="Filtrar por referência"></th>
+                <th><input class="filtro-coluna" type="search" data-coluna="1" placeholder="DESCRIÇÃO PT" aria-label="Filtrar por descrição PT"></th>
+                <th>
+                  <select class="filtro-coluna" data-coluna="2" aria-label="Filtrar por situação da correção">
+                    <option value="">TODAS</option>
+                    <option value="pendente">PENDENTES</option>
+                    <option value="aceita">ACEITAS</option>
+                    <option value="recusada">MANTIDAS NO ORIGINAL</option>
+                  </select>
+                </th>
+                <th><input class="filtro-coluna" type="search" data-coluna="3" placeholder="INGLÊS" aria-label="Filtrar por descrição EN"></th>
+                <th><input class="filtro-coluna" type="search" data-coluna="4" placeholder="ESPANHOL" aria-label="Filtrar por descrição ES"></th>
               </tr>
             </thead>
             <tbody id="massaTableBody">
@@ -140,12 +143,61 @@
             </tbody>
           </table>
         </div>
+        <div class="panel-footer" id="massaRodape"></div>
+      </section>
+    </section>
 
+    <!-- ==================== 3. GLOSSÁRIO (consulta) ==================== -->
+    <section id="tab-glossario" class="tab-content">
+      <div class="relatorio-titulo">
+        <div class="relatorio-marca">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h9M8.5 3v2M11 5c-.6 3.2-2.6 6-6 8.5"/><path d="M6 8.5c1.2 2 3 3.8 5.5 5"/><path d="M13 20l5-11 5 11M15 16h6"/></svg>
+          MODALIS
+        </div>
+        <h1 id="glossarioTitulo">GLOSSÁRIO — TABELA MESTRA</h1>
+        <div class="relatorio-data" id="glossarioData"></div>
       </div>
 
+      <div class="filtros-glossario">
+        <label for="glossarioBusca">Buscar</label>
+        <input type="search" id="glossarioBusca" placeholder="PT, EN ou ES (ex.: JEANS)" oninput="renderGlossario()">
+        <label for="glossarioIndice">Índice</label>
+        <select id="glossarioIndice" onchange="renderGlossario()"><option value="">TODOS</option></select>
+        <label for="glossarioTipo">Tipo</label>
+        <select id="glossarioTipo" onchange="renderGlossario()">
+          <option value="">TODOS</option>
+          <option value="termo">TERMO</option>
+          <option value="expressao">EXPRESSÃO</option>
+        </select>
+        <span class="contador" id="glossarioContador"></span>
+        <button type="button" class="btn btn-success" onclick="exportarGlossario()">Exportar Excel</button>
+      </div>
+
+      <div class="table-container relatorio-caixa">
+        <table class="relatorio" id="tableGlossario">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>PORTUGUÊS</th>
+              <th>INGLÊS</th>
+              <th>ESPANHOL</th>
+              <th>TIPO</th>
+              <th>CONTEXTO</th>
+              <th>STATUS</th>
+              <th>POSIÇÃO NA FRASE</th>
+              <th>NOME DO ÍNDICE</th>
+              <th>ÍNDICE</th>
+            </tr>
+          </thead>
+          <tbody id="glossarioTableBody"></tbody>
+        </table>
+      </div>
+      <p class="relatorio-rodape" id="glossarioRodape">Fonte: tabelaMestra.js (somente leitura; alterações passam pela validação de terminologia). Espanhol: lista do setor, quando o termo coincide.</p>
     </section>
 
   </main>
+
+  <footer class="rodape">© La Moda 2026 · MODALIS</footer>
 
   <script src="script.js"></script>
 </body>

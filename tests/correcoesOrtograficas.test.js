@@ -55,10 +55,21 @@ test('não sugere correções para exemplos reais ainda sem decisão', () => {
 });
 
 test('corrige os erros recorrentes do lote de 22/10/2026', () => {
-  assert.equal(sugerirCorrecaoGrafia('CALÇA JCALÇA JEANS BOOTCUT').textoSugerido, 'CALÇA CALÇA JEANS BOOTCUT');
+  assert.equal(sugerirCorrecaoGrafia('CALÇA JCALÇA JEANS BOOTCUT').textoSugerido, 'CALÇA JEANS BOOTCUT');
   assert.equal(sugerirCorrecaoGrafia('SHHORT SARJA BAGGY').textoSugerido, 'SHORT SARJA BAGGY');
   assert.equal(sugerirCorrecaoGrafia('VESTIDO SUPER MID OMBRO ÚNICO').textoSugerido, 'VESTIDO SUPER MIDI OMBRO ÚNICO');
   assert.equal(sugerirCorrecaoGrafia('T-SHIRT BABYLOOK MANGA CURTA').textoSugerido, 'T-SHIRT BABY LOOK MANGA CURTA');
   assert.equal(sugerirCorrecaoGrafia('CALÇA CORROT COM TERMO').textoSugerido, 'CALÇA CARROT COM TERMO');
   assert.equal(sugerirCorrecaoGrafia('SUPER MIDI').ocorrencias.length, 0);
+});
+
+test('colapsa palavra repetida em sequência, inclusive a que sobra de outra correção', () => {
+  const resultado = sugerirCorrecaoGrafia('CALÇA JCALÇA JEANS BOOTCUT COM RESINA');
+  assert.equal(resultado.textoSugerido, 'CALÇA JEANS BOOTCUT COM RESINA');
+  assert.deepEqual(resultado.ocorrencias, ['JCALÇA', 'CALÇA CALÇA']);
+
+  assert.equal(sugerirCorrecaoGrafia('SAIA SAIA MIDI').textoSugerido, 'SAIA MIDI');
+  assert.equal(sugerirCorrecaoGrafia('VESTIDO LONGO LONGO LONGO').textoSugerido, 'VESTIDO LONGO');
+  // Repetição legítima com outra palavra no meio não é tocada.
+  assert.equal(sugerirCorrecaoGrafia('BLUSA MANGA LONGA GOLA LONGA').ocorrencias.length, 0);
 });
