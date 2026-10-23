@@ -18,13 +18,15 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 - Node.js 18+, servidor HTTP nativo (`server.js`, porta 3000), front em HTML/JS puro
   (`index.html`, `script.js`), SheetJS por CDN no navegador. Dependência: `dotenv`.
 - `npm start` sobe a API (`node server.js` serve fora da rede da empresa); `npm test` roda
-  `node --test` (20 testes em `tests/`).
+  `node --test` (34 testes em `tests/`, incluindo a API HTTP com DeepL simulada).
+- Configuração só por variáveis de ambiente (`.env.example`): `HOST` (padrão `127.0.0.1`),
+  `PORT`, `DEEPL_TIMEOUT_MS`, `MAX_CORPO_BYTES`, `MAX_DESCRICOES_LOTE`, `MAX_CARACTERES_DESCRICAO`.
 - A tabela foi sincronizada com a planilha v2 em 22/10/2026 (`tabelaMestra.js` = 805
   entradas, 16 índices). Ao receber arquivos do Desktop, conferir se o JS acompanha a planilha.
 - `.env` com `DEEPL_API_KEY` (chave `:fx` = plano Free). Nunca versionar chaves.
 - Validação TLS ligada (23/10/2026): na rede da empresa iniciar com `npm start`
   (`node --use-system-ca server.js`). Pendências de segurança conhecidas (ver README):
-  CORS aberto, sem autenticação, escuta em todas as interfaces. Só uso local por enquanto.
+  CORS aberto e sem autenticação; ambas viram obrigatórias na publicação. Só uso local por enquanto.
 - Repositório privado desde 23/10/2026; `package.json` com `private: true` e
   `license: UNLICENSED`.
 
@@ -35,8 +37,8 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 | `tabelaMestra.js` | Glossário: literal `indices` (16 índices) + derivados `termosGlossario`, `expressoesCompostas`, `dicionarioTermos`. Função `adicionarTermos` existe para uso futuro. |
 | `processadorTexto.js` | Matching dos termos no texto (expressão mais longa vence; empate → índice menor), regras de contexto (`escolherContexto`), montagem do `context` para a DeepL e fallback local `processarTraducaoLocal`. |
 | `correcoesOrtograficas.js` | Sugestões de grafia (24 regras + colapso de palavra repetida em sequência); nunca aplicadas sem aceite do usuário. |
-| `server.js` | Rotas `/api/traduzir` (devolve também `termos` aplicados), `/api/traduzir-massa`, `/api/sugerir-correcoes` e `GET /api/glossario` (tabela mestra + ES da lista do setor, somente leitura); DeepL com fallback local **por grupo**, e cada resposta traz `origem` (`deepl` ou `local`) e o erro. A interface marca as linhas do fallback. |
-| `index.html`, `styles.css`, `script.js` | Interface com a linguagem visual do START (barra preta, painéis cinza, botões azul/verde, tabelas com borda), em escala menor. Três abas sempre visíveis: Individual, Em massa e Glossário (estilo relatório, com busca, filtro por índice/tipo e exportação). CSS próprio, sem Bootstrap. |
+| `server.js` | API em camadas: `lerConfiguracao` (tudo por env), `lerCorpoJson` (Buffer único, limite de bytes → 413), validação por rota antes de qualquer chamada externa (400), `criarClienteDeepL` (timeout, resposta validada, erros `fatal` para 401/403/456), `criarServicoTraducao` (DeepL com fallback local **por grupo**; após erro fatal o restante do lote vai direto ao motor local), tabela de rotas e `criarServidor({ config, fetchImpl, silencioso })` exportado para testes. Rotas: `/api/traduzir` (devolve `termos` aplicados), `/api/traduzir-massa`, `/api/sugerir-correcoes`, `GET /api/glossario`. Cada resposta traz `origem` (`deepl`/`local`) e um motivo curto; o detalhe vai para o log JSON. Escuta em `127.0.0.1` por padrão. |
+| `index.html`, `styles.css`, `script.js` | Interface com a linguagem visual do START (barra preta, painéis cinza, botões azul/verde, tabelas com borda), em escala menor. Três abas sempre visíveis: Individual, Em massa e Glossário (estilo relatório, com busca, filtro por índice/tipo e exportação). CSS próprio, sem Bootstrap. "Aplicar todas as correções" pede confirmação (a DESCRIÇÃO corrigida vai para o SAP). `TEXTO ECOM` exportado = descrição. |
 | `docs/decisoes-glossario-2026-10-22.md` | Registro completo das decisões de terminologia, categorização e estrutura da frase. |
 | `docs/glossario-setor-pt-en-es.tsv` | Lista PT/EN/ES do setor (403 linhas). O **espanhol** fica aqui para a feature ES. |
 | `docs/amostras/` | Planilhas das coleções IN27 e AI27 (base de teste; AI27 traz EN anterior, de qualidade desigual). |
@@ -128,6 +130,50 @@ português e precisa do reordenador por índice (item 2 da fila).
 - Glossário: a coluna ES vem da lista do setor (395 de 805 termos); o restante fica vazio até
   a feature de espanhol.
 
+## Contexto de uso e roteiro até o piloto (dezembro de 2026)
+
+Setor: Garantia da Informação (15 pessoas). Fluxo: a modelo prova a peça → pós-prova roda
+pelos setores → ficha final, onde se arruma a descrição PT no SAP e se preenchem EN, ES,
+texto e-commerce e composição PT/EN/ES. O MODALIS entra no pós-prova: baixa-se o relatório
+da coleção do SAP (como `docs/amostras/`), traduz-se em massa e a planilha exportada sobe
+ao SAP por uma transação da TI. Coleções têm 1.000 a 2.000 peças e duram ~3 meses; a
+próxima está prevista para 17/12/2026, com a tradução no começo de dezembro. Hoje roda só
+no PC do dono; a publicação na rede (HOST=0.0.0.0, autenticação, HTTPS por proxy, front
+servido pelo servidor, serviço do Windows, backup do banco de traduções, plano DeepL) fica
+para depois do piloto. O dono não é da TI; a hospedagem depende de pedir máquina, DNS e
+certificado à TI.
+
+Decisões de 23/10/2026:
+- As 8 colunas exportadas são o contrato da transação. A TI grava `DESCRIÇÃO` no SAP, e a
+  coluna exportada é a **corrigida** (as correções aceitas no MODALIS vão para o SAP).
+- `TEXTO ECOM` = descrição (sem limite); o texto completo do START pode entrar depois.
+- Espanhol **neutro/internacional**: sem regionalismos fortes (mezclilla, vaquero, playera,
+  remera, braga); preferir a forma entendida em toda a América Latina e na Espanha (JEANS,
+  CAMISETA, SUDADERA, PANTALÓN, TRAJE DE BAÑO, TIRO ALTO/MEDIO/BAJO); quando não houver
+  forma neutra, a planilha de proposta marca a opção recomendada e a alternativa. A base
+  antiga do setor (`docs/glossario-setor-pt-en-es.tsv`) é insumo, não fonte de verdade:
+  cobre 395 dos 805 termos, tem erros (COSECHADA, BOTTONES, FLENCOS) e mistura países. O
+  EN dessa base é ignorado.
+- Composição: `Z_COMPOS_PT` tem formato fixo (`* PARTE pct FIBRA pct FIBRA; PARTE …`),
+  ~15 fibras e ~40 partes; tradução por dicionário e regra, sem DeepL. A IN27 traz EN/ES
+  manuais de 506 composições distintas, que servem de gabarito depois de limpar erros de
+  digitação (1000% COTTO, 765 POLYESTER, LINNING).
+
+Escopo de dezembro (ordem "valor entregue se o tempo acabar"):
+1. Servidor confiável e rápido: Lote 0 (TLS, repositório) e Lote 1 (fronteira) **feitos em
+   23/10/2026**; Lote 2 = lotes de até 50 textos à DeepL com 2 a 4 em voo e retry para 429,
+   pré-compilação das regex/termos (20,9x medido), não reenviar linhas já traduzidas.
+2. Composição PT → EN/ES por regras, testada contra o gabarito da IN27.
+3. Qualidade do EN: itens 1 a 4 da fila abaixo (conjunto de referência aprovado pelo líder).
+4. Memória de traduções (item 7) e rascunho salvo no navegador (beforeunload + localStorage).
+5. Espanhol das descrições: campo `es` na tabela (proposta minha + validação do dono),
+   motor parametrizado por idioma (a ordem do ES segue a do PT), limite de 40 para ES.
+6. Ensaio geral com a AI27 e piloto na coleção real.
+
+Perguntas abertas (TI e líder, a partir de 26/10/2026): o relatório do SAP sempre vem com
+linha de cabeçalho? (a AI27 veio sem e a ferramenta a rejeita); como a empresa hospeda
+sistemas internos como o START; quem valida os 805 termos em espanhol.
+
 ## Fila de código (ordem acordada)
 
 1. **Regras de contexto em `processadorTexto.js`** (próximo passo, já decidido):
@@ -157,6 +203,11 @@ português e precisa do reordenador por índice (item 2 da fila).
 
 ## Testes
 
-- `tests/processadorTexto.test.js` e `tests/correcoesOrtograficas.test.js` (19 testes).
+- `tests/processadorTexto.test.js`, `tests/correcoesOrtograficas.test.js` e
+  `tests/server.test.js` (34 testes). O do servidor usa `criarServidor({ fetchImpl, config,
+  silencioso })` com uma DeepL falsa e porta aleatória: sem rede, sem `.env`.
+- Caso de borda aprendido em 23/10/2026: um teste cuja promessa nunca resolve não trava só
+  o teste, deixa o servidor aberto e trava o processo inteiro no final. Erros dentro de
+  listeners de evento devem virar rejeição explícita.
 - Qualquer mudança na tabela ou nas regras deve manter os testes verdes e, quando
   existir, passar pelo conjunto de referência.

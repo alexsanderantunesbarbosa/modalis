@@ -35,19 +35,19 @@ O servidor consulta as correspondências do glossário local para montar um cont
 | `DESCRIÇÃO` | Texto PT atual; se uma correção for aceita, exporta o texto corrigido |
 | `Descrição EN` | Tradução ou edição manual em inglês |
 | `Descrição ES` | Campo disponível para edição, mas sem tradução automática nesta etapa |
-| `TEXTO ECOM` | Valor lido da coluna ECOM de entrada, quando encontrada; não é preenchido automaticamente com a descrição |
+| `TEXTO ECOM` | Mesmo texto da coluna `DESCRIÇÃO` exportada (decisão de 23/10/2026); sem limite de 40 caracteres |
 | `Z_COMPOS_PT` | Composição em português importada, quando encontrada |
 | `Z_COMPOS_EN` | Composição em inglês importada, quando encontrada |
 | `Z_COMPOS_ES` | Composição em espanhol importada, quando encontrada |
 
-A saída contém somente essas oito colunas. Outras colunas da planilha de entrada não são copiadas. A interface mantém a descrição original durante a revisão, mas a saída não tem uma coluna separada para ela: após aceitar uma correção, `DESCRIÇÃO` contém a versão corrigida.
+A saída contém somente essas oito colunas, que são o layout da transação de carga no SAP desenvolvida pela TI. Outras colunas da planilha de entrada não são copiadas. A interface mantém a descrição original durante a revisão, mas a saída não tem uma coluna separada para ela: após aceitar uma correção, `DESCRIÇÃO` contém a versão corrigida, e é essa que a transação grava no SAP. Por isso "Aplicar todas as correções" pede confirmação.
 
 O download é bloqueado se houver sugestões ortográficas pendentes, descrições EN vazias ou valores PT/EN acima de 40 caracteres. A validação de 40 caracteres para ES ainda não está implementada. ECOM não entra nessa validação. O usuário informa que o SAP já entrega a descrição PT dentro de 40 caracteres; o sistema também valida esse limite antes do download.
 
 ## O que ainda não está implementado ou confirmado
 
 - A tradução automática para espanhol está adiada; a tela informa que será incluída depois.
-- ECOM deveria reproduzir a descrição PT sem limite, mas hoje o código apenas importa o valor de uma coluna ECOM existente.
+- O `TEXTO ECOM` é uma cópia da descrição; o texto completo do START (anterior ao corte de 40 caracteres) ainda não é usado.
 - A tradução da composição têxtil não é feita. Se as colunas de composição existirem na entrada, seus valores são carregados e exportados sem tradução.
 - O glossário nativo da DeepL não é usado nem sincronizado. A decisão de usá-lo permanece em avaliação; o glossário local é a referência do projeto.
 - Quando o DeepL falha, o servidor usa o fallback local por grupo de contexto e informa a origem de cada tradução (`origem: deepl | local`); a interface marca essas linhas e mostra o motivo no status. O fallback ainda não reordena os termos (ver fila de código no `CLAUDE.md`).
@@ -92,7 +92,7 @@ Inicie o servidor:
 npm start
 ```
 
-Fora da rede da empresa, `node server.js` também funciona; `npm start` acrescenta `--use-system-ca`, necessário na rede corporativa (ver a seção de segurança). Por padrão, a API escuta na porta `3000`; também aceita a variável `PORT`. Abra `index.html` separadamente no navegador ou sirva-o por um servidor estático local. O servidor Node deste projeto atende as rotas da API, não os arquivos HTML/CSS/JS. A interface atualmente chama `localhost:3000` diretamente.
+Fora da rede da empresa, `node server.js` também funciona; `npm start` acrescenta `--use-system-ca`, necessário na rede corporativa (ver a seção de segurança). Por padrão, a API escuta só neste computador (`127.0.0.1`) na porta `3000`. Toda a configuração vem de variáveis de ambiente (ver `.env.example`): `HOST`, `PORT`, `DEEPL_TIMEOUT_MS` (15 s), `MAX_CORPO_BYTES` (1 MB), `MAX_DESCRICOES_LOTE` (10.000) e `MAX_CARACTERES_DESCRICAO` (200). O servidor escreve uma linha JSON por requisição em stdout (rota, status, duração) e por falha da DeepL em stderr. Abra `index.html` separadamente no navegador ou sirva-o por um servidor estático local. O servidor Node deste projeto atende as rotas da API, não os arquivos HTML/CSS/JS. A interface atualmente chama `localhost:3000` diretamente.
 
 Para executar os testes automatizados locais:
 
@@ -100,7 +100,7 @@ Para executar os testes automatizados locais:
 npm test
 ```
 
-Esse comando usa o test runner nativo do Node.js. A existência do comando não significa que os testes tenham sido executados nesta revisão do README.
+Esse comando usa o test runner nativo do Node.js: 34 testes em `tests/` cobrindo o matching do glossário, as correções de grafia e a API HTTP (com uma DeepL simulada injetada, sem rede): validação de entrada, limites, timeout, fallback por grupo e um corpo com acento partido entre dois pacotes TCP.
 
 ## Estrutura principal
 
@@ -119,7 +119,8 @@ tests/                         Testes automatizados
 
 - A chave é lida pelo servidor via `process.env.DEEPL_API_KEY`; `.env` está listado no `.gitignore` e `.env.example` contém somente a variável vazia.
 - A validação de certificados TLS fica ligada. Na rede corporativa, que faz inspeção TLS, use `npm start`: o script passa `--use-system-ca` ao Node (22.15+), que então confia no repositório de certificados do Windows, onde a TI instala a CA do proxy. Se o servidor for iniciado sem essa opção na rede da empresa, a chamada à DeepL falha por certificado e a tradução cai no fallback local, com o motivo exibido na interface.
-- O servidor permite CORS de qualquer origem (`Access-Control-Allow-Origin: *`) e não implementa autenticação.
+- O servidor escuta só em `127.0.0.1` por padrão (`HOST` no `.env` muda isso), valida tipo, tamanho e quantidade de tudo que recebe antes de chamar a DeepL (400 ou 413 com mensagem em português), limita o tempo de espera da DeepL e não repassa ao navegador o corpo bruto dos erros dela, só um motivo curto; o detalhe fica no log.
+- O servidor permite CORS de qualquer origem (`Access-Control-Allow-Origin: *`) e não implementa autenticação. Os dois são pré-requisitos da publicação na rede, junto com HTTPS por proxy reverso.
 - O front-end e a API estão configurados para uso local; o código não deve ser considerado pronto para hospedagem pública antes de revisar TLS, CORS, autenticação e configuração de ambiente.
 
 Não compartilhe arquivos `.env`. Se uma chave real já tiver sido exposta em um commit ou em outro local público, revogue-a no painel da DeepL e gere outra.

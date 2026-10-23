@@ -1,13 +1,18 @@
 /**
  * server.js
- * Servidor HTTP usando variáveis de ambiente e padronização de respostas JSON.
+ * API HTTP do MODALIS: tradução individual e em massa, sugestões de grafia e glossário.
+ *
+ * Organização (de cima para baixo):
+ *   configuração por variáveis de ambiente → erros tipados → leitura e validação do
+ *   corpo → cliente DeepL → serviço de tradução (DeepL com fallback local) → rotas →
+ *   criarServidor() → inicialização (só quando executado diretamente).
  *
  * A validação de certificado TLS fica ligada. Na rede da empresa (inspeção TLS
  * pelo proxy), inicie com `npm start`, que passa `--use-system-ca` ao Node para
  * confiar no repositório de certificados do Windows, onde a CA do proxy está.
  */
 
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -20,7 +25,269 @@ const {
 const { sugerirCorrecaoGrafia } = require('./correcoesOrtograficas');
 const { indices } = require('./tabelaMestra');
 
-const PORT = process.env.PORT || 3000;
+/* ==================== Configuração (toda por variável de ambiente) ==================== */
+
+const IDIOMAS_ACEITOS = ['EN', 'EN-US', 'EN-GB'];
+
+function lerConfiguracao(env = process.env) {
+  const numero = (valor, padrao) => {
+    const n = Number(valor);
+    return Number.isFinite(n) && n > 0 ? n : padrao;
+  };
+  const deeplApiKey = env.DEEPL_API_KEY || '';
+  return {
+    host: env.HOST || '127.0.0.1',
+    porta: numero(env.PORT, 3000),
+    deeplApiKey,
+    // Chave terminada em ":fx" é do plano Free, que usa outro endpoint.
+    deeplUrl: deeplApiKey.endsWith(':fx')
+      ? 'https://api-free.deepl.com/v2/translate'
+      : 'https://api.deepl.com/v2/translate',
+    deeplTimeoutMs: numero(env.DEEPL_TIMEOUT_MS, 15000),
+    limiteCorpoBytes: numero(env.MAX_CORPO_BYTES, 1000000),
+    maxDescricoesLote: numero(env.MAX_DESCRICOES_LOTE, 10000),
+    maxCaracteresDescricao: numero(env.MAX_CARACTERES_DESCRICAO, 200)
+  };
+}
+
+/* ==================== Erros tipados ==================== */
+
+// Erro que vira uma resposta HTTP com status e mensagem para o usuário.
+class ErroHttp extends Error {
+  constructor(status, mensagem) {
+    super(mensagem);
+    this.status = status;
+  }
+}
+
+// Falha ao chamar a DeepL. `fatal` indica que não adianta tentar de novo no mesmo
+// lote (chave inválida, cota esgotada). `detalhe` fica só no log do servidor.
+class ErroDeepL extends Error {
+  constructor(mensagem, { status = null, fatal = false, detalhe = '' } = {}) {
+    super(mensagem);
+    this.status = status;
+    this.fatal = fatal;
+    this.detalhe = detalhe;
+  }
+}
+
+/* ==================== Log (uma linha JSON por evento, em stdout/stderr) ==================== */
+
+function registrarPadrao(nivel, evento, campos = {}) {
+  const linha = JSON.stringify({ ts: new Date().toISOString(), nivel, evento, ...campos });
+  if (nivel === 'erro') console.error(linha);
+  else if (nivel === 'aviso') console.warn(linha);
+  else console.log(linha);
+}
+
+/* ==================== Leitura e validação do corpo ==================== */
+
+// Acumula os pedaços como Buffer e decodifica UMA vez: um caractere UTF-8 de dois
+// bytes (Ç, Ã, É) pode chegar partido entre dois pedaços, e decodificar pedaço a
+// pedaço o corrompe. O limite de bytes é conferido antes de guardar qualquer pedaço.
+function lerCorpoJson(req, limiteBytes) {
+  return new Promise((resolve, reject) => {
+    const partes = [];
+    let total = 0;
+    let encerrado = false;
+    const falhar = (erro) => {
+      if (encerrado) return;
+      encerrado = true;
+      reject(erro);
+    };
+
+    req.on('data', (pedaco) => {
+      if (encerrado) return;
+      total += pedaco.length;
+      if (total > limiteBytes) {
+        falhar(new ErroHttp(413, `Corpo da requisição acima do limite de ${limiteBytes} bytes (variável MAX_CORPO_BYTES).`));
+        return;
+      }
+      partes.push(pedaco);
+    });
+    req.on('error', (erro) => falhar(new ErroHttp(400, `Falha ao ler o corpo da requisição: ${erro.message}`)));
+    req.on('end', () => {
+      if (encerrado) return;
+      encerrado = true;
+      if (total === 0) {
+        reject(new ErroHttp(400, 'Corpo da requisição vazio.'));
+        return;
+      }
+      let corpo;
+      try {
+        corpo = JSON.parse(Buffer.concat(partes).toString('utf8'));
+      } catch (erro) {
+        reject(new ErroHttp(400, `Corpo da requisição não é JSON válido: ${erro.message}`));
+        return;
+      }
+      if (!corpo || typeof corpo !== 'object' || Array.isArray(corpo)) {
+        reject(new ErroHttp(400, 'O corpo da requisição precisa ser um objeto JSON.'));
+        return;
+      }
+      resolve(corpo);
+    });
+  });
+}
+
+function validarDescricao(valor, campo, maxCaracteres) {
+  if (typeof valor !== 'string' || !valor.trim()) {
+    throw new ErroHttp(400, `O campo ${campo} precisa ser um texto não vazio.`);
+  }
+  if (valor.length > maxCaracteres) {
+    throw new ErroHttp(400, `O campo ${campo} tem ${valor.length} caracteres; o limite é ${maxCaracteres} (variável MAX_CARACTERES_DESCRICAO).`);
+  }
+  return valor;
+}
+
+function validarListaDeTextos(textos, config, { permitirVazio = false } = {}) {
+  if (!Array.isArray(textos) || textos.length === 0) {
+    throw new ErroHttp(400, 'O campo textos precisa ser uma lista com pelo menos uma descrição.');
+  }
+  if (textos.length > config.maxDescricoesLote) {
+    throw new ErroHttp(400, `Lote com ${textos.length} descrições; o limite atual é ${config.maxDescricoesLote} (variável MAX_DESCRICOES_LOTE).`);
+  }
+  textos.forEach((texto, i) => {
+    if (permitirVazio && typeof texto === 'string' && !texto.trim()) return;
+    validarDescricao(texto, `textos[${i}]`, config.maxCaracteresDescricao);
+  });
+  return textos;
+}
+
+function validarIdioma(targetLang) {
+  const idioma = String(targetLang ?? '').toUpperCase();
+  if (!IDIOMAS_ACEITOS.includes(idioma)) {
+    throw new ErroHttp(400, `Idioma de destino não suportado: "${targetLang}". Aceitos: ${IDIOMAS_ACEITOS.join(', ')}.`);
+  }
+  return idioma;
+}
+
+/* ==================== Cliente DeepL ==================== */
+
+const MOTIVOS_DEEPL = {
+  401: 'chave inválida',
+  403: 'acesso negado',
+  429: 'muitas requisições',
+  456: 'cota esgotada'
+};
+
+function criarClienteDeepL({ apiKey, url, timeoutMs, fetchImpl }) {
+  // A descrição original segue inteira para a DeepL, que traduz PT→EN e pode
+  // reorganizar a frase. O contexto orienta o vocabulário; não é um glossário nativo.
+  return async function traduzir(textos, targetLang, contexto) {
+    if (!apiKey) {
+      throw new ErroDeepL('Chave da API DeepL não configurada no .env', { fatal: true });
+    }
+    const corpo = { text: textos, target_lang: targetLang.toUpperCase() };
+    if (contexto) corpo.context = contexto;
+
+    let resposta;
+    try {
+      resposta = await fetchImpl(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `DeepL-Auth-Key ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(corpo),
+        signal: AbortSignal.timeout(timeoutMs)
+      });
+    } catch (erro) {
+      if (erro && (erro.name === 'TimeoutError' || erro.name === 'AbortError')) {
+        throw new ErroDeepL(`DeepL não respondeu em ${timeoutMs / 1000} s`, { detalhe: erro.message });
+      }
+      throw new ErroDeepL('Falha de rede ao chamar a DeepL', { detalhe: erro && erro.message });
+    }
+
+    if (!resposta.ok) {
+      const detalhe = await resposta.text().catch(() => '');
+      const motivo = MOTIVOS_DEEPL[resposta.status] || 'erro no serviço';
+      throw new ErroDeepL(`DeepL respondeu ${resposta.status} (${motivo})`, {
+        status: resposta.status,
+        fatal: [401, 403, 456].includes(resposta.status),
+        detalhe
+      });
+    }
+
+    let dados;
+    try {
+      dados = await resposta.json();
+    } catch (erro) {
+      throw new ErroDeepL('DeepL devolveu uma resposta que não é JSON', { detalhe: erro.message });
+    }
+    const traducoes = dados && Array.isArray(dados.translations) ? dados.translations : null;
+    if (!traducoes || traducoes.length !== textos.length || traducoes.some(item => typeof item?.text !== 'string')) {
+      throw new ErroDeepL('DeepL devolveu uma resposta inesperada', { detalhe: JSON.stringify(dados).slice(0, 300) });
+    }
+    return traducoes.map(item => item.text.toUpperCase());
+  };
+}
+
+/* ==================== Serviço de tradução: DeepL com fallback local ==================== */
+
+function termosAplicados(textoPT, idioma) {
+  const vistos = new Set();
+  return listarCorrespondencias(textoPT, idioma)
+    .map(item => ({ pt: item.termo.pt, en: item.termo.en }))
+    .filter(par => !vistos.has(`${par.pt}|${par.en}`) && vistos.add(`${par.pt}|${par.en}`));
+}
+
+function criarServicoTraducao({ traduzirRemoto, registrar }) {
+  // O catch só envolve a chamada externa: qualquer outro erro é bug nosso e deve
+  // aparecer como 500, não como "a DeepL falhou".
+  async function traduzirUm(textoPT, idioma) {
+    const contexto = montarContextoGlossario([textoPT], idioma);
+    let resposta;
+    try {
+      const [traducao] = await traduzirRemoto([textoPT], idioma, contexto);
+      resposta = { traducao, origem: 'deepl' };
+    } catch (erro) {
+      if (!(erro instanceof ErroDeepL)) throw erro;
+      registrar('aviso', 'deepl.falha', { mensagem: erro.message, detalhe: erro.detalhe });
+      resposta = { traducao: processarTraducaoLocal(textoPT, idioma), origem: 'local', erro: erro.message };
+    }
+    resposta.termos = termosAplicados(textoPT, idioma);
+    return resposta;
+  }
+
+  // Fallback por grupo de contexto. Depois de um erro fatal (chave inválida, cota
+  // esgotada) a DeepL não é chamada para o restante do lote.
+  async function traduzirLote(textos, idioma) {
+    const traducoes = new Array(textos.length);
+    const origens = new Array(textos.length);
+    const erros = [];
+    let bloqueio = null;
+
+    for (const grupo of agruparTextosPorContexto(textos, idioma)) {
+      if (!bloqueio) {
+        try {
+          const resultado = await traduzirRemoto(grupo.textos, idioma, grupo.contexto);
+          grupo.indices.forEach((indice, posicao) => {
+            traducoes[indice] = resultado[posicao];
+            origens[indice] = 'deepl';
+          });
+          continue;
+        } catch (erro) {
+          if (!(erro instanceof ErroDeepL)) throw erro;
+          registrar('aviso', 'deepl.falha', { mensagem: erro.message, detalhe: erro.detalhe, descricoes: grupo.textos.length });
+          if (!erros.includes(erro.message)) erros.push(erro.message);
+          if (erro.fatal) {
+            bloqueio = erro.message;
+            erros.push('A DeepL não foi chamada para o restante do lote; ele usou o motor local.');
+          }
+        }
+      }
+      grupo.indices.forEach((indice, posicao) => {
+        traducoes[indice] = processarTraducaoLocal(grupo.textos[posicao], idioma);
+        origens[indice] = 'local';
+      });
+    }
+    return { traducoes, origens, erros };
+  }
+
+  return { traduzirUm, traduzirLote };
+}
+
+/* ==================== Glossário (somente leitura) ==================== */
 
 // Espanhol da lista do setor (PT<TAB>EN<TAB>ES). A tabela mestra ainda não tem ES;
 // a aba Glossário mostra o ES do setor quando o PT coincide. Primeira ocorrência vence.
@@ -33,7 +300,7 @@ function carregarEspanholDoSetor() {
       if (pt && es && !espanhol.has(pt.trim())) espanhol.set(pt.trim(), es.trim());
     }
   } catch (erro) {
-    console.warn('Lista PT/EN/ES do setor não encontrada; a coluna ES do glossário fica vazia.', erro.message);
+    registrarPadrao('aviso', 'glossario.es-ausente', { mensagem: erro.message });
   }
   return espanhol;
 }
@@ -55,174 +322,111 @@ function montarGlossario() {
   }));
 }
 
-function termosAplicados(textoPT, targetLang) {
-  const vistos = new Set();
-  return listarCorrespondencias(textoPT, targetLang)
-    .map(item => ({ pt: item.termo.pt, en: item.termo.en }))
-    .filter(par => !vistos.has(`${par.pt}|${par.en}`) && vistos.add(`${par.pt}|${par.en}`));
-}
-const DEEPL_API_KEY = process.env.DEEPL_API_KEY;
+/* ==================== Rotas ==================== */
 
-// Identifica automaticamente se a chave é do plano Free ou Pro
-const DEEPL_URL = DEEPL_API_KEY && DEEPL_API_KEY.endsWith(':fx')
-  ? 'https://api-free.deepl.com/v2/translate'
-  : 'https://api.deepl.com/v2/translate';
+// Cada rota recebe o corpo já lido e validado como objeto e devolve o JSON da resposta.
+// A validação acontece ANTES de qualquer chamada externa.
+const rotas = {
+  'POST /api/traduzir': async ({ corpo, config, servico }) => {
+    const textoPT = validarDescricao(corpo.textoPT, 'textoPT', config.maxCaracteresDescricao);
+    const idioma = validarIdioma(corpo.targetLang);
+    return servico.traduzirUm(textoPT, idioma);
+  },
 
-async function traduzirViaDeepL(textos, targetLang, contextoEspecifico) {
-  if (!DEEPL_API_KEY) {
-    throw new Error('Chave da API DeepL não configurada no .env');
-  }
+  'POST /api/traduzir-massa': async ({ corpo, config, servico }) => {
+    const textos = validarListaDeTextos(corpo.textos, config);
+    const idioma = validarIdioma(corpo.targetLang);
+    return servico.traduzirLote(textos, idioma);
+  },
 
-  // Consulta a tabela local antes da chamada. A descrição original segue inteira
-  // para o DeepL, que traduz PT→EN e pode reorganizar a frase naturalmente.
-  // O contexto orienta o vocabulário; ele não substitui um glossário nativo.
-  const corpo = {
-    text: textos,
-    target_lang: targetLang.toUpperCase()
-  };
-  const contextoGlossario = contextoEspecifico ?? montarContextoGlossario(textos, targetLang);
-  if (contextoGlossario) corpo.context = contextoGlossario;
+  // Sugestões locais de grafia; não chama a DeepL nem altera o texto de origem.
+  'POST /api/sugerir-correcoes': ({ corpo, config }) => {
+    const textos = validarListaDeTextos(corpo.textos, config, { permitirVazio: true });
+    return { sugestoes: textos.map(sugerirCorrecaoGrafia) };
+  },
 
-  const response = await fetch(DEEPL_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `DeepL-Auth-Key ${DEEPL_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(corpo)
+  'GET /api/glossario': () => ({ indices: montarGlossario() })
+};
+
+/* ==================== Servidor ==================== */
+
+/**
+ * Monta o servidor sem iniciá-lo (quem chama decide a porta). `fetchImpl` e `config`
+ * são injetáveis para os testes rodarem sem rede e sem .env.
+ */
+function criarServidor({ config: configExtra = {}, fetchImpl = fetch, silencioso = false } = {}) {
+  const config = { ...lerConfiguracao(), ...configExtra };
+  const registrar = silencioso ? () => {} : registrarPadrao;
+  const traduzirRemoto = criarClienteDeepL({
+    apiKey: config.deeplApiKey,
+    url: config.deeplUrl,
+    timeoutMs: config.deeplTimeoutMs,
+    fetchImpl
+  });
+  const servico = criarServicoTraducao({ traduzirRemoto, registrar });
+
+  const servidor = http.createServer(async (req, res) => {
+    const inicio = Date.now();
+    // CORS aberto enquanto a interface é aberta como arquivo local (pendência conhecida).
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    const chave = `${req.method} ${(req.url || '').split('?')[0]}`;
+    let status = 200;
+    let resposta;
+    try {
+      const rota = rotas[chave];
+      if (!rota) throw new ErroHttp(404, 'Rota não encontrada.');
+      const corpo = req.method === 'POST' ? await lerCorpoJson(req, config.limiteCorpoBytes) : null;
+      resposta = await rota({ corpo, config, servico });
+    } catch (erro) {
+      status = erro instanceof ErroHttp ? erro.status : 500;
+      resposta = { error: status === 500 ? 'Erro interno do servidor.' : erro.message };
+      registrar(status === 500 ? 'erro' : 'aviso', 'requisicao.falha', {
+        rota: chave, status, mensagem: erro.message, ...(status === 500 ? { stack: erro.stack } : {})
+      });
+    }
+
+    const corpoResposta = JSON.stringify(resposta);
+    const cabecalhos = {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Length': Buffer.byteLength(corpoResposta)
+    };
+    if (status === 413) cabecalhos.Connection = 'close';
+    res.writeHead(status, cabecalhos);
+    res.end(corpoResposta);
+    registrar('info', 'requisicao', { rota: chave, status, ms: Date.now() - inicio });
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(`Erro DeepL (${response.status}): ${JSON.stringify(data)}`);
-  }
-
-  return data.translations.map(item => item.text.toUpperCase());
+  return servidor;
 }
 
-const server = http.createServer((req, res) => {
-  // Configuração do CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+/* ==================== Inicialização (só quando executado diretamente) ==================== */
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
-
-  // ROTA: Tradução Singular
-  if (req.method === 'POST' && req.url === '/api/traduzir') {
-    let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end', async () => {
-      try {
-        const { textoPT, targetLang } = JSON.parse(body);
-
-        // A resposta diz de onde veio a tradução: a interface precisa distinguir
-        // o fallback local de uma tradução da DeepL.
-        let resposta;
-        try {
-          const resDeepL = await traduzirViaDeepL([textoPT], targetLang);
-          resposta = { traducao: resDeepL[0], origem: 'deepl' };
-        } catch (apiError) {
-          console.warn('Fallback ativado:', apiError.message);
-          resposta = {
-            traducao: processarTraducaoLocal(textoPT, targetLang),
-            origem: 'local',
-            erro: apiError.message
-          };
-        }
-        resposta.termos = termosAplicados(textoPT, targetLang);
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(resposta));
-
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: err.message }));
-      }
+if (require.main === module) {
+  const config = lerConfiguracao();
+  const servidor = criarServidor();
+  servidor.listen(config.porta, config.host, () => {
+    registrarPadrao('info', 'servidor.iniciado', {
+      host: config.host,
+      porta: config.porta,
+      deepl: config.deeplApiKey ? 'configurada' : 'ausente (só motor local)'
     });
-    return;
-  }
+    console.log(`MODALIS: API em http://${config.host}:${config.porta} (Ctrl+C para parar)`);
+  });
+  const encerrar = () => {
+    registrarPadrao('info', 'servidor.encerrando');
+    servidor.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 2000).unref();
+  };
+  process.on('SIGINT', encerrar);
+  process.on('SIGTERM', encerrar);
+}
 
-  // ROTA: Tradução em Massa
-  if (req.method === 'POST' && req.url === '/api/traduzir-massa') {
-    let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end', async () => {
-      try {
-        const { textos, targetLang } = JSON.parse(body);
-
-        // O fallback é por grupo de contexto: uma falha da DeepL não derruba o lote
-        // inteiro, e cada descrição informa de onde veio (deepl ou local).
-        const resultados = new Array(textos.length);
-        const origens = new Array(textos.length);
-        const erros = [];
-        const grupos = agruparTextosPorContexto(textos, targetLang);
-        for (const grupo of grupos) {
-          try {
-            const traducoes = await traduzirViaDeepL(grupo.textos, targetLang, grupo.contexto);
-            grupo.indices.forEach((indice, posicao) => {
-              resultados[indice] = traducoes[posicao];
-              origens[indice] = 'deepl';
-            });
-          } catch (apiError) {
-            console.warn(`Fallback em massa ativado para ${grupo.textos.length} descrição(ões):`, apiError.message);
-            erros.push(apiError.message);
-            grupo.indices.forEach((indice, posicao) => {
-              resultados[indice] = processarTraducaoLocal(grupo.textos[posicao], targetLang);
-              origens[indice] = 'local';
-            });
-          }
-        }
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ traducoes: resultados, origens, erros: [...new Set(erros)] }));
-
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: err.message }));
-      }
-    });
-    return;
-  }
-
-  // ROTA: Glossário (somente leitura) para a aba de consulta.
-  if (req.method === 'GET' && req.url === '/api/glossario') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ indices: montarGlossario() }));
-    return;
-  }
-
-  // Sugestões locais de grafia; não chama o DeepL nem altera o texto de origem.
-  if (req.method === 'POST' && req.url === '/api/sugerir-correcoes') {
-    let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end', () => {
-      try {
-        const { textos } = JSON.parse(body);
-        if (!Array.isArray(textos) || textos.some(texto => typeof texto !== 'string')) {
-          throw new Error('O campo textos precisa ser uma lista de strings.');
-        }
-
-        const sugestoes = textos.map(sugerirCorrecaoGrafia);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ sugestoes }));
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: err.message }));
-      }
-    });
-    return;
-  }
-
-  res.writeHead(404);
-  res.end('Rota não encontrada');
-});
-
-server.listen(PORT, () => {
-  console.log(`\n🚀 Servidor seguro rodando na porta ${PORT}`);
-});
+module.exports = { criarServidor, lerConfiguracao, lerCorpoJson, criarClienteDeepL, ErroHttp, ErroDeepL };

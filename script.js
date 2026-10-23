@@ -398,6 +398,15 @@ function aplicarTodasCorrecoes() {
   const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente');
   if (!pendentes.length) return;
 
+  // A coluna DESCRIÇÃO exportada é gravada no SAP pela transação da TI: aplicar em
+  // lote é uma escrita em massa no sistema de registro, por isso pede confirmação.
+  const amostra = pendentes.slice(0, 5).map(item => `• ${item.ref || `linha ${item.linhaOrigem}`}: ${item.ptOriginal} → ${item.ptSugerido}`);
+  const restante = pendentes.length > 5 ? `\n… e mais ${pendentes.length - 5}.` : '';
+  const confirmado = window.confirm(
+    `Aplicar ${pendentes.length} correção(ões) de grafia?\n\nElas entram na coluna DESCRIÇÃO exportada e, pela transação, no SAP.\n\n${amostra.join('\n')}${restante}`
+  );
+  if (!confirmado) return;
+
   pendentes.forEach(item => {
     item.pt = item.ptSugerido;
     item.estadoCorrecao = 'aceita';
@@ -507,7 +516,9 @@ function baixarExcel() {
     'DESCRIÇÃO': item.pt,
     'Descrição EN': item.en,
     'Descrição ES': item.es,
-    'TEXTO ECOM': item.ecom,
+    // Decisão de 23/10/2026: o texto do e-commerce é a própria descrição (sem limite
+    // de 40). Quando quiserem o texto completo do START, basta trocar a origem aqui.
+    'TEXTO ECOM': item.pt,
     'Z_COMPOS_PT': item.compPT,
     'Z_COMPOS_EN': item.compEN,
     'Z_COMPOS_ES': item.compES
