@@ -17,12 +17,16 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 
 - Node.js 18+, servidor HTTP nativo (`server.js`, porta 3000), front em HTML/JS puro
   (`index.html`, `script.js`), SheetJS por CDN no navegador. Dependência: `dotenv`.
-- `node server.js` sobe a API; `npm test` roda `node --test` (20 testes em `tests/`).
+- `npm start` sobe a API (`node server.js` serve fora da rede da empresa); `npm test` roda
+  `node --test` (20 testes em `tests/`).
 - A tabela foi sincronizada com a planilha v2 em 22/10/2026 (`tabelaMestra.js` = 805
   entradas, 16 índices). Ao receber arquivos do Desktop, conferir se o JS acompanha a planilha.
 - `.env` com `DEEPL_API_KEY` (chave `:fx` = plano Free). Nunca versionar chaves.
-- Pendências de segurança conhecidas (ver README): `NODE_TLS_REJECT_UNAUTHORIZED=0`,
-  CORS aberto, sem autenticação. Só uso local por enquanto.
+- Validação TLS ligada (23/10/2026): na rede da empresa iniciar com `npm start`
+  (`node --use-system-ca server.js`). Pendências de segurança conhecidas (ver README):
+  CORS aberto, sem autenticação, escuta em todas as interfaces. Só uso local por enquanto.
+- Repositório privado desde 23/10/2026; `package.json` com `private: true` e
+  `license: UNLICENSED`.
 
 ## Arquivos principais
 
@@ -145,6 +149,11 @@ português e precisa do reordenador por índice (item 2 da fila).
    tabela (só FECHADO, sem contexto, dedupe) + teste comparativo contra o conjunto de
    referência. Avaliar lotes de até 50 textos por chamada para a lentidão em massa.
 6. Depois: espanhol (base em `docs/glossario-setor-pt-en-es.tsv`), ECOM, composição.
+7. **Memória de traduções** (pedido do dono em 23/10/2026): guardar as traduções aprovadas
+   num banco local (SQLite, chave = descrição PT normalizada) e reaproveitá-las em entradas
+   iguais antes de chamar a DeepL. Ganhos: tempo, cota (a IN27 tem 274 descrições repetidas
+   em 1.622) e consistência entre coleções. Cuidados: invalidar quando a tabela mestra mudar
+   (guardar a versão/hash da tabela junto) e distinguir tradução aprovada de tradução bruta.
 
 ## Testes
 

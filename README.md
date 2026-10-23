@@ -89,10 +89,10 @@ No arquivo `.env` local, configure `DEEPL_API_KEY` com sua chave. O exemplo vers
 Inicie o servidor:
 
 ```bash
-node server.js
+npm start
 ```
 
-Por padrão, a API escuta na porta `3000`; também aceita a variável `PORT`. Abra `index.html` separadamente no navegador ou sirva-o por um servidor estático local. O servidor Node deste projeto atende as rotas da API, não os arquivos HTML/CSS/JS. A interface atualmente chama `localhost:3000` diretamente.
+Fora da rede da empresa, `node server.js` também funciona; `npm start` acrescenta `--use-system-ca`, necessário na rede corporativa (ver a seção de segurança). Por padrão, a API escuta na porta `3000`; também aceita a variável `PORT`. Abra `index.html` separadamente no navegador ou sirva-o por um servidor estático local. O servidor Node deste projeto atende as rotas da API, não os arquivos HTML/CSS/JS. A interface atualmente chama `localhost:3000` diretamente.
 
 Para executar os testes automatizados locais:
 
@@ -118,7 +118,7 @@ tests/                         Testes automatizados
 ## Segurança e limitações de uso
 
 - A chave é lida pelo servidor via `process.env.DEEPL_API_KEY`; `.env` está listado no `.gitignore` e `.env.example` contém somente a variável vazia.
-- O código atual define `NODE_TLS_REJECT_UNAUTHORIZED` como `0`, desativando a validação de certificados TLS no processo Node. Isso reduz a segurança das conexões HTTPS. Em uma rede corporativa com inspeção TLS, a alternativa adequada é configurar `NODE_EXTRA_CA_CERTS` com o certificado confiável da empresa e validar a conexão, após revisão da configuração.
+- A validação de certificados TLS fica ligada. Na rede corporativa, que faz inspeção TLS, use `npm start`: o script passa `--use-system-ca` ao Node (22.15+), que então confia no repositório de certificados do Windows, onde a TI instala a CA do proxy. Se o servidor for iniciado sem essa opção na rede da empresa, a chamada à DeepL falha por certificado e a tradução cai no fallback local, com o motivo exibido na interface.
 - O servidor permite CORS de qualquer origem (`Access-Control-Allow-Origin: *`) e não implementa autenticação.
 - O front-end e a API estão configurados para uso local; o código não deve ser considerado pronto para hospedagem pública antes de revisar TLS, CORS, autenticação e configuração de ambiente.
 

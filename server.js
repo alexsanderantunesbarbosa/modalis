@@ -1,7 +1,10 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 /**
  * server.js
  * Servidor HTTP usando variáveis de ambiente e padronização de respostas JSON.
+ *
+ * A validação de certificado TLS fica ligada. Na rede da empresa (inspeção TLS
+ * pelo proxy), inicie com `npm start`, que passa `--use-system-ca` ao Node para
+ * confiar no repositório de certificados do Windows, onde a CA do proxy está.
  */
 
 require('dotenv').config();
