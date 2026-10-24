@@ -137,7 +137,7 @@ test('cai no fallback local quando a DeepL responde erro, com motivo curto e sem
     assert.equal(status, 200);
     assert.equal(chamadas.length, 3, 'erro 5xx é passageiro: três tentativas antes de desistir');
     assert.equal(dados.origem, 'local');
-    assert.equal(dados.traducao, 'JEANS BOOTCUT');
+    assert.equal(dados.traducao, 'BOOTCUT JEANS');
     assert.equal(dados.erro, 'DeepL respondeu 500 (erro no serviço)');
     assert.doesNotMatch(dados.erro, /stack trace/);
   } finally {
@@ -271,7 +271,7 @@ test('em massa, o fallback é por lote: um lote falha (após as tentativas) e os
     assert.equal(chamadas.length, 5, '1 + 3 tentativas do lote que falha + 1');
     assert.deepEqual(dados.origens, ['deepl', 'local', 'deepl']);
     assert.equal(dados.traducoes[0], 'EN(CALÇA JEANS BOOTCUT)');
-    assert.equal(dados.traducoes[1], 'BLOUSE TURTLENECK');
+    assert.equal(dados.traducoes[1], 'TURTLENECK BLOUSE');
     assert.deepEqual(dados.erros, ['DeepL respondeu 500 (erro no serviço)']);
     assert.equal(dados.estatisticas.lotesEnviados, 3);
   } finally {
@@ -302,7 +302,7 @@ test('erro fatal da DeepL (cota esgotada) interrompe as chamadas nos lotes segui
     const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos, targetLang: 'EN' });
     assert.equal(chamadas.length, 1, 'depois do 456 a DeepL não deve ser chamada de novo (nem nova tentativa)');
     assert.deepEqual(dados.origens, ['local', 'local', 'local']);
-    assert.deepEqual(dados.traducoes, ['JEANS BOOTCUT', 'BLOUSE TURTLENECK', 'MIDI SKIRT']);
+    assert.deepEqual(dados.traducoes, ['BOOTCUT JEANS', 'TURTLENECK BLOUSE', 'MIDI SKIRT']);
     assert.match(dados.erros[0], /456 \(cota esgotada\)/);
     assert.match(dados.erros[1], /não foi chamada para o restante do lote/);
   } finally {

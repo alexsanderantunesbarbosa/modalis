@@ -35,8 +35,8 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
   perder qualidade e corrige os 13% ignorados mesmo com contexto específico. Dados em
   `comparacao-contexto.json` e `curva-tamanho-lote.json` (scratchpad da sessão; refazer se
   precisar, custa ~20 mil caracteres).
-- A tabela foi sincronizada com a planilha v2 em 22/10/2026 (`tabelaMestra.js` = 805
-  entradas, 16 índices). Ao receber arquivos do Desktop, conferir se o JS acompanha a planilha.
+- A tabela foi sincronizada com a planilha v2 em 22/10/2026 (`tabelaMestra.js` = 806
+  entradas, 16 índices; DE ALÇA = STRAPPY entrou em 24/10/2026). Ao receber arquivos do Desktop, conferir se o JS acompanha a planilha.
 - `.env` com `DEEPL_API_KEY` (chave `:fx` = plano Free). Nunca versionar chaves.
 - Validação TLS ligada (23/10/2026): na rede da empresa iniciar com `npm start`
   (`node --use-system-ca server.js`). Pendências de segurança conhecidas (ver README):
@@ -65,26 +65,26 @@ não é usado; a decisão é usá-lo depois, sincronizado a partir da tabela.
 
 Cada termo: `{ pt, en, status, tipo, contexto? }`. `tipo` é `termo` (uma palavra) ou
 `expressao` (tem espaço, hífen ou barra). `status` FECHADO é aplicado; VALIDAR é ignorado.
-Hoje: **805 entradas, todas FECHADO**, 16 índices.
+Hoje: **806 entradas, todas FECHADO**, 16 índices.
 
-| Índice | Nome | Posição na frase EN |
+| Índice | Nome | Posição na frase EN (ordem aprovada em 24/10/2026) |
 |---|---|---|
-| 1 | Categorias de peça | núcleo (substantivo) |
-| 2 | Modelagem / fit | 2 |
-| 3 | Modelagens de calça / short / bermuda | 3 |
-| 4 | Comprimento | 9 (colado ao núcleo) |
+| 1 | Categorias de peça | peça (núcleo) |
+| 2 | Modelagem / fit | 3 |
+| 3 | Modelagens de calça / short / bermuda | 9, colado à peça (STIRRUP LEGGINGS); expressões com a peça dentro (CALÇA PIJAMA) são a própria peça |
+| 4 | Comprimento | 2 quando descritivo (MID-LENGTH, CROPPED, LONGLINE); MINI/MIDI/MAXI/SUPER MIDI ficam colados à palavra da peça (DENIM MINI SKIRT); expressões com a peça dentro (SAIA CURTA) são a própria peça |
 | 5 | Cintura / rise | 1 |
 | 6 | Mangas | 4 |
 | 7 | Gola / decote / alças | 5 |
-| 8 | Tecidos / materiais | 8 |
+| 8 | Tecidos / materiais | 8 (com ou sem DE/EM); com COM vira detalhe |
 | 9 | Texturas / acabamentos / estampas | 7 |
-| 10 | Detalhes / aviamentos | depois do núcleo: `WITH … AND …` |
-| 11 | Bolsos | depois do núcleo |
-| 12 | Construção / partes da peça | 6 como adjetivo (HOODED, WRAP, SEAMLESS) ou depois do núcleo como detalhe (WITH OPEN BACK) — exceções pedirão um campo `posicao` |
-| 13 | Nomes de linha / licenças | identidade (não traduzir); posição a definir |
-| 14 | Modelagens de jaqueta / casaco | 3 |
-| 15 | Acessórios / outros produtos | núcleo |
-| 16 | Praia / íntimo / dormir | núcleo |
+| 10 | Detalhes / aviamentos | solto: 7, descreve a peça (EMBROIDERED SWEATSHIRT); com COM: detalhe no fim (`WITH … AND …`) |
+| 11 | Bolsos | igual ao 10 |
+| 12 | Construção / partes da peça | solto: 6, adjetivo (HOODED, WRAP, SEAMLESS); com COM: detalhe (WITH OPEN BACK). A preposição decide; não precisa de campo `posicao` |
+| 13 | Nomes de linha / licenças | 0, no começo da frase, nunca traduzido (SELENE TRIANGLE TOP) |
+| 14 | Modelagens de jaqueta / casaco | 9, colado à peça (PUFFER JACKET); sozinho é a peça (PARKA) |
+| 15 | Acessórios / outros produtos | peça (núcleo) |
+| 16 | Praia / íntimo / dormir | peça (núcleo) |
 
 Critério de classificação: "como veste?" → 2; "qual modelo?" → 3 ou 14; "que parte ou
 construção?" → 12; material → 8; acabamento/estampa/cor → 9; aviamento → 10.
@@ -105,23 +105,47 @@ Princípios do glossário:
 - Formas curtas por causa do limite de 40 caracteres: HALTER (não HALTER NECK), LIGHT/HEAVY
   (não LIGHTWEIGHT/HEAVYWEIGHT), HOTFIX (termocolante), SHIMMER (brilho).
 - Contexto por `contexto`: JEANS = DENIM (tecido) | JEANS (calça); MOLETOM = SWEATSHIRT |
-  SWEATPANTS | HOODIE | FLEECE; GOLA ALTA = TURTLENECK | HIGH COLLAR (AGASALHO).
+  SWEATPANTS | HOODIE | FLEECE; GOLA ALTA = TURTLENECK | HIGH COLLAR (AGASALHO). Desde
+  24/10/2026 o motor resolve esses sentidos olhando as outras peças da própria descrição
+  (`resolverSentido` em `processadorTexto.js`), sem listas fixas de peças no código.
+- A preposição muda o papel, não a palavra: BLUSA DE ALÇA = STRAPPY BLOUSE (adjetivo),
+  VESTIDO COM ALÇAS = DRESS WITH STRAPS (detalhe). Derivar palavra (STRAP → STRAPPY) é
+  vocabulário e mora na tabela; mover palavra é regra do montador.
 
-## Estrutura da frase em inglês (especificação)
+## Estrutura da frase em inglês (especificação aprovada em 24/10/2026)
 
-`[rise] [fit] [modelo] [manga] [gola/decote] [construção-adjetivo] [acabamento/estampa]
-[tecido] [comprimento] PEÇA [WITH detalhe AND detalhe]`
+**A tabela mestra é o motor.** O MODALIS monta a frase a partir dos termos casados
+(`montarTraducao` em `processadorTexto.js`); a DeepL só entra quando há palavra fora da
+tabela, e o resultado dela passa por validação. Glossário nativo da DeepL garante
+vocabulário, não ordem; por isso a estrutura é nossa.
 
-Exemplos de referência:
+`[nome de linha] [rise] [comprimento descritivo] [fit] [manga] [gola/decote] [construção]
+[acabamento/estampa] [tecido] [modelo] PEÇA (MINI/MIDI/MAXI colado à palavra da peça)
+[WITH detalhe AND detalhe] [WITHOUT detalhe]`
+
+As preposições do português dão o papel do termo: **COM X** = detalhe no fim (WITH X);
+**DE/EM + tecido** = material antes da peça; **termo solto** = adjetivo na posição do índice;
+**SEM X** = WITHOUT X; dentro de um detalhe, o modificador vem antes (COM PALA BORDADA →
+WITH EMBROIDERED YOKE; COM BOTÕES EM METAL → WITH METAL BUTTONS); "E" repete o papel do
+termo anterior. Expressões da tabela prevalecem sobre a regra (COM CAPUZ = HOODED é adjetivo).
+Fusões em calça e short: tecido JEANS → JEANS/JORTS, tecido MOLETOM → SWEATPANTS/SWEAT
+SHORTS; MOLETOM (peça) + CAPUZ → HOODIE; peça específica absorve a genérica (TOP CORTININHA
+→ TRIANGLE TOP). Acima de 40 caracteres: marcado, nunca cortado.
+
+Estados de `montarTraducao`: `tabela` (montada, uma peça, ≤ 40), `acima-de-40`,
+`desconhecida` (palavra fora da tabela, fica no fim em PT), `varias-pecas`, `sem-peca`.
+No corpus IN27+AI27 (2.464 distintas): 89,8% `tabela`, 6,6% desconhecida, 2,5% acima de 40,
+1,1% várias peças (KIT, SLEEP, ANÁGUA, CAMISA PIJAMA: casos para a tabela ou revisão).
+
+Exemplos de referência (todos são testes em `tests/montador.test.js`):
 - BERMUDA JEANS COMFORT CINTURA MÉDIA → MID-RISE COMFORT JORTS
 - VESTIDO CURTO MANGA LONGA COM BRILHOS → LONG SLEEVE SHORT DRESS WITH SHIMMER
-- MOLETOM MANGA LONGA COM CAPUZ → LONG SLEEVE HOODED SWEATSHIRT
+- MOLETOM MANGA LONGA COM CAPUZ → LONG SLEEVE HOODIE
 - LEGGING FUSÔ CINTURA ALTA SEAMLESS → HIGH-RISE SEAMLESS STIRRUP LEGGINGS
 - CASACO MÉDIO DE PELO COM METAL → MID-LENGTH FAUX FUR COAT WITH METAL
 - CALÇA PIJAMA LISTRADA → STRIPED PAJAMA PANTS
-
-Com glossário DeepL a reordenação é do modelo; o fallback local hoje mantém a ordem do
-português e precisa do reordenador por índice (item 2 da fila).
+- SAIA JEANS MINI CINTURA BAIXA COM BRILHO → LOW-RISE DENIM MINI SKIRT WITH SHIMMER
+- JAQUETA PUFFER MÉDIA GOLA ALTA → MID-LENGTH HIGH COLLAR PUFFER JACKET
 
 ## Estado atual (22/10/2026)
 

@@ -9,7 +9,7 @@ const { indices, termosPendentes, expressoesCompostas, dicionarioTermos } = requ
 
 test('carrega os dezesseis índices recategorizados e deriva as expressões compostas deles', () => {
   assert.equal(indices.length, 16);
-  assert.equal(indices.flatMap(indice => indice.termos).length, 805);
+  assert.equal(indices.flatMap(indice => indice.termos).length, 806);
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'CINTURA ALTA'));
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'MINI-SAIA'));
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'BOLSO FACA' && item.target === 'SLASH POCKET'));
@@ -22,11 +22,11 @@ test('carrega os dezesseis índices recategorizados e deriva as expressões comp
 });
 
 test('prioriza expressões compostas e respeita o índice revisado', () => {
-  assert.equal(processarTraducaoLocal('calça cintura alta', 'EN'), 'PANTS HIGH-RISE');
+  assert.equal(processarTraducaoLocal('calça cintura alta', 'EN'), 'HIGH-RISE PANTS');
 });
 
 test('preserva BORDADO como adjetivo e COM BORDADO como detalhe', () => {
-  assert.equal(processarTraducaoLocal('moletom bordado', 'EN'), 'SWEATSHIRT EMBROIDERED');
+  assert.equal(processarTraducaoLocal('moletom bordado', 'EN'), 'EMBROIDERED SWEATSHIRT');
   assert.equal(processarTraducaoLocal('short com bordado', 'EN'), 'SHORTS WITH EMBROIDERY');
 });
 
@@ -40,20 +40,20 @@ test('preserva MANGA 3/4 como expressão protegida do índice de mangas', () => 
 });
 
 test('aplica as formas femininas com a mesma tradução do masculino', () => {
-  assert.equal(processarTraducaoLocal('blusa canelada texturizada', 'EN'), 'BLOUSE RIBBED TEXTURED');
-  assert.equal(processarTraducaoLocal('blusa assimétrica', 'EN'), 'BLOUSE ASYMMETRIC');
+  assert.equal(processarTraducaoLocal('blusa canelada texturizada', 'EN'), 'RIBBED TEXTURED BLOUSE');
+  assert.equal(processarTraducaoLocal('blusa assimétrica', 'EN'), 'ASYMMETRIC BLOUSE');
 });
 
 test('resolve expressões contextuais de jeans e moletom', () => {
-  assert.equal(processarTraducaoLocal('calça jeans bootcut', 'EN'), 'JEANS BOOTCUT');
+  assert.equal(processarTraducaoLocal('calça jeans bootcut', 'EN'), 'BOOTCUT JEANS');
   assert.equal(processarTraducaoLocal('moletom canguru', 'EN'), 'HOODIE');
   assert.equal(processarTraducaoLocal('calça de moletom', 'EN'), 'SWEATPANTS');
   assert.equal(processarTraducaoLocal('camisa jeans', 'EN'), 'DENIM SHIRT');
-  assert.equal(processarTraducaoLocal('short jeans comfort', 'EN'), 'JORTS COMFORT');
+  assert.equal(processarTraducaoLocal('short jeans comfort', 'EN'), 'COMFORT JORTS');
   assert.equal(processarTraducaoLocal('bermuda jeans', 'EN'), 'JORTS');
-  assert.equal(processarTraducaoLocal('bermuda sarja', 'EN'), 'SHORTS TWILL');
+  assert.equal(processarTraducaoLocal('bermuda sarja', 'EN'), 'TWILL SHORTS');
   assert.equal(processarTraducaoLocal('short de moletom', 'EN'), 'SWEAT SHORTS');
-  assert.equal(processarTraducaoLocal('calça pijama listrada', 'EN'), 'PAJAMA PANTS STRIPED');
+  assert.equal(processarTraducaoLocal('calça pijama listrada', 'EN'), 'STRIPED PAJAMA PANTS');
 });
 
 test('só termos fechados entram no contexto antes da API', () => {
@@ -103,9 +103,9 @@ test('não corrige silenciosamente os erros reais ainda não validados', () => {
   assert.equal(processarTraducaoLocal('100ALGODÓN', 'EN'), '100ALGODÓN');
   assert.equal(
     processarTraducaoLocal('CALÇA JCALÇA JEANS BOOTCUT', 'EN'),
-    'PANTS JCALÇA JEANS BOOTCUT'
+    'BOOTCUT JEANS JCALÇA'
   );
-  assert.equal(processarTraducaoLocal('SHHORT SARJA BAGGY', 'EN'), 'SHHORT TWILL BAGGY');
+  assert.equal(processarTraducaoLocal('SHHORT SARJA BAGGY', 'EN'), 'TWILL BAGGY SHHORT');
 });
 
 test('mantém os acentos das palavras desconhecidas no fallback local', () => {

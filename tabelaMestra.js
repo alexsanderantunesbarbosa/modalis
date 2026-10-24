@@ -1704,6 +1704,12 @@ const indices = [
         "tipo": "expressao"
       },
       {
+        "pt": "DE ALÇA",
+        "en": "STRAPPY",
+        "status": "FECHADO",
+        "tipo": "expressao"
+      },
+      {
         "pt": "DECOTE COSTAS",
         "en": "LOW BACK",
         "status": "FECHADO",
