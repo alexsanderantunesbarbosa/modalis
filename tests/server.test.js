@@ -36,6 +36,9 @@ async function subir(opcoes = {}) {
       deeplChamadasSimultaneas: 1,
       deeplFalhasSeguidas: 9,
       deeplCircuitoAbertoMs: 30000,
+      deeplPausa429Ms: 1,
+      deeplPausaMaxima429Ms: 20,
+      deeplPaciencia429Ms: 400,
       limiteCorpoBytes: 4096,
       maxDescricoesLote: 6,
       maxCaracteresDescricao: 60,
@@ -106,6 +109,7 @@ test('traduz pela DeepL e devolve origem, termos aplicados e tradução em caixa
     assert.ok(dados.termos.some(par => par.pt === 'CALÇA JEANS' && par.en === 'JEANS'));
     assert.equal(chamadas.length, 1);
     assert.match(chamadas[0].context, /CALÇA JEANS = JEANS/);
+    assert.equal(chamadas[0].source_lang, 'PT', 'o idioma de origem é informado, nunca adivinhado');
   } finally {
     await servidor.fechar();
   }
@@ -469,6 +473,72 @@ test('cliente que desiste (aba fechada) cancela os lotes que ainda não começar
     await assert.rejects(pedido);
     await new Promise(resolve => setTimeout(resolve, 1200));
     assert.ok(chamadas.length <= 2, `o servidor continuou chamando a DeepL para ninguém: ${chamadas.length} chamadas`);
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+/* ==================== 429: freio global, paciência e Retry-After ==================== */
+
+test('429 durante um tempo e depois volta: tudo pela DeepL, sem lote local e sem abrir o disjuntor', async () => {
+  const inicio = Date.now();
+  let recusas = 0;
+  const { fetchImpl, chamadas } = fetchFalso(corpo => {
+    if (Date.now() - inicio < 250) { recusas += 1; return new Response('{"message":"Too many requests"}', { status: 429 }); }
+    return respostaDeepL(corpo.text);
+  });
+  const servidor = await subir({ fetchImpl, config: { deeplChamadasSimultaneas: 3 } });
+  try {
+    const textos = ['CALÇA JEANS BOOTCUT', 'BLUSA GOLA ALTA', 'SAIA MIDI', 'VESTIDO', 'SHORT', 'TOP'];
+    const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos, targetLang: 'EN' });
+    assert.ok(recusas >= 6, `esperava muitos 429 antes de a DeepL voltar, houve ${recusas}`);
+    assert.deepEqual(dados.origens, ['deepl', 'deepl', 'deepl', 'deepl', 'deepl', 'deepl']);
+    assert.deepEqual(dados.erros, []);
+    assert.ok(chamadas.length >= 6);
+
+    const depois = await post(servidor.base, '/api/traduzir', { textoPT: 'SAIA MIDI', targetLang: 'EN' });
+    assert.equal(depois.dados.origem, 'deepl', 'os 429 não podem ter aberto o disjuntor');
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('429 sem parar além da paciência: restante no motor local, mensagem de limitação e sem demorar', async () => {
+  const { fetchImpl, chamadas } = fetchFalso(() => new Response('{"message":"Too many requests"}', { status: 429 }));
+  const servidor = await subir({ fetchImpl, config: { deeplChamadasSimultaneas: 3, maxDescricoesLote: 20 } });
+  try {
+    const textos = Array.from({ length: 12 }, (_, i) => `SAIA MIDI ${i}`);
+    const inicio = Date.now();
+    const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos, targetLang: 'EN' });
+    const duracao = Date.now() - inicio;
+    assert.ok(dados.origens.every(origem => origem === 'local'));
+    assert.ok(dados.erros.some(erro => /limitando as chamadas/.test(erro)), JSON.stringify(dados.erros));
+    assert.ok(duracao >= 400 && duracao < 3000, `paciência de 400 ms, levou ${duracao} ms`);
+    assert.ok(chamadas.length < 80, `chamadas demais durante a pausa: ${chamadas.length}`);
+
+    const antes = chamadas.length;
+    const depois = await post(servidor.base, '/api/traduzir', { textoPT: 'SAIA MIDI', targetLang: 'EN' });
+    assert.equal(depois.dados.origem, 'local');
+    assert.equal(chamadas.length, antes, 'com o circuito aberto não há chamada nova');
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('Retry-After do 429 é respeitado: a nova chamada só sai depois do prazo', async () => {
+  const instantes = [];
+  const { fetchImpl } = fetchFalso(corpo => {
+    instantes.push(Date.now());
+    return instantes.length === 1
+      ? new Response('{"message":"Too many requests"}', { status: 429, headers: { 'Retry-After': '1' } })
+      : respostaDeepL(corpo.text);
+  });
+  const servidor = await subir({ fetchImpl });
+  try {
+    const { dados } = await post(servidor.base, '/api/traduzir', { textoPT: 'SAIA MIDI', targetLang: 'EN' });
+    assert.equal(dados.origem, 'deepl');
+    assert.equal(instantes.length, 2);
+    assert.ok(instantes[1] - instantes[0] >= 950, `esperou só ${instantes[1] - instantes[0]} ms`);
   } finally {
     await servidor.fechar();
   }

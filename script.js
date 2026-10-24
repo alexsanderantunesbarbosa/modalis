@@ -443,6 +443,10 @@ function aplicarTodasCorrecoes() {
   setMassaStatus(`${pendentes.length} correção(ões) aplicada(s). Revise as descrições antes de traduzir.`);
 }
 
+// Descrições distintas enviadas por requisição na tradução em massa. Partes menores dão
+// progresso na tela e limitam o que se perde se uma requisição falhar no meio.
+const TAMANHO_PARTE = 100;
+
 async function traduzirMassa() {
   if (!dadosProcessados.length) return;
   // Com a edição aberta, primeiro salva o que foi digitado (vira 'manual' e não é reenviado).
@@ -474,30 +478,56 @@ async function traduzirMassa() {
   btn.disabled = true;
   if (btnImportar) btnImportar.disabled = true;
   if (btnAlterar) btnAlterar.disabled = true;
-  setMassaStatus(`Enviando ${alvos.length} de ${itens.length} descrições para tradução...`);
+  // Descrições iguais vão uma vez só, em partes de TAMANHO_PARTE, com progresso na tela.
+  // O que já voltou fica gravado mesmo que uma parte falhe no meio.
+  const porChave = new Map();
+  for (const item of alvos) {
+    const chave = item.pt.trim().toUpperCase();
+    if (!porChave.has(chave)) porChave.set(chave, []);
+    porChave.get(chave).push(item);
+  }
+  const chaves = Array.from(porChave.keys());
+  const totalPartes = Math.ceil(chaves.length / TAMANHO_PARTE);
+  setMassaStatus(`Enviando ${chaves.length} descrições distintas (${alvos.length} linhas) em ${totalPartes} parte(s)...`);
   try {
-    const { traducoes, origens = [], erros = [], estatisticas } = await chamarApiTraduzirMassa(alvos.map(item => item.pt), 'EN-US');
-    if (dadosProcessados !== itens) {
-      setMassaStatus('Outra planilha foi importada durante a tradução; o resultado da anterior foi descartado.', true);
-      return;
+    const errosVistos = [];
+    let feitas = 0;
+    let interrompido = '';
+    for (let inicio = 0; inicio < chaves.length; inicio += TAMANHO_PARTE) {
+      const parte = chaves.slice(inicio, inicio + TAMANHO_PARTE);
+      const { traducoes, origens = [], erros = [] } = await chamarApiTraduzirMassa(parte.map(chave => porChave.get(chave)[0].pt), 'EN-US');
+      if (dadosProcessados !== itens) {
+        setMassaStatus('Outra planilha foi importada durante a tradução; o resultado da anterior foi descartado.', true);
+        return;
+      }
+      parte.forEach((chave, j) => porChave.get(chave).forEach(item => {
+        if (!precisaTraduzir(item)) return; // a linha foi editada à mão durante a espera
+        item.en = normalizarEN(traducoes[j]);
+        item.es = '';
+        item.origemEN = origens[j] || 'deepl';
+      }));
+      erros.forEach(erro => { if (!errosVistos.includes(erro)) errosVistos.push(erro); });
+      feitas += parte.length;
+      renderTabelaMassa();
+      // DeepL suspensa (limite de taxa ou indisponível): parar de enviar; o restante fica
+      // pendente para "Traduzir pendentes" daqui a alguns minutos.
+      if (origens.length && origens.every(origem => origem === 'local') && erros.some(erro => /suspensas|limitando/.test(erro))) {
+        interrompido = erros.find(erro => /suspensas|limitando/.test(erro));
+        break;
+      }
+      setMassaStatus(`Traduzidas ${feitas} de ${chaves.length} descrições distintas (parte ${Math.ceil(feitas / TAMANHO_PARTE)} de ${totalPartes})...`);
     }
-    alvos.forEach((item, index) => {
-      if (!precisaTraduzir(item)) return; // a linha foi editada à mão durante a espera
-      item.en = normalizarEN(traducoes[index]);
-      item.es = '';
-      item.origemEN = origens[index] || 'deepl';
-    });
 
     const locais = alvos.filter(item => item.origemEN === 'local').length;
-    let resumo = '';
-    if (estatisticas) {
-      const repetidas = estatisticas.descricoes - estatisticas.distintas;
-      resumo = ` (${estatisticas.distintas} descrições distintas em ${estatisticas.lotes} lote(s)${repetidas ? `, ${repetidas} repetidas aproveitadas` : ''})`;
-    }
-    if (locais) {
-      setMassaStatus(`A DeepL falhou em ${locais} de ${alvos.length} descrições; elas vieram do motor local e estão marcadas na tabela${resumo}. Motivo: ${erros.join(' | ')}`, true);
+    const pendentes = alvos.filter(precisaTraduzir).length;
+    const repetidas = alvos.length - chaves.length;
+    const resumo = ` (${chaves.length} descrições distintas${repetidas ? `, ${repetidas} repetidas aproveitadas` : ''})`;
+    if (interrompido) {
+      setMassaStatus(`Tradução interrompida: ${interrompido}. ${pendentes} linha(s) continuam pendentes e ${locais} vieram do motor local${resumo}.`, true);
+    } else if (locais) {
+      setMassaStatus(`A DeepL falhou em ${locais} de ${alvos.length} descrições; elas vieram do motor local e estão marcadas na tabela${resumo}. Motivo: ${errosVistos.join(' | ')}`, true);
     } else {
-      setMassaStatus(`Tradução concluída pela DeepL: ${alvos.length} descrição(ões)${resumo}. O espanhol será incluído em uma etapa posterior.`);
+      setMassaStatus(`Tradução concluída pela DeepL: ${alvos.length} linha(s)${resumo}. O espanhol será incluído em uma etapa posterior.`);
     }
     renderTabelaMassa();
   } catch (error) {

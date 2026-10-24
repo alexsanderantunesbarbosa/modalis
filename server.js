@@ -55,6 +55,12 @@ function lerConfiguracao(env = process.env) {
     // e os lotes caem no motor local na hora, em vez de cada um repetir as esperas.
     deeplFalhasSeguidas: numero(env.DEEPL_FALHAS_SEGUIDAS, 9),
     deeplCircuitoAbertoMs: numero(env.DEEPL_CIRCUITO_ABERTO_MS, 30000),
+    // 429 ("muitas requisições") não é queda: é a DeepL pedindo para ir mais devagar. O
+    // servidor inteiro pausa (2 s, 4 s, ... até 30 s) e tenta de novo; só depois de
+    // `deeplPaciencia429Ms` sem nenhum sucesso o restante vai para o motor local.
+    deeplPausa429Ms: numero(env.DEEPL_PAUSA_429_MS, 2000),
+    deeplPausaMaxima429Ms: numero(env.DEEPL_PAUSA_MAXIMA_429_MS, 30000),
+    deeplPaciencia429Ms: numero(env.DEEPL_PACIENCIA_429_MS, 120000),
     limiteCorpoBytes: numero(env.MAX_CORPO_BYTES, 1000000),
     maxDescricoesLote: numero(env.MAX_DESCRICOES_LOTE, 10000),
     maxCaracteresDescricao: numero(env.MAX_CARACTERES_DESCRICAO, 200)
@@ -75,12 +81,13 @@ class ErroHttp extends Error {
 // lote (chave inválida, cota esgotada); `repetivel` indica falha passageira (429, 5xx,
 // rede, timeout) que merece nova tentativa. `detalhe` fica só no log do servidor.
 class ErroDeepL extends Error {
-  constructor(mensagem, { status = null, fatal = false, repetivel = false, detalhe = '' } = {}) {
+  constructor(mensagem, { status = null, fatal = false, repetivel = false, detalhe = '', retryAfterMs = null } = {}) {
     super(mensagem);
     this.status = status;
     this.fatal = fatal;
     this.repetivel = repetivel;
     this.detalhe = detalhe;
+    this.retryAfterMs = retryAfterMs; // só em 429, quando a DeepL manda o cabeçalho Retry-After
   }
 }
 
@@ -190,7 +197,9 @@ function criarClienteDeepL({ apiKey, url, timeoutMs, fetchImpl }) {
     if (!apiKey) {
       throw new ErroDeepL('Chave da API DeepL não configurada no .env', { fatal: true });
     }
-    const corpo = { text: textos, target_lang: targetLang.toUpperCase() };
+    // source_lang evita que a DeepL "adivinhe" o idioma de descrições curtas (SAIA MIDI
+    // chegou a ser lido como tswana, e SHORT JEANS como inglês, e saíam sem tradução).
+    const corpo = { text: textos, source_lang: 'PT', target_lang: targetLang.toUpperCase() };
     if (contexto) corpo.context = contexto;
 
     let resposta;
@@ -218,6 +227,7 @@ function criarClienteDeepL({ apiKey, url, timeoutMs, fetchImpl }) {
         status: resposta.status,
         fatal: [401, 403, 456].includes(resposta.status),
         repetivel: resposta.status === 429 || resposta.status >= 500,
+        retryAfterMs: resposta.status === 429 ? lerRetryAfter(resposta) : null,
         detalhe
       });
     }
@@ -236,35 +246,85 @@ function criarClienteDeepL({ apiKey, url, timeoutMs, fetchImpl }) {
   };
 }
 
+// Cabeçalho Retry-After do 429: segundos ou data HTTP. Devolve milissegundos ou null.
+function lerRetryAfter(resposta) {
+  const valor = resposta.headers && typeof resposta.headers.get === 'function' ? resposta.headers.get('retry-after') : null;
+  if (!valor) return null;
+  if (/^\d+$/.test(valor.trim())) return Number(valor) * 1000;
+  const quando = Date.parse(valor);
+  return Number.isFinite(quando) ? Math.max(0, quando - Date.now()) : null;
+}
+
 // Nova tentativa com espera crescente (1 s, 2 s, ...) só para falhas passageiras.
 // Erros fatais e de requisição inválida sobem na hora.
-// Disjuntor (circuit breaker): o contador de falhas seguidas é compartilhado por todas as
-// requisições; ao passar do limite, o circuito abre por `abertoMs` e toda chamada falha na
-// hora, sem esperar. Sem isso, com a rede caída cada lote pagaria as esperas de novo.
-function comNovasTentativas(traduzir, { tentativas, esperaBaseMs, limiteFalhasSeguidas = 9, abertoMs = 30000, registrar }) {
+//
+// Duas falhas, dois remédios:
+// - Rede, timeout, 5xx = o serviço não responde: repetir poucas vezes e, após
+//   `limiteFalhasSeguidas` falhas seguidas (contador compartilhado por todas as
+//   requisições), abrir o DISJUNTOR por `abertoMs`: toda chamada falha na hora e cai no
+//   motor local, em vez de cada lote pagar as esperas de novo.
+// - 429 = o serviço está de pé e pede para ir mais devagar: FREIO global. Todas as
+//   chamadas pausam (`pausa429Ms`, dobrando até `pausaMaxima429Ms`, ou o Retry-After da
+//   DeepL) e repetem quantas vezes for preciso. Só depois de `paciencia429Ms` sem nenhum
+//   sucesso o circuito abre, com uma mensagem própria. O 429 nunca conta para o disjuntor.
+function comNovasTentativas(traduzir, {
+  tentativas, esperaBaseMs, limiteFalhasSeguidas = 9, abertoMs = 30000,
+  pausa429Ms = 2000, pausaMaxima429Ms = 30000, paciencia429Ms = 120000,
+  registrar, agora = () => Date.now()
+}) {
   const esperar = ms => new Promise(resolve => setTimeout(resolve, ms));
   let falhasSeguidas = 0;
   let abertoAte = 0;
-  let ultimoErro = null;
+  let motivoAberto = null;
+  let pausaAte = 0;        // até quando ninguém chama a DeepL (freio do 429)
+  let pausaAtual = 0;      // duração da pausa vigente; dobra a cada rodada de 429
+  let limitadoDesde = 0;   // início da sequência de 429 sem nenhum sucesso
+
+  const abrirCircuito = (erro, mensagem) => {
+    abertoAte = agora() + abertoMs;
+    motivoAberto = new ErroDeepL(mensagem, { status: erro.status, repetivel: true, detalhe: erro.detalhe });
+    registrar('aviso', 'deepl.circuito-aberto', { abertoMs, mensagem });
+  };
+
   return async function traduzirComTentativas(...argumentos) {
-    for (let tentativa = 1; ; tentativa++) {
-      if (Date.now() < abertoAte) {
-        throw new ErroDeepL(`DeepL indisponível (${ultimoErro.message}); novas chamadas suspensas por ${abertoMs / 1000} s`, { repetivel: true, detalhe: ultimoErro.detalhe });
-      }
+    let tentativa = 0;
+    for (;;) {
+      while (agora() < pausaAte) await esperar(pausaAte - agora());
+      if (agora() < abertoAte) throw motivoAberto;
+      tentativa += 1;
       try {
         const resultado = await traduzir(...argumentos);
         falhasSeguidas = 0;
+        limitadoDesde = 0;
+        pausaAtual = 0;
         return resultado;
       } catch (erro) {
-        if (erro instanceof ErroDeepL && erro.repetivel && !erro.fatal) {
+        if (!(erro instanceof ErroDeepL) || erro.fatal) throw erro;
+
+        if (erro.status === 429) {
+          if (!limitadoDesde) limitadoDesde = agora();
+          if (agora() - limitadoDesde >= paciencia429Ms) {
+            abrirCircuito(erro, `A DeepL está limitando as chamadas há mais de ${Math.round(paciencia429Ms / 1000)} s; use "Traduzir pendentes" em alguns minutos`);
+            throw motivoAberto;
+          }
+          // Só a primeira chamada a ver o 429 nesta rodada define a pausa; as outras, que
+          // falharam ao mesmo tempo, apenas esperam o mesmo instante (sem multiplicar).
+          if (agora() >= pausaAte) {
+            pausaAtual = erro.retryAfterMs || Math.min(pausaMaxima429Ms, pausaAtual ? pausaAtual * 2 : pausa429Ms);
+            const variacao = Math.floor(Math.random() * pausaAtual * 0.25);
+            pausaAte = agora() + pausaAtual + variacao;
+            registrar('aviso', 'deepl.limite-de-taxa', { pausaMs: pausaAtual + variacao, mensagem: erro.message });
+          }
+          continue;
+        }
+
+        if (erro.repetivel) {
           falhasSeguidas += 1;
-          ultimoErro = erro;
           if (falhasSeguidas >= limiteFalhasSeguidas) {
-            abertoAte = Date.now() + abertoMs;
-            registrar('aviso', 'deepl.circuito-aberto', { falhasSeguidas, abertoMs, mensagem: erro.message });
+            abrirCircuito(erro, `DeepL indisponível (${erro.message}); novas chamadas suspensas por ${abertoMs / 1000} s`);
           }
         }
-        const repetir = erro instanceof ErroDeepL && erro.repetivel && !erro.fatal && tentativa < tentativas && Date.now() >= abertoAte;
+        const repetir = erro.repetivel && tentativa < tentativas && agora() >= abertoAte;
         if (!repetir) throw erro;
         const espera = esperaBaseMs * 2 ** (tentativa - 1);
         registrar('aviso', 'deepl.nova-tentativa', { tentativa, proximaEmMs: espera, mensagem: erro.message });
@@ -456,7 +516,16 @@ function criarServidor({ config: configExtra = {}, fetchImpl = fetch, silencioso
   const registrar = silencioso ? () => {} : registrarPadrao;
   const traduzirRemoto = comNovasTentativas(
     criarClienteDeepL({ apiKey: config.deeplApiKey, url: config.deeplUrl, timeoutMs: config.deeplTimeoutMs, fetchImpl }),
-    { tentativas: config.deeplTentativas, esperaBaseMs: config.deeplEsperaRetryMs, limiteFalhasSeguidas: config.deeplFalhasSeguidas, abertoMs: config.deeplCircuitoAbertoMs, registrar }
+    {
+      tentativas: config.deeplTentativas,
+      esperaBaseMs: config.deeplEsperaRetryMs,
+      limiteFalhasSeguidas: config.deeplFalhasSeguidas,
+      abertoMs: config.deeplCircuitoAbertoMs,
+      pausa429Ms: config.deeplPausa429Ms,
+      pausaMaxima429Ms: config.deeplPausaMaxima429Ms,
+      paciencia429Ms: config.deeplPaciencia429Ms,
+      registrar
+    }
   );
   const limitador = criarLimitador(config.deeplChamadasSimultaneas);
   const servico = criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote: config.deeplTamanhoLote, registrar });
