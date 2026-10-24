@@ -19,8 +19,8 @@ const path = require('path');
 const {
   processarTraducaoLocal,
   montarContextoGlossario,
-  agruparTextosPorContexto,
-  listarCorrespondencias
+  montarLotesParaTraducao,
+  paresDoGlossario
 } = require('./processadorTexto');
 const { sugerirCorrecaoGrafia } = require('./correcoesOrtograficas');
 const { indices } = require('./tabelaMestra');
@@ -44,6 +44,17 @@ function lerConfiguracao(env = process.env) {
       ? 'https://api-free.deepl.com/v2/translate'
       : 'https://api.deepl.com/v2/translate',
     deeplTimeoutMs: numero(env.DEEPL_TIMEOUT_MS, 15000),
+    // A API aceita até 50 textos por chamada, mas o `context` perde força conforme o lote
+    // cresce (medido em 23/10/2026: 87% de obediência ao glossário com 1 descrição por
+    // chamada, 68% com 50). Enquanto o glossário nativo da DeepL não existir, o padrão é 1.
+    deeplTamanhoLote: Math.min(50, numero(env.DEEPL_TAMANHO_LOTE, 1)),
+    deeplChamadasSimultaneas: numero(env.DEEPL_CHAMADAS_SIMULTANEAS, 3),
+    deeplTentativas: numero(env.DEEPL_TENTATIVAS, 3),
+    deeplEsperaRetryMs: numero(env.DEEPL_ESPERA_RETRY_MS, 1000),
+    // Disjuntor: depois de N tentativas falhas seguidas, a DeepL fica suspensa por um tempo
+    // e os lotes caem no motor local na hora, em vez de cada um repetir as esperas.
+    deeplFalhasSeguidas: numero(env.DEEPL_FALHAS_SEGUIDAS, 9),
+    deeplCircuitoAbertoMs: numero(env.DEEPL_CIRCUITO_ABERTO_MS, 30000),
     limiteCorpoBytes: numero(env.MAX_CORPO_BYTES, 1000000),
     maxDescricoesLote: numero(env.MAX_DESCRICOES_LOTE, 10000),
     maxCaracteresDescricao: numero(env.MAX_CARACTERES_DESCRICAO, 200)
@@ -61,12 +72,14 @@ class ErroHttp extends Error {
 }
 
 // Falha ao chamar a DeepL. `fatal` indica que não adianta tentar de novo no mesmo
-// lote (chave inválida, cota esgotada). `detalhe` fica só no log do servidor.
+// lote (chave inválida, cota esgotada); `repetivel` indica falha passageira (429, 5xx,
+// rede, timeout) que merece nova tentativa. `detalhe` fica só no log do servidor.
 class ErroDeepL extends Error {
-  constructor(mensagem, { status = null, fatal = false, detalhe = '' } = {}) {
+  constructor(mensagem, { status = null, fatal = false, repetivel = false, detalhe = '' } = {}) {
     super(mensagem);
     this.status = status;
     this.fatal = fatal;
+    this.repetivel = repetivel;
     this.detalhe = detalhe;
   }
 }
@@ -193,9 +206,9 @@ function criarClienteDeepL({ apiKey, url, timeoutMs, fetchImpl }) {
       });
     } catch (erro) {
       if (erro && (erro.name === 'TimeoutError' || erro.name === 'AbortError')) {
-        throw new ErroDeepL(`DeepL não respondeu em ${timeoutMs / 1000} s`, { detalhe: erro.message });
+        throw new ErroDeepL(`DeepL não respondeu em ${timeoutMs / 1000} s`, { repetivel: true, detalhe: erro.message });
       }
-      throw new ErroDeepL('Falha de rede ao chamar a DeepL', { detalhe: erro && erro.message });
+      throw new ErroDeepL('Falha de rede ao chamar a DeepL', { repetivel: true, detalhe: erro && erro.message });
     }
 
     if (!resposta.ok) {
@@ -204,6 +217,7 @@ function criarClienteDeepL({ apiKey, url, timeoutMs, fetchImpl }) {
       throw new ErroDeepL(`DeepL respondeu ${resposta.status} (${motivo})`, {
         status: resposta.status,
         fatal: [401, 403, 456].includes(resposta.status),
+        repetivel: resposta.status === 429 || resposta.status >= 500,
         detalhe
       });
     }
@@ -222,23 +236,84 @@ function criarClienteDeepL({ apiKey, url, timeoutMs, fetchImpl }) {
   };
 }
 
+// Nova tentativa com espera crescente (1 s, 2 s, ...) só para falhas passageiras.
+// Erros fatais e de requisição inválida sobem na hora.
+// Disjuntor (circuit breaker): o contador de falhas seguidas é compartilhado por todas as
+// requisições; ao passar do limite, o circuito abre por `abertoMs` e toda chamada falha na
+// hora, sem esperar. Sem isso, com a rede caída cada lote pagaria as esperas de novo.
+function comNovasTentativas(traduzir, { tentativas, esperaBaseMs, limiteFalhasSeguidas = 9, abertoMs = 30000, registrar }) {
+  const esperar = ms => new Promise(resolve => setTimeout(resolve, ms));
+  let falhasSeguidas = 0;
+  let abertoAte = 0;
+  let ultimoErro = null;
+  return async function traduzirComTentativas(...argumentos) {
+    for (let tentativa = 1; ; tentativa++) {
+      if (Date.now() < abertoAte) {
+        throw new ErroDeepL(`DeepL indisponível (${ultimoErro.message}); novas chamadas suspensas por ${abertoMs / 1000} s`, { repetivel: true, detalhe: ultimoErro.detalhe });
+      }
+      try {
+        const resultado = await traduzir(...argumentos);
+        falhasSeguidas = 0;
+        return resultado;
+      } catch (erro) {
+        if (erro instanceof ErroDeepL && erro.repetivel && !erro.fatal) {
+          falhasSeguidas += 1;
+          ultimoErro = erro;
+          if (falhasSeguidas >= limiteFalhasSeguidas) {
+            abertoAte = Date.now() + abertoMs;
+            registrar('aviso', 'deepl.circuito-aberto', { falhasSeguidas, abertoMs, mensagem: erro.message });
+          }
+        }
+        const repetir = erro instanceof ErroDeepL && erro.repetivel && !erro.fatal && tentativa < tentativas && Date.now() >= abertoAte;
+        if (!repetir) throw erro;
+        const espera = esperaBaseMs * 2 ** (tentativa - 1);
+        registrar('aviso', 'deepl.nova-tentativa', { tentativa, proximaEmMs: espera, mensagem: erro.message });
+        await esperar(espera);
+      }
+    }
+  };
+}
+
+// Limita quantas tarefas rodam ao mesmo tempo. É um só por servidor: o limite é da
+// conta DeepL, não de quem chama, então vale para todas as requisições juntas.
+function criarLimitador(maximo) {
+  let emUso = 0;
+  const fila = [];
+  const liberar = () => {
+    emUso -= 1;
+    const proxima = fila.shift();
+    if (proxima) proxima();
+  };
+  // `prioritaria` fura a fila: a tradução individual não espera atrás de um lote em massa.
+  return function executar(tarefa, { prioritaria = false } = {}) {
+    return new Promise((resolve, reject) => {
+      const iniciar = () => {
+        emUso += 1;
+        Promise.resolve().then(tarefa).then(resolve, reject).finally(liberar);
+      };
+      if (emUso < maximo) iniciar();
+      else if (prioritaria) fila.unshift(iniciar);
+      else fila.push(iniciar);
+    });
+  };
+}
+
 /* ==================== Serviço de tradução: DeepL com fallback local ==================== */
 
 function termosAplicados(textoPT, idioma) {
   const vistos = new Set();
-  return listarCorrespondencias(textoPT, idioma)
-    .map(item => ({ pt: item.termo.pt, en: item.termo.en }))
+  return paresDoGlossario(textoPT, idioma)
     .filter(par => !vistos.has(`${par.pt}|${par.en}`) && vistos.add(`${par.pt}|${par.en}`));
 }
 
-function criarServicoTraducao({ traduzirRemoto, registrar }) {
+function criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote, registrar }) {
   // O catch só envolve a chamada externa: qualquer outro erro é bug nosso e deve
   // aparecer como 500, não como "a DeepL falhou".
   async function traduzirUm(textoPT, idioma) {
     const contexto = montarContextoGlossario([textoPT], idioma);
     let resposta;
     try {
-      const [traducao] = await traduzirRemoto([textoPT], idioma, contexto);
+      const [traducao] = await limitador(() => traduzirRemoto([textoPT], idioma, contexto), { prioritaria: true });
       resposta = { traducao, origem: 'deepl' };
     } catch (erro) {
       if (!(erro instanceof ErroDeepL)) throw erro;
@@ -249,39 +324,61 @@ function criarServicoTraducao({ traduzirRemoto, registrar }) {
     return resposta;
   }
 
-  // Fallback por grupo de contexto. Depois de um erro fatal (chave inválida, cota
-  // esgotada) a DeepL não é chamada para o restante do lote.
-  async function traduzirLote(textos, idioma) {
+  // Lotes de até `tamanhoLote` descrições distintas, processados em paralelo dentro do
+  // limite do servidor. Fallback local por lote; depois de um erro fatal (chave inválida,
+  // cota esgotada) os lotes que ainda não começaram vão direto ao motor local.
+  // `sinal` (AbortSignal) é acionado quando o cliente desiste da requisição: os lotes que
+  // ainda não começaram são pulados, para não gastar cota com um resultado que ninguém lerá.
+  async function traduzirLote(textos, idioma, sinal) {
+    const lotes = montarLotesParaTraducao(textos, idioma, { tamanhoMaximo: tamanhoLote });
     const traducoes = new Array(textos.length);
     const origens = new Array(textos.length);
     const erros = [];
     let bloqueio = null;
+    let lotesEnviados = 0;
 
-    for (const grupo of agruparTextosPorContexto(textos, idioma)) {
+    const anotarErro = mensagem => { if (!erros.includes(mensagem)) erros.push(mensagem); };
+    const aplicar = (lote, resultado, origem) => lote.posicoes.forEach((posicoes, i) => {
+      for (const posicao of posicoes) {
+        traducoes[posicao] = resultado[i];
+        origens[posicao] = origem;
+      }
+    });
+
+    const processar = async lote => {
+      if (sinal?.aborted) return;
       if (!bloqueio) {
         try {
-          const resultado = await traduzirRemoto(grupo.textos, idioma, grupo.contexto);
-          grupo.indices.forEach((indice, posicao) => {
-            traducoes[indice] = resultado[posicao];
-            origens[indice] = 'deepl';
-          });
-          continue;
+          lotesEnviados += 1;
+          const resultado = await traduzirRemoto(lote.textos, idioma, lote.contexto);
+          aplicar(lote, resultado, 'deepl');
+          return;
         } catch (erro) {
           if (!(erro instanceof ErroDeepL)) throw erro;
-          registrar('aviso', 'deepl.falha', { mensagem: erro.message, detalhe: erro.detalhe, descricoes: grupo.textos.length });
-          if (!erros.includes(erro.message)) erros.push(erro.message);
-          if (erro.fatal) {
+          registrar('aviso', 'deepl.falha', { mensagem: erro.message, detalhe: erro.detalhe, descricoes: lote.textos.length });
+          anotarErro(erro.message);
+          if (erro.fatal && !bloqueio) {
             bloqueio = erro.message;
-            erros.push('A DeepL não foi chamada para o restante do lote; ele usou o motor local.');
+            anotarErro('A DeepL não foi chamada para o restante do lote; ele usou o motor local.');
           }
         }
       }
-      grupo.indices.forEach((indice, posicao) => {
-        traducoes[indice] = processarTraducaoLocal(grupo.textos[posicao], idioma);
-        origens[indice] = 'local';
-      });
-    }
-    return { traducoes, origens, erros };
+      aplicar(lote, lote.textos.map(texto => processarTraducaoLocal(texto, idioma)), 'local');
+    };
+
+    await Promise.all(lotes.map(lote => limitador(() => processar(lote))));
+
+    return {
+      traducoes,
+      origens,
+      erros,
+      estatisticas: {
+        descricoes: textos.length,
+        distintas: lotes.reduce((soma, lote) => soma + lote.textos.length, 0),
+        lotes: lotes.length,
+        lotesEnviados
+      }
+    };
   }
 
   return { traduzirUm, traduzirLote };
@@ -333,10 +430,10 @@ const rotas = {
     return servico.traduzirUm(textoPT, idioma);
   },
 
-  'POST /api/traduzir-massa': async ({ corpo, config, servico }) => {
+  'POST /api/traduzir-massa': async ({ corpo, config, servico, sinal }) => {
     const textos = validarListaDeTextos(corpo.textos, config);
     const idioma = validarIdioma(corpo.targetLang);
-    return servico.traduzirLote(textos, idioma);
+    return servico.traduzirLote(textos, idioma, sinal);
   },
 
   // Sugestões locais de grafia; não chama a DeepL nem altera o texto de origem.
@@ -357,13 +454,12 @@ const rotas = {
 function criarServidor({ config: configExtra = {}, fetchImpl = fetch, silencioso = false } = {}) {
   const config = { ...lerConfiguracao(), ...configExtra };
   const registrar = silencioso ? () => {} : registrarPadrao;
-  const traduzirRemoto = criarClienteDeepL({
-    apiKey: config.deeplApiKey,
-    url: config.deeplUrl,
-    timeoutMs: config.deeplTimeoutMs,
-    fetchImpl
-  });
-  const servico = criarServicoTraducao({ traduzirRemoto, registrar });
+  const traduzirRemoto = comNovasTentativas(
+    criarClienteDeepL({ apiKey: config.deeplApiKey, url: config.deeplUrl, timeoutMs: config.deeplTimeoutMs, fetchImpl }),
+    { tentativas: config.deeplTentativas, esperaBaseMs: config.deeplEsperaRetryMs, limiteFalhasSeguidas: config.deeplFalhasSeguidas, abertoMs: config.deeplCircuitoAbertoMs, registrar }
+  );
+  const limitador = criarLimitador(config.deeplChamadasSimultaneas);
+  const servico = criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote: config.deeplTamanhoLote, registrar });
 
   const servidor = http.createServer(async (req, res) => {
     const inicio = Date.now();
@@ -378,13 +474,16 @@ function criarServidor({ config: configExtra = {}, fetchImpl = fetch, silencioso
     }
 
     const chave = `${req.method} ${(req.url || '').split('?')[0]}`;
+    // Se o cliente desistir (F5, aba fechada) antes da resposta, o trabalho pendente é cancelado.
+    const controlador = new AbortController();
+    res.on('close', () => { if (!res.writableFinished) controlador.abort(); });
     let status = 200;
     let resposta;
     try {
       const rota = rotas[chave];
       if (!rota) throw new ErroHttp(404, 'Rota não encontrada.');
       const corpo = req.method === 'POST' ? await lerCorpoJson(req, config.limiteCorpoBytes) : null;
-      resposta = await rota({ corpo, config, servico });
+      resposta = await rota({ corpo, config, servico, sinal: controlador.signal });
     } catch (erro) {
       status = erro instanceof ErroHttp ? erro.status : 500;
       resposta = { error: status === 500 ? 'Erro interno do servidor.' : erro.message };
@@ -429,4 +528,4 @@ if (require.main === module) {
   process.on('SIGTERM', encerrar);
 }
 
-module.exports = { criarServidor, lerConfiguracao, lerCorpoJson, criarClienteDeepL, ErroHttp, ErroDeepL };
+module.exports = { criarServidor, lerConfiguracao, lerCorpoJson, criarClienteDeepL, criarLimitador, ErroHttp, ErroDeepL };

@@ -246,6 +246,7 @@ async function processarArquivo(event) {
           estadoCorrecao: sugestao.ocorrencias.length ? 'pendente' : 'sem-sugestao',
           en: '',
           es: '',
+          origemEN: '', // 'deepl' | 'local' | 'manual'
           ecom: obterValor(row, colunas.ecom),
           compPT: obterValor(row, colunas.compPT),
           compEN: obterValor(row, colunas.compEN),
@@ -270,7 +271,7 @@ async function processarArquivo(event) {
       const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente').length;
       setMassaStatus(pendentes
         ? `${pendentes} linha(s) têm sugestão de grafia. Revise e escolha aplicar ou manter o original antes de traduzir.`
-        : 'Revise as descrições e selecione “Traduzir inglês” quando estiver pronto.');
+        : 'Revise as descrições e clique em “Traduzir” quando estiver pronto.');
     } catch (error) {
       console.error('Erro ao ler planilha:', error);
       alert('Não foi possível ler a planilha:\n\n' + error.message);
@@ -287,6 +288,7 @@ function aceitarCorrecao(index) {
   item.estadoCorrecao = 'aceita';
   item.en = '';
   item.es = '';
+  item.origemEN = '';
   renderTabelaMassa();
   atualizarStatusRevisao();
 }
@@ -298,6 +300,7 @@ function manterOriginal(index) {
   item.estadoCorrecao = 'recusada';
   item.en = '';
   item.es = '';
+  item.origemEN = '';
   renderTabelaMassa();
   atualizarStatusRevisao();
 }
@@ -307,7 +310,7 @@ function atualizarStatusRevisao() {
   if (pendentes) {
     setMassaStatus(`${pendentes} linha(s) ainda precisam de uma decisão de grafia antes da tradução.`);
   } else {
-    setMassaStatus('Revisão de grafia concluída. Traduza o inglês quando estiver pronto.');
+    setMassaStatus('Revisão de grafia concluída. Clique em Traduzir quando estiver pronto.');
   }
 }
 
@@ -371,11 +374,11 @@ function renderTabelaMassa() {
 
     const en = criarCelula(item.en);
     const es = criarCelula(item.es);
-    if (item.origemEN === 'local' && item.en && !modoEdicao) {
+    if (item.en && !modoEdicao && (item.origemEN === 'local' || item.origemEN === 'manual')) {
       en.dataset.valorFiltro = item.en;
       const selo = document.createElement('small');
-      selo.className = 'selo-local';
-      selo.textContent = 'Motor local (DeepL falhou)';
+      selo.className = item.origemEN === 'local' ? 'selo-local' : 'selo-manual';
+      selo.textContent = item.origemEN === 'local' ? 'Motor local (DeepL falhou)' : 'Editado à mão';
       en.appendChild(selo);
     }
     if (modoEdicao) {
@@ -392,6 +395,27 @@ function renderTabelaMassa() {
   renderCorrecoesPendentes();
   document.getElementById('resultMassaCard').style.display = 'block';
   filtrarTabelaMassa();
+  atualizarBotaoTraduzir();
+}
+
+// Mesma normalização para o que vem da API e para o que o usuário digita: sem isso, abrir
+// e fechar a edição sem mudar nada marcaria a linha como editada à mão.
+function normalizarEN(texto) {
+  return String(texto ?? '').replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+// Uma linha precisa de tradução quando não tem inglês ou quando veio do motor local
+// (a DeepL falhou). Linhas editadas à mão nunca são reenviadas.
+function precisaTraduzir(item) {
+  return !item.en.trim() || item.origemEN === 'local';
+}
+
+function atualizarBotaoTraduzir() {
+  const btn = document.getElementById('btnTraduzirMassa');
+  if (!btn) return;
+  const pendentes = dadosProcessados.filter(precisaTraduzir).length;
+  const traduzidas = dadosProcessados.length - pendentes;
+  btn.textContent = traduzidas && pendentes ? `Traduzir pendentes (${pendentes})` : 'Traduzir';
 }
 
 function aplicarTodasCorrecoes() {
@@ -412,6 +436,7 @@ function aplicarTodasCorrecoes() {
     item.estadoCorrecao = 'aceita';
     item.en = '';
     item.es = '';
+    item.origemEN = '';
   });
 
   renderTabelaMassa();
@@ -420,6 +445,8 @@ function aplicarTodasCorrecoes() {
 
 async function traduzirMassa() {
   if (!dadosProcessados.length) return;
+  // Com a edição aberta, primeiro salva o que foi digitado (vira 'manual' e não é reenviado).
+  if (modoEdicao) toggleModoEdicao();
   if (dadosProcessados.some(item => item.estadoCorrecao === 'pendente')) {
     alert('Decida cada sugestão de grafia antes de enviar as descrições para tradução.');
     return;
@@ -431,29 +458,57 @@ async function traduzirMassa() {
     return;
   }
 
+  // Só o que está pendente vai para a API: linhas já traduzidas ou editadas à mão ficam.
+  // `itens` é capturado antes do await: se outra planilha for importada durante a espera,
+  // a resposta pertence à planilha antiga e é descartada em vez de gravada na nova.
+  const itens = dadosProcessados;
+  const alvos = itens.filter(precisaTraduzir);
+  if (!alvos.length) {
+    setMassaStatus('Nada pendente: todas as linhas já têm tradução. Edite uma linha ou importe outra planilha.');
+    return;
+  }
+
   const btn = document.getElementById('btnTraduzirMassa');
+  const btnImportar = document.getElementById('btnImportar');
+  const btnAlterar = document.getElementById('btnAlterar');
   btn.disabled = true;
-  setMassaStatus(`Enviando ${dadosProcessados.length} descrições para tradução em inglês...`);
+  if (btnImportar) btnImportar.disabled = true;
+  if (btnAlterar) btnAlterar.disabled = true;
+  setMassaStatus(`Enviando ${alvos.length} de ${itens.length} descrições para tradução...`);
   try {
-    const { traducoes, origens = [], erros = [] } = await chamarApiTraduzirMassa(dadosProcessados.map(item => item.pt), 'EN-US');
-    dadosProcessados.forEach((item, index) => {
-      item.en = traducoes[index] || '';
+    const { traducoes, origens = [], erros = [], estatisticas } = await chamarApiTraduzirMassa(alvos.map(item => item.pt), 'EN-US');
+    if (dadosProcessados !== itens) {
+      setMassaStatus('Outra planilha foi importada durante a tradução; o resultado da anterior foi descartado.', true);
+      return;
+    }
+    alvos.forEach((item, index) => {
+      if (!precisaTraduzir(item)) return; // a linha foi editada à mão durante a espera
+      item.en = normalizarEN(traducoes[index]);
       item.es = '';
       item.origemEN = origens[index] || 'deepl';
     });
-    const locais = dadosProcessados.filter(item => item.origemEN === 'local').length;
+
+    const locais = alvos.filter(item => item.origemEN === 'local').length;
+    let resumo = '';
+    if (estatisticas) {
+      const repetidas = estatisticas.descricoes - estatisticas.distintas;
+      resumo = ` (${estatisticas.distintas} descrições distintas em ${estatisticas.lotes} lote(s)${repetidas ? `, ${repetidas} repetidas aproveitadas` : ''})`;
+    }
     if (locais) {
-      setMassaStatus(`A DeepL falhou em ${locais} de ${dadosProcessados.length} descrições; elas vieram do motor local e estão marcadas na tabela. Motivo: ${erros.join(' | ')}`, true);
+      setMassaStatus(`A DeepL falhou em ${locais} de ${alvos.length} descrições; elas vieram do motor local e estão marcadas na tabela${resumo}. Motivo: ${erros.join(' | ')}`, true);
     } else {
-      setMassaStatus('Tradução em inglês concluída pela DeepL. O espanhol será incluído em uma etapa posterior.');
+      setMassaStatus(`Tradução concluída pela DeepL: ${alvos.length} descrição(ões)${resumo}. O espanhol será incluído em uma etapa posterior.`);
     }
     renderTabelaMassa();
   } catch (error) {
     console.error('Erro ao traduzir planilha:', error);
     alert('Erro ao traduzir a planilha:\n\n' + error.message);
-    setMassaStatus('A tradução não foi concluída.');
+    setMassaStatus('A tradução não foi concluída.', true);
   } finally {
     btn.disabled = false;
+    if (btnImportar) btnImportar.disabled = false;
+    if (btnAlterar) btnAlterar.disabled = false;
+    atualizarBotaoTraduzir();
   }
 }
 
@@ -477,9 +532,15 @@ function atualizarDadosAposEdicao() {
   document.querySelectorAll('#massaTableBody tr').forEach(tr => {
     const index = Number(tr.dataset.itemIndex);
     const celulas = tr.querySelectorAll('td');
-    if (dadosProcessados[index]) {
-      dadosProcessados[index].en = celulas[3].innerText.trim().toUpperCase();
-      dadosProcessados[index].es = celulas[4].innerText.trim().toUpperCase();
+    const item = dadosProcessados[index];
+    if (item) {
+      // Edição manual vira origem 'manual': a linha não é reenviada à DeepL.
+      const enNovo = normalizarEN(celulas[3].innerText);
+      if (enNovo !== normalizarEN(item.en)) {
+        item.en = enNovo;
+        item.origemEN = enNovo ? 'manual' : '';
+      }
+      item.es = celulas[4].innerText.replace(/\s+/g, ' ').trim().toUpperCase();
     }
   });
 }
@@ -497,6 +558,12 @@ function baixarExcel() {
   const semEN = dadosProcessados.filter(item => !item.en.trim());
   if (semEN.length) {
     alert(`Download bloqueado: ${semEN.length} linha(s) ainda não têm Descrição EN.`);
+    return;
+  }
+
+  // Linhas do motor local mantêm a ordem do português; exportá-las é uma decisão consciente.
+  const locais = dadosProcessados.filter(item => item.origemEN === 'local').length;
+  if (locais && !window.confirm(`${locais} linha(s) vieram do motor local (a DeepL falhou) e ainda contam como pendentes. Exportar mesmo assim?`)) {
     return;
   }
 

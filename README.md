@@ -23,7 +23,7 @@ O servidor consulta as correspondências do glossário local para montar um cont
 - **Importação em massa:** aceita `.xlsx`, `.xls` e `.csv`, lê a primeira aba e exige as colunas `Referencia` e `Descrição`. As colunas `Português` e `Z_ENCAIXE` não substituem `Descrição`.
 - **Sugestões ortográficas:** regras locais mostram o texto original e uma versão sugerida. É possível aceitar ou manter cada sugestão; o original não é alterado automaticamente.
 - **Revisão em massa:** inclui filtros por coluna, referências com correção pendente, aplicação de todas as sugestões e edição manual de EN/ES.
-- **Tradução em massa para inglês:** as descrições são agrupadas por contexto do glossário. O servidor processa os grupos sequencialmente, então arquivos grandes podem levar tempo, sobretudo quando há muitos contextos distintos.
+- **Tradução em massa:** o botão "Traduzir" envia só as linhas pendentes (sem inglês ou vindas do motor local; linhas editadas à mão nunca são reenviadas). O servidor traduz cada descrição distinta uma vez, com o contexto do glossário dela, em até 3 chamadas simultâneas à DeepL e com nova tentativa em falhas passageiras. Lotes maiores (`DEEPL_TAMANHO_LOTE`, até 50) existem, mas medimos que a DeepL obedece menos ao glossário conforme o lote cresce (87% com 1 descrição por chamada, 68% com 50), então o padrão é 1 até o glossário nativo da DeepL entrar.
 - **Exportação `.xlsx`:** gera uma planilha com as oito colunas do modelo abaixo.
 - **Glossário (consulta):** aba com a tabela mestra completa (PT, EN, ES do setor quando existe, tipo, contexto, status, posição na frase e índice), busca, filtros e exportação para Excel. Somente leitura; a edição dos termos continua na validação de terminologia.
 
@@ -92,7 +92,7 @@ Inicie o servidor:
 npm start
 ```
 
-Fora da rede da empresa, `node server.js` também funciona; `npm start` acrescenta `--use-system-ca`, necessário na rede corporativa (ver a seção de segurança). Por padrão, a API escuta só neste computador (`127.0.0.1`) na porta `3000`. Toda a configuração vem de variáveis de ambiente (ver `.env.example`): `HOST`, `PORT`, `DEEPL_TIMEOUT_MS` (15 s), `MAX_CORPO_BYTES` (1 MB), `MAX_DESCRICOES_LOTE` (10.000) e `MAX_CARACTERES_DESCRICAO` (200). O servidor escreve uma linha JSON por requisição em stdout (rota, status, duração) e por falha da DeepL em stderr. Abra `index.html` separadamente no navegador ou sirva-o por um servidor estático local. O servidor Node deste projeto atende as rotas da API, não os arquivos HTML/CSS/JS. A interface atualmente chama `localhost:3000` diretamente.
+Fora da rede da empresa, `node server.js` também funciona; `npm start` acrescenta `--use-system-ca`, necessário na rede corporativa (ver a seção de segurança). Por padrão, a API escuta só neste computador (`127.0.0.1`) na porta `3000`. Toda a configuração vem de variáveis de ambiente (ver `.env.example`): `HOST`, `PORT`, `MAX_CORPO_BYTES` (1 MB), `MAX_DESCRICOES_LOTE` (10.000), `MAX_CARACTERES_DESCRICAO` (200), `DEEPL_TAMANHO_LOTE` (1, máximo 50), `DEEPL_CHAMADAS_SIMULTANEAS` (3), `DEEPL_TENTATIVAS` (3), `DEEPL_ESPERA_RETRY_MS` (1.000), `DEEPL_TIMEOUT_MS` (15.000), `DEEPL_FALHAS_SEGUIDAS` (9) e `DEEPL_CIRCUITO_ABERTO_MS` (30.000). Se a DeepL ficar inacessível (rede, proxy, serviço fora), o disjuntor suspende as chamadas por 30 s e a tradução segue pelo motor local, marcada na interface; sem ele, cada lote repetiria as esperas. O servidor escreve uma linha JSON por requisição em stdout (rota, status, duração) e por falha da DeepL em stderr. Abra `index.html` separadamente no navegador ou sirva-o por um servidor estático local. O servidor Node deste projeto atende as rotas da API, não os arquivos HTML/CSS/JS. A interface atualmente chama `localhost:3000` diretamente.
 
 Para executar os testes automatizados locais:
 
@@ -100,7 +100,7 @@ Para executar os testes automatizados locais:
 npm test
 ```
 
-Esse comando usa o test runner nativo do Node.js: 34 testes em `tests/` cobrindo o matching do glossário, as correções de grafia e a API HTTP (com uma DeepL simulada injetada, sem rede): validação de entrada, limites, timeout, fallback por grupo e um corpo com acento partido entre dois pacotes TCP.
+Esse comando usa o test runner nativo do Node.js. Os testes em `tests/` cobrem o matching do glossário, a montagem de lotes, as correções de grafia e a API HTTP com uma DeepL simulada injetada (sem rede e sem depender do `.env`): validação de entrada, limites, timeout, novas tentativas, disjuntor, fallback por lote, limite de chamadas simultâneas, cancelamento quando o cliente desiste e um corpo com acento partido entre dois pacotes TCP.
 
 ## Estrutura principal
 
@@ -127,7 +127,7 @@ Não compartilhe arquivos `.env`. Se uma chave real já tiver sido exposta em um
 
 ## Próximas etapas em avaliação
 
-- Consolidar e validar o fluxo de inglês com o glossário como autoridade e investigar a lentidão em massa.
+- Consolidar e validar o fluxo de inglês com o glossário como autoridade (regras de contexto, reordenação do fallback, conjunto de referência).
 - Avaliar se vale manter o glossário somente local ou sincronizar uma cópia com o glossário nativo DeepL.
 - Implementar e validar o espanhol e o preenchimento automático de ECOM.
 - Definir o tratamento dos limites de ES e a preservação dos dados originais necessários no fluxo SAP.

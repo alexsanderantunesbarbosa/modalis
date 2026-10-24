@@ -18,9 +18,22 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 - Node.js 18+, servidor HTTP nativo (`server.js`, porta 3000), front em HTML/JS puro
   (`index.html`, `script.js`), SheetJS por CDN no navegador. Dependência: `dotenv`.
 - `npm start` sobe a API (`node server.js` serve fora da rede da empresa); `npm test` roda
-  `node --test` (34 testes em `tests/`, incluindo a API HTTP com DeepL simulada).
+  `node --test` (ver a contagem no próprio comando; inclui a API HTTP com DeepL simulada).
 - Configuração só por variáveis de ambiente (`.env.example`): `HOST` (padrão `127.0.0.1`),
-  `PORT`, `DEEPL_TIMEOUT_MS`, `MAX_CORPO_BYTES`, `MAX_DESCRICOES_LOTE`, `MAX_CARACTERES_DESCRICAO`.
+  `PORT`, `MAX_CORPO_BYTES`, `MAX_DESCRICOES_LOTE`, `MAX_CARACTERES_DESCRICAO`,
+  `DEEPL_TAMANHO_LOTE` (1, máximo 50), `DEEPL_CHAMADAS_SIMULTANEAS` (3), `DEEPL_TENTATIVAS` (3),
+  `DEEPL_ESPERA_RETRY_MS` (1000), `DEEPL_TIMEOUT_MS` (15000), `DEEPL_FALHAS_SEGUIDAS` (9),
+  `DEEPL_CIRCUITO_ABERTO_MS` (30000).
+- O plano Free da DeepL responde 429 até em chamadas sequenciais sem intervalo (visto em
+  23/10/2026); por isso as novas tentativas com espera são parte do caminho normal.
+- **Medição de 23/10/2026 (100 descrições reais da IN27, DeepL real):** obediência ao
+  glossário enviado no `context` cai com o tamanho do lote: 87% (1 por chamada), 81% (5),
+  74% (10), 70% (25), 68% (50). Com 50, CINTURA MÉDIA virou MEDIUM WAIST, GOLA ALTA virou
+  HIGH NECK e FUSÔ ficou sem traduzir. Por isso o padrão é 1 por chamada, e o glossário
+  nativo da DeepL (item 5 da fila) sobe de prioridade: é o que permite lotes grandes sem
+  perder qualidade e corrige os 13% ignorados mesmo com contexto específico. Dados em
+  `comparacao-contexto.json` e `curva-tamanho-lote.json` (scratchpad da sessão; refazer se
+  precisar, custa ~20 mil caracteres).
 - A tabela foi sincronizada com a planilha v2 em 22/10/2026 (`tabelaMestra.js` = 805
   entradas, 16 índices). Ao receber arquivos do Desktop, conferir se o JS acompanha a planilha.
 - `.env` com `DEEPL_API_KEY` (chave `:fx` = plano Free). Nunca versionar chaves.
@@ -35,10 +48,10 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 | Arquivo | Papel |
 |---|---|
 | `tabelaMestra.js` | Glossário: literal `indices` (16 índices) + derivados `termosGlossario`, `expressoesCompostas`, `dicionarioTermos`. Função `adicionarTermos` existe para uso futuro. |
-| `processadorTexto.js` | Matching dos termos no texto (expressão mais longa vence; empate → índice menor), regras de contexto (`escolherContexto`), montagem do `context` para a DeepL e fallback local `processarTraducaoLocal`. |
+| `processadorTexto.js` | Matching dos termos no texto (expressão mais longa vence; empate → índice menor), regras de contexto (`escolherContexto`), montagem do `context` para a DeepL e fallback local `processarTraducaoLocal`. Chave normalizada e regex de cada termo são preparadas **uma vez** no carregamento (`termosPreparados`; medido 23/10/2026: 2.464 descrições em 400 ms, antes 14.400 ms). `montarLotesParaTraducao` deduplica descrições, monta lotes de até `tamanhoMaximo` e nunca mistura dois sentidos do mesmo termo (MOLETOM = SWEATSHIRT vs FLEECE) no mesmo lote; com 50 por lote o corpus real dá 50 lotes, o mínimo teórico. |
 | `correcoesOrtograficas.js` | Sugestões de grafia (24 regras + colapso de palavra repetida em sequência); nunca aplicadas sem aceite do usuário. |
-| `server.js` | API em camadas: `lerConfiguracao` (tudo por env), `lerCorpoJson` (Buffer único, limite de bytes → 413), validação por rota antes de qualquer chamada externa (400), `criarClienteDeepL` (timeout, resposta validada, erros `fatal` para 401/403/456), `criarServicoTraducao` (DeepL com fallback local **por grupo**; após erro fatal o restante do lote vai direto ao motor local), tabela de rotas e `criarServidor({ config, fetchImpl, silencioso })` exportado para testes. Rotas: `/api/traduzir` (devolve `termos` aplicados), `/api/traduzir-massa`, `/api/sugerir-correcoes`, `GET /api/glossario`. Cada resposta traz `origem` (`deepl`/`local`) e um motivo curto; o detalhe vai para o log JSON. Escuta em `127.0.0.1` por padrão. |
-| `index.html`, `styles.css`, `script.js` | Interface com a linguagem visual do START (barra preta, painéis cinza, botões azul/verde, tabelas com borda), em escala menor. Três abas sempre visíveis: Individual, Em massa e Glossário (estilo relatório, com busca, filtro por índice/tipo e exportação). CSS próprio, sem Bootstrap. "Aplicar todas as correções" pede confirmação (a DESCRIÇÃO corrigida vai para o SAP). `TEXTO ECOM` exportado = descrição. |
+| `server.js` | API em camadas: `lerConfiguracao` (tudo por env), `lerCorpoJson` (Buffer único, limite de bytes → 413), validação por rota antes de qualquer chamada externa (400), `criarClienteDeepL` (timeout, resposta validada, erros `fatal` para 401/403/456 e `repetivel` para 429/5xx/rede), `comNovasTentativas` (1 s, 2 s… com **disjuntor**: 9 falhas seguidas suspendem a DeepL por 30 s e tudo cai no motor local na hora), `criarLimitador` (chamadas simultâneas, **um limite por servidor**, não por requisição; a tradução individual tem prioridade na fila), cancelamento cooperativo quando o cliente desiste (`AbortController` no `close` da resposta), `criarServicoTraducao` (lotes de `DEEPL_TAMANHO_LOTE` descrições, padrão 1, processados em paralelo, fallback local **por lote**; após erro fatal os lotes seguintes vão direto ao motor local; resposta traz `estatisticas`), tabela de rotas e `criarServidor({ config, fetchImpl, silencioso })` exportado para testes. Rotas: `/api/traduzir` (devolve `termos` aplicados), `/api/traduzir-massa`, `/api/sugerir-correcoes`, `GET /api/glossario`. Cada resposta traz `origem` (`deepl`/`local`) e um motivo curto; o detalhe vai para o log JSON. Escuta em `127.0.0.1` por padrão. |
+| `index.html`, `styles.css`, `script.js` | Interface com a linguagem visual do START (barra preta, painéis cinza, botões azul/verde, tabelas com borda), em escala menor. Três abas sempre visíveis: Individual, Em massa e Glossário (estilo relatório, com busca, filtro por índice/tipo e exportação). CSS próprio, sem Bootstrap. "Aplicar todas as correções" pede confirmação (a DESCRIÇÃO corrigida vai para o SAP). `TEXTO ECOM` exportado = descrição. O botão "Traduzir" (sem idioma no nome, o ES vem depois) envia só as linhas pendentes e vira "Traduzir pendentes (N)"; edição manual marca `origemEN = 'manual'` ("Editado à mão") e a linha não é reenviada; importar fica bloqueado durante a tradução e uma resposta de planilha antiga é descartada. |
 | `docs/decisoes-glossario-2026-10-22.md` | Registro completo das decisões de terminologia, categorização e estrutura da frase. |
 | `docs/glossario-setor-pt-en-es.tsv` | Lista PT/EN/ES do setor (403 linhas). O **espanhol** fica aqui para a feature ES. |
 | `docs/amostras/` | Planilhas das coleções IN27 e AI27 (base de teste; AI27 traz EN anterior, de qualidade desigual). |
@@ -160,9 +173,12 @@ Decisões de 23/10/2026:
   digitação (1000% COTTO, 765 POLYESTER, LINNING).
 
 Escopo de dezembro (ordem "valor entregue se o tempo acabar"):
-1. Servidor confiável e rápido: Lote 0 (TLS, repositório) e Lote 1 (fronteira) **feitos em
-   23/10/2026**; Lote 2 = lotes de até 50 textos à DeepL com 2 a 4 em voo e retry para 429,
-   pré-compilação das regex/termos (20,9x medido), não reenviar linhas já traduzidas.
+1. Servidor confiável e rápido: Lote 0 (TLS, repositório), Lote 1 (fronteira) e Lote 2
+   (3 chamadas em voo, novas tentativas, sem repetidas, termos pré-compilados, só
+   pendentes, edição manual preservada; lote de 50 disponível mas desligado pela medição
+   acima) **feitos em 23/10/2026**.
+   **Glossário nativo DeepL (item 5 da fila) antecipado para logo após a composição**: é
+   o que destrava lotes grandes e a obediência de 100% aos termos fechados.
 2. Composição PT → EN/ES por regras, testada contra o gabarito da IN27.
 3. Qualidade do EN: itens 1 a 4 da fila abaixo (conjunto de referência aprovado pelo líder).
 4. Memória de traduções (item 7) e rascunho salvo no navegador (beforeunload + localStorage).
@@ -173,6 +189,20 @@ Escopo de dezembro (ordem "valor entregue se o tempo acabar"):
 Perguntas abertas (TI e líder, a partir de 26/10/2026): o relatório do SAP sempre vem com
 linha de cabeçalho? (a AI27 veio sem e a ferramenta a rejeita); como a empresa hospeda
 sistemas internos como o START; quem valida os 805 termos em espanhol.
+
+## Modelos e esforço por tarefa (aprovado em 24/10/2026)
+
+| Tarefa | Modelo | Esforço |
+|---|---|---|
+| Buscar onde algo está, contar, ler um dado | haiku (agentes `buscador` e `consulta` em `.claude/agents/`) | low |
+| Resumir, redigir docs, extrair tabelas | sonnet | medium |
+| Revisão adversarial, verificar um achado | opus | high |
+| Implementar código concorrente, regras do glossário, arquitetura | modelo da sessão | high |
+
+Ultracode (`/effort ultracode on`, só o dono liga): desligado por padrão; vale para auditoria
+ampla, revisão de código concorrente ou de segurança antes de commit importante e validação
+de lote grande de terminologia. Dentro de um workflow: levantadores em sonnet, verificadores
+em opus. Perguntas conceituais nunca viram workflow.
 
 ## Fila de código (ordem acordada)
 
@@ -193,7 +223,7 @@ sistemas internos como o START; quem valida os 805 termos em espanhol.
 5. Glossário nativo DeepL (API v3, `POST /v3/glossaries`, dicionário PT→EN, `source_lang`
    obrigatório, `glossary_id` em `/v2/translate`): script de sincronização a partir da
    tabela (só FECHADO, sem contexto, dedupe) + teste comparativo contra o conjunto de
-   referência. Avaliar lotes de até 50 textos por chamada para a lentidão em massa.
+   referência. (Os lotes de até 50 textos por chamada já existem desde 23/10/2026.)
 6. Depois: espanhol (base em `docs/glossario-setor-pt-en-es.tsv`), ECOM, composição.
 7. **Memória de traduções** (pedido do dono em 23/10/2026): guardar as traduções aprovadas
    num banco local (SQLite, chave = descrição PT normalizada) e reaproveitá-las em entradas
@@ -204,8 +234,15 @@ sistemas internos como o START; quem valida os 805 termos em espanhol.
 ## Testes
 
 - `tests/processadorTexto.test.js`, `tests/correcoesOrtograficas.test.js` e
-  `tests/server.test.js` (34 testes). O do servidor usa `criarServidor({ fetchImpl, config,
-  silencioso })` com uma DeepL falsa e porta aleatória: sem rede, sem `.env`.
+  `tests/server.test.js`. O do servidor usa `criarServidor({ fetchImpl, config, silencioso })`
+  com uma DeepL falsa e porta aleatória; `subir()` fixa todos os parâmetros da DeepL, então
+  nada do `.env` influencia a suíte.
+- Revisão adversarial do Lote 2 (24/10/2026): 13 achados confirmados e corrigidos no mesmo
+  dia; o grave era retry sem disjuntor (rede caída = horas de espera para um resultado que
+  seria 100% local). Lição: multiplicar tentativas × timeout × lotes ÷ paralelismo antes de
+  escolher os padrões, e todo retry precisa de um circuit breaker.
+- Pendente do Lote 4: testes automatizados do front ("só pendentes", "manual"), via módulo
+  sem DOM ou DOM mínimo em `tests/apoio/`.
 - Caso de borda aprendido em 23/10/2026: um teste cuja promessa nunca resolve não trava só
   o teste, deixa o servidor aberto e trava o processo inteiro no final. Erros dentro de
   listeners de evento devem virar rejeição explícita.

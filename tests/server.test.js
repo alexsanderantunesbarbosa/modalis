@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
-const { criarServidor } = require('../server');
+const { criarServidor, criarLimitador } = require('../server');
 
 /* ==================== Apoio ==================== */
 
@@ -28,9 +28,16 @@ async function subir(opcoes = {}) {
     silencioso: true,
     config: {
       deeplApiKey: 'chave-de-teste:fx',
+      deeplUrl: 'https://exemplo.invalido/v2/translate',
       deeplTimeoutMs: 200,
+      deeplTamanhoLote: 1,
+      deeplTentativas: 3,
+      deeplEsperaRetryMs: 1,
+      deeplChamadasSimultaneas: 1,
+      deeplFalhasSeguidas: 9,
+      deeplCircuitoAbertoMs: 30000,
       limiteCorpoBytes: 4096,
-      maxDescricoesLote: 5,
+      maxDescricoesLote: 6,
       maxCaracteresDescricao: 60,
       ...(opcoes.config || {})
     },
@@ -119,11 +126,12 @@ test('um Ç partido entre dois pacotes TCP não corrompe o texto nem perde o glo
 });
 
 test('cai no fallback local quando a DeepL responde erro, com motivo curto e sem o corpo bruto', async () => {
-  const { fetchImpl } = fetchFalso(() => new Response('{"message":"Internal error with a long stack trace"}', { status: 500 }));
+  const { fetchImpl, chamadas } = fetchFalso(() => new Response('{"message":"Internal error with a long stack trace"}', { status: 500 }));
   const servidor = await subir({ fetchImpl });
   try {
     const { status, dados } = await post(servidor.base, '/api/traduzir', { textoPT: 'CALÇA JEANS BOOTCUT', targetLang: 'EN' });
     assert.equal(status, 200);
+    assert.equal(chamadas.length, 3, 'erro 5xx é passageiro: três tentativas antes de desistir');
     assert.equal(dados.origem, 'local');
     assert.equal(dados.traducao, 'JEANS BOOTCUT');
     assert.equal(dados.erro, 'DeepL respondeu 500 (erro no serviço)');
@@ -189,9 +197,9 @@ test('rejeita entrada inválida com 400 antes de chamar a DeepL', async () => {
 test('rejeita lote acima do limite de descrições e lista com item inválido', async () => {
   const servidor = await subir();
   try {
-    const grande = await post(servidor.base, '/api/traduzir-massa', { textos: Array(6).fill('SAIA'), targetLang: 'EN' });
+    const grande = await post(servidor.base, '/api/traduzir-massa', { textos: Array(7).fill('SAIA'), targetLang: 'EN' });
     assert.equal(grande.status, 400);
-    assert.match(grande.dados.error, /6 descrições; o limite atual é 5/);
+    assert.match(grande.dados.error, /7 descrições; o limite atual é 6/);
 
     const invalido = await post(servidor.base, '/api/traduzir-massa', { textos: ['SAIA', 42], targetLang: 'EN' });
     assert.equal(invalido.status, 400);
@@ -228,36 +236,111 @@ test('rota desconhecida responde 404 em JSON', async () => {
 
 /* ==================== Tradução em massa ==================== */
 
-test('em massa, o fallback é por grupo: um grupo falha e os outros seguem pela DeepL', async () => {
-  const { fetchImpl, chamadas } = fetchFalso((corpo, numero) => (numero === 2
-    ? new Response('{}', { status: 500 })
-    : respostaDeepL(corpo.text)));
-  const servidor = await subir({ fetchImpl });
+test('em massa, com lote de 50 as descrições distintas vão numa só chamada e as repetidas são traduzidas uma vez', async () => {
+  const { fetchImpl, chamadas } = fetchFalso(corpo => respostaDeepL(corpo.text));
+  const servidor = await subir({ fetchImpl, config: { deeplTamanhoLote: 50 } });
   try {
-    const textos = ['CALÇA JEANS BOOTCUT', 'BLUSA GOLA ALTA', 'SAIA MIDI'];
+    const textos = ['CALÇA JEANS BOOTCUT', 'BLUSA GOLA ALTA', 'SAIA MIDI', 'CALÇA JEANS BOOTCUT'];
     const { status, dados } = await post(servidor.base, '/api/traduzir-massa', { textos, targetLang: 'EN-US' });
     assert.equal(status, 200);
-    assert.equal(chamadas.length, 3, 'três contextos distintos, três chamadas');
-    assert.deepEqual(dados.origens, ['deepl', 'local', 'deepl']);
-    assert.equal(dados.traducoes[0], 'EN(CALÇA JEANS BOOTCUT)');
-    assert.equal(dados.traducoes[1], 'BLOUSE TURTLENECK');
-    assert.deepEqual(dados.erros, ['DeepL respondeu 500 (erro no serviço)']);
+    assert.equal(chamadas.length, 1, 'um lote, uma chamada');
+    assert.deepEqual(chamadas[0].text, ['CALÇA JEANS BOOTCUT', 'BLUSA GOLA ALTA', 'SAIA MIDI']);
+    assert.match(chamadas[0].context, /CALÇA JEANS = JEANS/);
+    assert.match(chamadas[0].context, /GOLA ALTA = TURTLENECK/);
+    assert.deepEqual(dados.origens, ['deepl', 'deepl', 'deepl', 'deepl']);
+    assert.equal(dados.traducoes[3], dados.traducoes[0]);
+    assert.deepEqual(dados.estatisticas, { descricoes: 4, distintas: 3, lotes: 1, lotesEnviados: 1 });
   } finally {
     await servidor.fechar();
   }
 });
 
-test('erro fatal da DeepL (cota esgotada) interrompe as chamadas no restante do lote', async () => {
-  const { fetchImpl, chamadas } = fetchFalso(() => new Response('{"message":"Quota exceeded"}', { status: 456 }));
+test('em massa, o fallback é por lote: um lote falha (após as tentativas) e os outros seguem pela DeepL', async () => {
+  const { fetchImpl, chamadas } = fetchFalso(corpo => (corpo.text[0] === 'BLUSA GOLA ALTA'
+    ? new Response('{}', { status: 500 })
+    : respostaDeepL(corpo.text)));
+  const servidor = await subir({ fetchImpl, config: { deeplTamanhoLote: 1 } });
+  try {
+    const textos = ['CALÇA JEANS BOOTCUT', 'BLUSA GOLA ALTA', 'SAIA MIDI'];
+    const { status, dados } = await post(servidor.base, '/api/traduzir-massa', { textos, targetLang: 'EN-US' });
+    assert.equal(status, 200);
+    assert.equal(chamadas.length, 5, '1 + 3 tentativas do lote que falha + 1');
+    assert.deepEqual(dados.origens, ['deepl', 'local', 'deepl']);
+    assert.equal(dados.traducoes[0], 'EN(CALÇA JEANS BOOTCUT)');
+    assert.equal(dados.traducoes[1], 'BLOUSE TURTLENECK');
+    assert.deepEqual(dados.erros, ['DeepL respondeu 500 (erro no serviço)']);
+    assert.equal(dados.estatisticas.lotesEnviados, 3);
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('falha passageira (429) ganha nova tentativa e termina pela DeepL', async () => {
+  const { fetchImpl, chamadas } = fetchFalso((corpo, numero) => (numero === 1
+    ? new Response('{"message":"Too many requests"}', { status: 429 })
+    : respostaDeepL(corpo.text)));
   const servidor = await subir({ fetchImpl });
+  try {
+    const { dados } = await post(servidor.base, '/api/traduzir', { textoPT: 'SAIA MIDI', targetLang: 'EN' });
+    assert.equal(chamadas.length, 2);
+    assert.equal(dados.origem, 'deepl');
+    assert.equal(dados.traducao, 'EN(SAIA MIDI)');
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('erro fatal da DeepL (cota esgotada) interrompe as chamadas nos lotes seguintes', async () => {
+  const { fetchImpl, chamadas } = fetchFalso(() => new Response('{"message":"Quota exceeded"}', { status: 456 }));
+  const servidor = await subir({ fetchImpl, config: { deeplTamanhoLote: 1 } });
   try {
     const textos = ['CALÇA JEANS BOOTCUT', 'BLUSA GOLA ALTA', 'SAIA MIDI'];
     const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos, targetLang: 'EN' });
-    assert.equal(chamadas.length, 1, 'depois do 456 a DeepL não deve ser chamada de novo');
+    assert.equal(chamadas.length, 1, 'depois do 456 a DeepL não deve ser chamada de novo (nem nova tentativa)');
     assert.deepEqual(dados.origens, ['local', 'local', 'local']);
     assert.deepEqual(dados.traducoes, ['JEANS BOOTCUT', 'BLOUSE TURTLENECK', 'MIDI SKIRT']);
     assert.match(dados.erros[0], /456 \(cota esgotada\)/);
     assert.match(dados.erros[1], /não foi chamada para o restante do lote/);
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('o limite de chamadas simultâneas vale para o servidor inteiro, não por requisição', async () => {
+  let emVoo = 0;
+  let maximoEmVoo = 0;
+  const fetchImpl = async (_url, { body }) => {
+    emVoo += 1;
+    maximoEmVoo = Math.max(maximoEmVoo, emVoo);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    emVoo -= 1;
+    return respostaDeepL(JSON.parse(body).text);
+  };
+  const servidor = await subir({ fetchImpl, config: { deeplTamanhoLote: 1, deeplChamadasSimultaneas: 2 } });
+  try {
+    const [a, b] = await Promise.all([
+      post(servidor.base, '/api/traduzir-massa', { textos: ['SAIA MIDI', 'BLUSA', 'CALÇA'], targetLang: 'EN' }),
+      post(servidor.base, '/api/traduzir-massa', { textos: ['VESTIDO', 'SHORT', 'TOP'], targetLang: 'EN' })
+    ]);
+    assert.equal(a.status, 200);
+    assert.equal(b.status, 200);
+    assert.deepEqual(a.dados.origens, ['deepl', 'deepl', 'deepl']);
+    assert.equal(maximoEmVoo, 2, 'duas requisições juntas não podem passar do limite do servidor');
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('por padrão cada descrição distinta vai numa chamada própria (contexto específico) e as repetidas são aproveitadas', async () => {
+  const { fetchImpl, chamadas } = fetchFalso(corpo => respostaDeepL(corpo.text));
+  const servidor = await subir({ fetchImpl });
+  try {
+    const textos = ['CALÇA JEANS BOOTCUT', 'SAIA MIDI', 'CALÇA JEANS BOOTCUT'];
+    const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos, targetLang: 'EN' });
+    assert.equal(chamadas.length, 2, 'duas descrições distintas, duas chamadas');
+    assert.deepEqual(chamadas.map(c => c.text), [['CALÇA JEANS BOOTCUT'], ['SAIA MIDI']]);
+    assert.doesNotMatch(chamadas[0].context, /SAIA MIDI/, 'o contexto é só da própria descrição');
+    assert.deepEqual(dados.estatisticas, { descricoes: 3, distintas: 2, lotes: 2, lotesEnviados: 2 });
   } finally {
     await servidor.fechar();
   }
@@ -302,6 +385,90 @@ test('GET /api/glossario devolve os índices da tabela com o espanhol do setor q
     assert.equal(indices.length, 16);
     const blusa = indices[0].termos.find(termo => termo.pt === 'BLUSA');
     assert.deepEqual(blusa, { pt: 'BLUSA', en: 'BLOUSE', es: 'BLUSA', tipo: 'termo', contexto: '', status: 'FECHADO' });
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+/* ==================== Limitador, disjuntor e cancelamento ==================== */
+
+test('limitador: erro numa tarefa libera a vaga (sem deadlock) e tarefa prioritária fura a fila', async () => {
+  const limitador = criarLimitador(1);
+  await assert.rejects(limitador(() => Promise.reject(new Error('falhou'))), /falhou/);
+  const depois = await Promise.race([
+    limitador(() => 'ok'),
+    new Promise(resolve => setTimeout(() => resolve('travou'), 200))
+  ]);
+  assert.equal(depois, 'ok', 'a vaga precisa ser liberada mesmo quando a tarefa falha');
+
+  const ordem = [];
+  const segurar = limitador(() => new Promise(resolve => setTimeout(resolve, 30)));
+  const normal = limitador(() => { ordem.push('normal'); });
+  const prioritaria = limitador(() => { ordem.push('prioritaria'); }, { prioritaria: true });
+  await Promise.all([segurar, normal, prioritaria]);
+  assert.deepEqual(ordem, ['prioritaria', 'normal']);
+});
+
+test('disjuntor: com a rede caída, o lote cai no motor local na hora em vez de repetir as esperas lote a lote', async () => {
+  const chamadas = [];
+  const fetchImpl = async () => { chamadas.push(1); throw new TypeError('fetch failed'); };
+  const servidor = await subir({ fetchImpl, config: { deeplChamadasSimultaneas: 3, maxDescricoesLote: 20 } });
+  try {
+    const textos = Array.from({ length: 12 }, (_, i) => `SAIA MIDI ${i}`);
+    const inicio = Date.now();
+    const { status, dados } = await post(servidor.base, '/api/traduzir-massa', { textos, targetLang: 'EN' });
+    assert.equal(status, 200);
+    assert.ok(chamadas.length <= 11, `esperava no máximo 9 tentativas + as em voo, foram ${chamadas.length}`);
+    assert.ok(Date.now() - inicio < 2000);
+    assert.ok(dados.origens.every(origem => origem === 'local'));
+    assert.ok(dados.erros.some(erro => /suspensas por 30 s/.test(erro)), JSON.stringify(dados.erros));
+
+    const antes = chamadas.length;
+    const segunda = await post(servidor.base, '/api/traduzir', { textoPT: 'SAIA MIDI', targetLang: 'EN' });
+    assert.equal(segunda.dados.origem, 'local');
+    assert.equal(chamadas.length, antes, 'com o circuito aberto, nenhuma chamada nova à DeepL');
+    assert.match(segunda.dados.erro, /indisponível/);
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('erro fatal com 3 lotes em voo: no máximo 3 chamadas, tudo local e mensagens sem repetição', async () => {
+  const { fetchImpl, chamadas } = fetchFalso(() => new Response('{"message":"Quota exceeded"}', { status: 456 }));
+  const servidor = await subir({ fetchImpl, config: { deeplChamadasSimultaneas: 3 } });
+  try {
+    const textos = ['CALÇA JEANS BOOTCUT', 'BLUSA GOLA ALTA', 'SAIA MIDI', 'VESTIDO', 'SHORT', 'TOP'];
+    const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos, targetLang: 'EN' });
+    assert.ok(chamadas.length <= 3, `foram ${chamadas.length} chamadas`);
+    assert.ok(dados.origens.every(origem => origem === 'local'));
+    assert.equal(dados.erros.length, 2);
+    assert.equal(dados.estatisticas.lotesEnviados, chamadas.length);
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('cliente que desiste (aba fechada) cancela os lotes que ainda não começaram', async () => {
+  const chamadas = [];
+  const fetchImpl = async (_url, { body }) => {
+    chamadas.push(1);
+    await new Promise(resolve => setTimeout(resolve, 150));
+    return respostaDeepL(JSON.parse(body).text);
+  };
+  const servidor = await subir({ fetchImpl });
+  try {
+    const textos = ['CALÇA JEANS BOOTCUT', 'BLUSA GOLA ALTA', 'SAIA MIDI', 'VESTIDO', 'SHORT', 'TOP'];
+    const controlador = new AbortController();
+    const pedido = fetch(`${servidor.base}/api/traduzir-massa`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ textos, targetLang: 'EN' }),
+      signal: controlador.signal
+    });
+    setTimeout(() => controlador.abort(), 100);
+    await assert.rejects(pedido);
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    assert.ok(chamadas.length <= 2, `o servidor continuou chamando a DeepL para ninguém: ${chamadas.length} chamadas`);
   } finally {
     await servidor.fechar();
   }

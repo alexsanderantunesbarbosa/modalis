@@ -1,9 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  listarCorrespondencias,
   montarContextoGlossario,
-  agruparTextosPorContexto,
+  montarLotesParaTraducao,
   processarTraducaoLocal
 } = require('../processadorTexto');
 const { indices, termosPendentes, expressoesCompostas, dicionarioTermos } = require('../tabelaMestra');
@@ -66,21 +65,33 @@ test('só termos fechados entram no contexto antes da API', () => {
   assert.match(montarContextoGlossario(['tricoline'], 'EN'), /TRICOLINE = POPLIN/);
 });
 
-test('separa contextos do glossário por descrição na tradução em massa', () => {
-  const grupos = agruparTextosPorContexto([
-    'calça cintura alta',
-    'camisa jeans',
-    'calça cintura alta'
-  ], 'EN-US');
+test('monta lotes para a DeepL: descrições iguais entram uma vez e voltam para todas as posições', () => {
+  const lotes = montarLotesParaTraducao(['CALÇA JEANS RETA', 'SAIA MIDI', ' calça jeans reta '], 'EN-US');
 
-  assert.equal(grupos.length, 2);
-  const grupoCalca = grupos.find(grupo => grupo.indices.includes(0));
-  const grupoCamisa = grupos.find(grupo => grupo.indices.includes(1));
-  assert.deepEqual(grupoCalca.indices, [0, 2]);
-  assert.match(grupoCalca.contexto, /CINTURA ALTA = HIGH-RISE/);
-  assert.doesNotMatch(grupoCalca.contexto, /DENIM/);
-  assert.match(grupoCamisa.contexto, /JEANS = DENIM/);
-  assert.doesNotMatch(grupoCamisa.contexto, /HIGH-RISE/);
+  assert.equal(lotes.length, 1);
+  assert.deepEqual(lotes[0].textos, ['CALÇA JEANS RETA', 'SAIA MIDI']);
+  assert.deepEqual(lotes[0].posicoes, [[0, 2], [1]]);
+  assert.match(lotes[0].contexto, /CALÇA JEANS = JEANS/);
+  assert.match(lotes[0].contexto, /SAIA MIDI = MIDI SKIRT/);
+});
+
+test('respeita o tamanho máximo do lote', () => {
+  const textos = Array.from({ length: 7 }, (_, i) => `SAIA MIDI ${i}`);
+  const lotes = montarLotesParaTraducao(textos, 'EN', { tamanhoMaximo: 3 });
+
+  assert.deepEqual(lotes.map(lote => lote.textos.length), [3, 3, 1]);
+  assert.deepEqual(lotes[2].posicoes, [[6]]);
+});
+
+test('não mistura dois sentidos do mesmo termo no mesmo lote', () => {
+  const lotes = montarLotesParaTraducao(['MOLETOM MANGA LONGA', 'BLUSA CROPPED MOLETOM', 'SAIA MIDI'], 'EN');
+
+  assert.equal(lotes.length, 2);
+  assert.deepEqual(lotes[0].textos, ['MOLETOM MANGA LONGA', 'SAIA MIDI']);
+  assert.match(lotes[0].contexto, /MOLETOM = SWEATSHIRT/);
+  assert.doesNotMatch(lotes[0].contexto, /FLEECE/);
+  assert.deepEqual(lotes[1].textos, ['BLUSA CROPPED MOLETOM']);
+  assert.match(lotes[1].contexto, /MOLETOM = FLEECE/);
 });
 
 test('preserva as traduções legadas em espanhol', () => {

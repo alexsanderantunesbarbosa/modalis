@@ -82,7 +82,7 @@
         <h1>Tradução em massa</h1>
         <div class="acoes">
           <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" onchange="processarArquivo(event)" hidden>
-          <button type="button" class="btn btn-primary btn-lg" onclick="document.getElementById('fileInput').click()">Importar planilha SAP</button>
+          <button type="button" id="btnImportar" class="btn btn-primary btn-lg" onclick="document.getElementById('fileInput').click()">Importar planilha SAP</button>
           <button type="button" class="btn btn-success btn-lg" onclick="baixarExcel()">Baixar Excel</button>
         </div>
       </div>
@@ -103,7 +103,7 @@
             <span class="badge-count" id="rowCountBadge">0 itens</span>
           </h2>
           <div class="massa-toolbar" aria-label="Ações da tradução em massa">
-            <button type="button" class="btn btn-primary" onclick="traduzirMassa()" id="btnTraduzirMassa">Traduzir inglês</button>
+            <button type="button" class="btn btn-primary" onclick="traduzirMassa()" id="btnTraduzirMassa">Traduzir</button>
             <button type="button" class="btn btn-default" onclick="aplicarTodasCorrecoes()" id="btnAplicarTodas" disabled>Aplicar todas as correções</button>
             <button type="button" class="btn btn-default" onclick="toggleModoEdicao()" id="btnAlterar">Alterar / Editar</button>
           </div>
