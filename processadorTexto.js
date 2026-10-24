@@ -76,7 +76,9 @@ function escaparRegex(texto) {
 const NUCLEO = new Set([1, 15, 16]);            // índices que são a peça
 const EMBUTEM_PECA = new Set([3, 4]);            // expressões destes índices podem carregar a peça (CALÇA PIJAMA, SAIA CURTA)
 const AGASALHO = /\b(JACKET|COAT|VEST|PARKA|WINDBREAKER|BOMBER|PUFFER)\b/;
-const COMPRIMENTO_COLADO = new Set(['MINI', 'MIDI', 'MAXI', 'SUPER MIDI']); // ficam colados à palavra da peça
+// Comprimentos colados à palavra da peça (DENIM MINI SKIRT, RIBBED SHORT DRESS); os
+  // descritivos (MID-LENGTH, CROPPED, LONGLINE) ficam na posição 2.
+const COMPRIMENTO_COLADO_EN = new Set(['MINI', 'MIDI', 'MAXI', 'SUPER MIDI', 'SHORT', 'LONG']);
 const LIMITE_SAP = 40;
 
 // Cache de chave normalizada e regex por texto de termo (vocabulário finito).
@@ -139,6 +141,12 @@ function ehPeca(termo) {
   return prepararTermo(termo.pt).chave.split(' ').some(palavra => PALAVRAS_DE_PECA.has(palavra));
 }
 
+// Modelo que, sozinho, funciona como peça: modelagem de jaqueta (PARKA, PUFFER) ou modelo
+// cujo inglês já é a peça (HOT PANTS). Vale para resolver JEANS/MOLETOM e como núcleo.
+function ehPecaPorModelo(termo) {
+  return termo.indice === 14 || (termo.indice === 3 && /(PANTS|SHORTS)$/.test(termo.en));
+}
+
 // Escolhe o sentido de um termo com várias entradas, olhando as outras peças da descrição.
 // Devolve uma cópia (nunca altera a tabela).
 function resolverSentido(alternativas, { outraPeca, pecaAgasalho }) {
@@ -196,7 +204,7 @@ function listarCorrespondencias(textoPT, idiomaDestino = 'EN') {
   }
 
   // Passo 2: resolve os sentidos olhando as outras peças da descrição.
-  const pecasCertas = selecionadas.filter(c => c.alternativas.length === 1 && ehPeca(c.alternativas[0]));
+  const pecasCertas = selecionadas.filter(c => c.alternativas.length === 1 && (ehPeca(c.alternativas[0]) || ehPecaPorModelo(c.alternativas[0])));
   return selecionadas.map(candidata => {
     const outraPeca = pecasCertas.some(p => p !== candidata);
     const pecaAgasalho = pecasCertas.some(p => p.alternativas[0].indice === 14 || AGASALHO.test(p.alternativas[0].en));
@@ -287,7 +295,7 @@ function posicaoNaFrase(termo) {
   }
 }
 
-const MODIFICADOR_DE_DETALHE = new Set([2, 8, 9, 10, 12]); // índices que, soltos após um detalhe, o qualificam (PALA BORDADA)
+const MODIFICADOR_DE_DETALHE = new Set([9, 10, 12]); // soltos após um detalhe, qualificam o detalhe (PALA BORDADA); fit e tecido soltos descrevem a peça
 const DETALHES_QUE_ACEITAM_DE = new Set([10, 11, 12]);  // COM BOTÕES EM METAL, COM DETALHE EM ZÍPER
 
 /**
@@ -334,9 +342,13 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
       continue;
     }
     if (unidade.tipo === 'termo') {
-      unidade.prep = papelPendente;
-      // Expressão que já é detalhe (COM FAIXA = WITH SASH) propaga o COM para o E seguinte.
-      papelAnterior = papelPendente || (unidade.termo.en.startsWith("WITH ") ? "COM" : null);
+      // Expressão que já traz o conectivo (COM CAPUZ, SEM MANGAS, COM FAIXA) define o próprio
+      // papel: ignora o pendente ("SEM BOLSO E COM CINTO" não pode virar WITHOUT ... BELT) e
+      // propaga o seu para o "E" seguinte ("COM CAPUZ E BOLSOS" → WITH POCKETS).
+      const chave = prepararTermo(unidade.termo.pt).chave;
+      const proprio = /^(COM|C\/) /.test(chave) ? 'COM' : /^(SEM|S\/) /.test(chave) ? 'SEM' : null;
+      unidade.prep = proprio ? null : papelPendente;
+      papelAnterior = proprio || papelPendente || (unidade.termo.en.startsWith('WITH ') ? 'COM' : null);
     }
     papelPendente = null;
   }
@@ -350,7 +362,7 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
 
   // Peça (núcleo): índices de peça ou expressão que a carrega; "COM X" nunca é a peça.
   let candidatas = termos.filter(u => u.prep !== 'COM' && ehPeca(u.termo));
-  if (!candidatas.length) candidatas = termos.filter(u => u.prep !== 'COM' && u.termo.indice === 14); // PARKA sozinha
+  if (!candidatas.length) candidatas = termos.filter(u => u.prep !== 'COM' && ehPecaPorModelo(u.termo)); // PARKA sozinha, HOT PANTS
   // Peça específica absorve a genérica: TOP + CORTININHA (TRIANGLE TOP) é uma peça só.
   const absorvidas = new Set(candidatas.filter(generica => candidatas.some(especifica => especifica !== generica
     && especifica.termo.en.split(' ').length > generica.termo.en.split(' ').length
@@ -371,7 +383,7 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
     let en = termo.en;
 
     // Tecidos JEANS e MOLETOM em calça/short viram a fusão idiomática da própria peça.
-    if (nucleo && termo.indice === 8 && (termo.pt === 'JEANS' || termo.pt === 'MOLETOM')) {
+    if (nucleo && NUCLEO.has(nucleo.termo.indice) && termo.indice === 8 && (termo.pt === 'JEANS' || termo.pt === 'MOLETOM')) {
       const fusao = termo.pt === 'JEANS'
         ? { PANTS: 'JEANS', SHORTS: 'JORTS' }
         : { PANTS: 'SWEATPANTS', SHORTS: 'SWEAT SHORTS' };
@@ -382,14 +394,16 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
       }
     }
     // MOLETOM com capuz é HOODIE (e não SWEATSHIRT + HOODED).
-    if (nucleo && nucleo.termo.pt === 'MOLETOM' && (termo.pt === 'COM CAPUZ' || termo.pt === 'CAPUZ')) {
+    if (nucleo && (nucleo.termo.pt === 'MOLETOM' || nucleoEn === 'HOODIE') && (termo.pt === 'COM CAPUZ' || termo.pt === 'CAPUZ')) {
       nucleoEn = 'HOODIE';
       return;
     }
 
     // Termo logo após um detalhe que o qualifica (vem antes de tudo): COM PALA BORDADA,
     // COM BOTÕES EM METAL, COM DETALHE EM ZÍPER.
-    const qualificaDetalhe = detalheAberto && (
+    // Expressão que já é um detalhe (COM CINTO = WITH BELT) nunca qualifica o detalhe anterior.
+    const proprioDetalhe = en.startsWith('WITH ') || /^(COM|C\/) /.test(prepararTermo(termo.pt).chave);
+    const qualificaDetalhe = detalheAberto && !proprioDetalhe && (
       (prep === 'DE' && DETALHES_QUE_ACEITAM_DE.has(detalheAberto.indice)) ||
       (prep === null && MODIFICADOR_DE_DETALHE.has(termo.indice))
     );
@@ -411,7 +425,7 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
       antes.push({ en, posicao: 9, ordem }); // segunda peça: tratada como modelo (revisão)
       return;
     }
-    if (termo.indice === 4 && COMPRIMENTO_COLADO.has(termo.pt)) {
+    if (termo.indice === 4 && COMPRIMENTO_COLADO_EN.has(termo.en)) {
       colados.push(en);
       return;
     }
@@ -419,6 +433,9 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
   });
 
   antes.sort((a, b) => a.posicao - b.posicao || a.ordem - b.ordem);
+  // LOW e CINTURA BAIXA são ambos LOW-RISE: um inglês repetido entra uma vez.
+  const vistos = new Set();
+  const antesUnicos = antes.filter(a => !vistos.has(a.en) && vistos.add(a.en));
   const palavrasNucleo = nucleoEn ? nucleoEn.split(' ') : [];
   const pecaMontada = palavrasNucleo.length
     ? [...palavrasNucleo.slice(0, -1), ...colados, palavrasNucleo.at(-1)].join(' ')
@@ -427,7 +444,7 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
   const positivos = detalhes.filter(d => !d.negado).map(montarDetalhe);
   const negativos = detalhes.filter(d => d.negado).map(montarDetalhe);
   const partes = [
-    ...antes.map(a => a.en),
+    ...antesUnicos.map(a => a.en),
     pecaMontada,
     positivos.length ? `WITH ${positivos.join(' AND ')}` : '',
     negativos.length ? `WITHOUT ${negativos.join(' AND ')}` : '',

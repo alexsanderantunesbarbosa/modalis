@@ -15,11 +15,11 @@ Descrição ou planilha SAP
   → exportação .xlsx
 ```
 
-O servidor consulta as correspondências do glossário local para montar um contexto enviado ao DeepL junto com o texto original. Esse contexto orienta a tradução, mas não garante que o DeepL aplique cada termo exatamente como definido. Se a chamada ao DeepL falhar, o servidor usa o processador local como fallback e devolve a origem de cada tradução; a interface marca as linhas vindas do fallback e mostra o motivo da falha.
+A tabela mestra é o motor: o servidor casa os termos da descrição e monta a frase em inglês na estrutura combinada (`[rise] [comprimento] [fit] [manga] [gola] [construção] [acabamento] [tecido] [modelo] PEÇA [WITH …]`), sem chamar a DeepL. Só descrições com palavra fora da tabela (ou mais de uma peça) vão à DeepL, com o contexto do glossário, e a resposta passa por um validador: se algum termo da tabela não aparece, a linha é marcada "a revisar". Cada linha devolve origem (`tabela`, `deepl`, `local`) e estado (`tabela`, `deepl`, `revisar`, `acima-de-40`); a interface mostra um selo por linha e o balanço no status. Se a DeepL falhar, a linha sai pela tabela com as palavras desconhecidas em português, marcada e pendente. `MOTOR_PRINCIPAL=deepl` inverte: tudo vai à DeepL (para comparar qualidade).
 
 ## Funcionalidades implementadas
 
-- **Tradução individual para inglês:** envia uma descrição ao servidor, que tenta usar o DeepL e recorre ao processamento local em caso de falha.
+- **Tradução individual para inglês:** a descrição é montada pela tabela mestra; se houver palavra fora da tabela, vai à DeepL e volta validada. A tela diz de onde veio e lista os termos do glossário aplicados.
 - **Importação em massa:** aceita `.xlsx`, `.xls` e `.csv`, lê a primeira aba e exige as colunas `Referencia` e `Descrição`. As colunas `Português` e `Z_ENCAIXE` não substituem `Descrição`.
 - **Sugestões ortográficas:** regras locais mostram o texto original e uma versão sugerida. É possível aceitar ou manter cada sugestão; o original não é alterado automaticamente.
 - **Revisão em massa:** inclui filtros por coluna, referências com correção pendente, aplicação de todas as sugestões e edição manual de EN/ES.

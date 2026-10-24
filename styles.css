@@ -310,6 +310,9 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
 
 .tabela td small.selo-local { color: var(--alerta); font-weight: 700; }
 .tabela td small.selo-manual { color: #31708f; font-weight: 700; }
+.tabela td small.selo-revisar { color: #a94442; font-weight: 700; }
+.tabela td small.selo-limite { color: #8a6d3b; font-weight: 700; }
+.tabela td small.selo-deepl { color: #31708f; }
 
 .acoes-correcao { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .celula-editavel { background: #fff7ed !important; outline: 2px solid #fdba74; }

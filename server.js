@@ -17,10 +17,10 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {
-  processarTraducaoLocal,
+  montarTraducao,
   montarContextoGlossario,
   montarLotesParaTraducao,
-  paresDoGlossario
+  LIMITE_SAP
 } = require('./processadorTexto');
 const { sugerirCorrecaoGrafia } = require('./correcoesOrtograficas');
 const { indices } = require('./tabelaMestra');
@@ -38,6 +38,9 @@ function lerConfiguracao(env = process.env) {
   return {
     host: env.HOST || '127.0.0.1',
     porta: numero(env.PORT, 3000),
+    // 'tabela' (padrão): a frase é montada pela tabela mestra e só o que ela não cobre vai à
+    // DeepL. 'deepl': tudo vai à DeepL (comparação de qualidade); a tabela fica como fallback.
+    motorPrincipal: env.MOTOR_PRINCIPAL === 'deepl' ? 'deepl' : 'tabela',
     deeplApiKey,
     // Chave terminada em ":fx" é do plano Free, que usa outro endpoint.
     deeplUrl: deeplApiKey.endsWith(':fx')
@@ -360,47 +363,155 @@ function criarLimitador(maximo) {
 
 /* ==================== Serviço de tradução: DeepL com fallback local ==================== */
 
-function termosAplicados(textoPT, idioma) {
+function termosAplicados(montado) {
   const vistos = new Set();
-  return paresDoGlossario(textoPT, idioma)
+  return montado.termos
+    .map(t => ({ pt: t.pt, en: t.en }))
     .filter(par => !vistos.has(`${par.pt}|${par.en}`) && vistos.add(`${par.pt}|${par.en}`));
 }
 
-function criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote, registrar }) {
+const normalizarPalavras = texto => String(texto ?? '')
+  .toUpperCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^A-Z0-9]+/g, ' ')
+  .trim()
+  .split(' ')
+  .filter(Boolean);
+
+// Palavras que nomeiam uma peça em inglês (última palavra do EN dos índices de peça, mais
+// as fusões): se a DeepL trouxer uma que a tabela não mandou (PANTS em CALÇA JEANS), é revisão.
+const PALAVRAS_DE_PECA_EN = new Set([
+  ...indices.filter(i => [1, 15, 16].includes(i.id)).flatMap(i => i.termos.map(t => normalizarPalavras(t.en).at(-1))),
+  'JEANS', 'JORTS', 'SWEATPANTS'
+].filter(Boolean));
+
+// Validador de estrutura da tradução vinda da DeepL. Três checagens, nesta ordem:
+// 1. toda palavra que a tabela mandaria está lá (MID-RISE → MID e RISE; "MID-WAIST" deixa
+//    RISE faltando), respeitando repetições (SHORT SLEEVE SHORT DRESS precisa de dois SHORT);
+// 2. nenhuma palavra de peça a mais (XYZ JEANS PANTS);
+// 3. a ordem das palavras da tabela se mantém (subsequência): a estrutura é a combinada.
+// Palavras fora da tabela e conectivos (WITH, AND, WITHOUT) não contam.
+function validarEstrutura(traducao, montado) {
+  if (!montado.termos.length) return { ok: true, motivo: '' };
+  const ignorar = new Set(['WITH', 'AND', 'WITHOUT']);
+  const desconhecidas = new Set(montado.desconhecidas.flatMap(normalizarPalavras));
+  const esperadas = normalizarPalavras(montado.traducao).filter(p => !ignorar.has(p) && !desconhecidas.has(p));
+  const presentes = normalizarPalavras(traducao);
+
+  const sobra = new Map();
+  for (const p of presentes) sobra.set(p, (sobra.get(p) || 0) + 1);
+  const faltantes = [];
+  for (const p of esperadas) {
+    if ((sobra.get(p) || 0) > 0) sobra.set(p, sobra.get(p) - 1);
+    else faltantes.push(p);
+  }
+  if (faltantes.length) return { ok: false, motivo: `glossário não aplicado: ${[...new Set(faltantes)].join(', ')}` };
+
+  const esperadasSet = new Set(esperadas);
+  const pecaAMais = presentes.filter(p => PALAVRAS_DE_PECA_EN.has(p) && !esperadasSet.has(p) && !desconhecidas.has(p));
+  if (pecaAMais.length) return { ok: false, motivo: `peça a mais: ${[...new Set(pecaAMais)].join(', ')}` };
+
+  let cursor = 0;
+  for (const p of presentes) if (cursor < esperadas.length && p === esperadas[cursor]) cursor += 1;
+  if (cursor < esperadas.length) return { ok: false, motivo: `ordem diferente da estrutura (tabela: ${montado.traducao})` };
+
+  return { ok: true, motivo: '' };
+}
+
+function descreverMontagem(montado) {
+  if (montado.estado === 'desconhecida') return `palavras fora da tabela: ${montado.desconhecidas.join(', ')}`;
+  if (montado.estado === 'varias-pecas') return 'mais de uma peça na descrição';
+  if (montado.estado === 'sem-peca') return 'nenhuma peça identificada';
+  return '';
+}
+
+// Decide o estado de uma tradução vinda da DeepL. Mais de uma peça ou nenhuma peça na
+// descrição sempre pede revisão humana, mesmo que a DeepL tenha respondido bem.
+function avaliarDeepL(traducao, montado) {
+  const validacao = validarEstrutura(traducao, montado);
+  if (!validacao.ok) return { estado: 'revisar', motivo: validacao.motivo };
+  if (montado.estado === 'varias-pecas' || montado.estado === 'sem-peca') return { estado: 'revisar', motivo: descreverMontagem(montado) };
+  if (traducao.length > LIMITE_SAP) return { estado: 'acima-de-40', motivo: descreverMontagem(montado) };
+  return { estado: 'deepl', motivo: descreverMontagem(montado) };
+}
+
+/**
+ * Serviço de tradução. Motor principal 'tabela' (padrão): a frase é montada pela tabela
+ * mestra e só o que ela não cobre vai à DeepL, validado na volta. Motor 'deepl': tudo vai à
+ * DeepL (útil para comparar qualidade); a tabela fica como fallback.
+ */
+function criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote, motorPrincipal = 'tabela', registrar }) {
+  const resolvePelaTabela = montado => motorPrincipal === 'tabela' && (montado.estado === 'tabela' || montado.estado === 'acima-de-40');
+
   // O catch só envolve a chamada externa: qualquer outro erro é bug nosso e deve
   // aparecer como 500, não como "a DeepL falhou".
   async function traduzirUm(textoPT, idioma) {
+    const montado = montarTraducao(textoPT, idioma);
+    const termos = termosAplicados(montado);
+    if (resolvePelaTabela(montado)) {
+      return { traducao: montado.traducao, origem: 'tabela', estado: montado.estado, motivo: '', termos, desconhecidas: [] };
+    }
+
     const contexto = montarContextoGlossario([textoPT], idioma);
-    let resposta;
     try {
       const [traducao] = await limitador(() => traduzirRemoto([textoPT], idioma, contexto), { prioritaria: true });
-      resposta = { traducao, origem: 'deepl' };
+      const { estado, motivo } = avaliarDeepL(traducao, montado);
+      return { traducao, origem: 'deepl', estado, motivo, termos, desconhecidas: montado.desconhecidas, sugestaoTabela: montado.traducao };
     } catch (erro) {
       if (!(erro instanceof ErroDeepL)) throw erro;
       registrar('aviso', 'deepl.falha', { mensagem: erro.message, detalhe: erro.detalhe });
-      resposta = { traducao: processarTraducaoLocal(textoPT, idioma), origem: 'local', erro: erro.message };
+      return {
+        traducao: montado.traducao, origem: 'local', estado: 'revisar',
+        motivo: `DeepL falhou (${erro.message}); ${descreverMontagem(montado) || 'montada pela tabela'}`,
+        erro: erro.message, termos, desconhecidas: montado.desconhecidas
+      };
     }
-    resposta.termos = termosAplicados(textoPT, idioma);
-    return resposta;
   }
 
-  // Lotes de até `tamanhoLote` descrições distintas, processados em paralelo dentro do
-  // limite do servidor. Fallback local por lote; depois de um erro fatal (chave inválida,
-  // cota esgotada) os lotes que ainda não começaram vão direto ao motor local.
-  // `sinal` (AbortSignal) é acionado quando o cliente desiste da requisição: os lotes que
-  // ainda não começaram são pulados, para não gastar cota com um resultado que ninguém lerá.
+  // Em massa: cada descrição é montada pela tabela; só as que ela não cobre vão à DeepL,
+  // em lotes de `tamanhoLote` processados em paralelo dentro do limite do servidor.
+  // Fallback local por lote; após erro fatal os lotes seguintes vão direto ao motor local.
+  // `sinal` (AbortSignal): cliente desistiu, lotes que não começaram são pulados.
   async function traduzirLote(textos, idioma, sinal) {
-    const lotes = montarLotesParaTraducao(textos, idioma, { tamanhoMaximo: tamanhoLote });
     const traducoes = new Array(textos.length);
     const origens = new Array(textos.length);
+    const estados = new Array(textos.length);
+    const motivos = new Array(textos.length);
+    const montados = textos.map(texto => montarTraducao(texto, idioma));
     const erros = [];
+    const anotarErro = mensagem => { if (!erros.includes(mensagem)) erros.push(mensagem); };
+
+    const posicoesDeepL = [];
+    montados.forEach((montado, posicao) => {
+      if (resolvePelaTabela(montado)) {
+        traducoes[posicao] = montado.traducao;
+        origens[posicao] = 'tabela';
+        estados[posicao] = montado.estado;
+        motivos[posicao] = '';
+      } else {
+        posicoesDeepL.push(posicao);
+      }
+    });
+
+    const lotes = montarLotesParaTraducao(posicoesDeepL.map(p => textos[p]), idioma, { tamanhoMaximo: tamanhoLote });
     let bloqueio = null;
     let lotesEnviados = 0;
 
-    const anotarErro = mensagem => { if (!erros.includes(mensagem)) erros.push(mensagem); };
-    const aplicar = (lote, resultado, origem) => lote.posicoes.forEach((posicoes, i) => {
-      for (const posicao of posicoes) {
-        traducoes[posicao] = resultado[i];
+    const aplicar = (lote, resultado, origem) => lote.posicoes.forEach((posicoesNoSubconjunto, i) => {
+      for (const sub of posicoesNoSubconjunto) {
+        const posicao = posicoesDeepL[sub];
+        const montado = montados[posicao];
+        if (origem === 'deepl') {
+          const { estado, motivo } = avaliarDeepL(resultado[i], montado);
+          traducoes[posicao] = resultado[i];
+          estados[posicao] = estado;
+          motivos[posicao] = motivo;
+        } else {
+          traducoes[posicao] = montado.traducao;
+          estados[posicao] = 'revisar';
+          motivos[posicao] = `DeepL falhou; ${descreverMontagem(montado) || 'montada pela tabela'}`;
+        }
         origens[posicao] = origem;
       }
     });
@@ -423,20 +534,27 @@ function criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote, registra
           }
         }
       }
-      aplicar(lote, lote.textos.map(texto => processarTraducaoLocal(texto, idioma)), 'local');
+      aplicar(lote, null, 'local');
     };
 
     await Promise.all(lotes.map(lote => limitador(() => processar(lote))));
 
+    const contar = valor => estados.filter(e => e === valor).length;
     return {
       traducoes,
       origens,
+      estados,
+      motivos,
       erros,
       estatisticas: {
         descricoes: textos.length,
-        distintas: lotes.reduce((soma, lote) => soma + lote.textos.length, 0),
+        distintas: new Set(textos.map(t => String(t).trim().toUpperCase())).size,
+        pelaTabela: origens.filter(o => o === 'tabela').length,
+        paraDeepL: posicoesDeepL.length,
         lotes: lotes.length,
-        lotesEnviados
+        lotesEnviados,
+        revisar: contar('revisar'),
+        acimaDe40: contar('acima-de-40')
       }
     };
   }
@@ -528,7 +646,7 @@ function criarServidor({ config: configExtra = {}, fetchImpl = fetch, silencioso
     }
   );
   const limitador = criarLimitador(config.deeplChamadasSimultaneas);
-  const servico = criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote: config.deeplTamanhoLote, registrar });
+  const servico = criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote: config.deeplTamanhoLote, motorPrincipal: config.motorPrincipal, registrar });
 
   const servidor = http.createServer(async (req, res) => {
     const inicio = Date.now();
@@ -584,7 +702,8 @@ if (require.main === module) {
     registrarPadrao('info', 'servidor.iniciado', {
       host: config.host,
       porta: config.porta,
-      deepl: config.deeplApiKey ? 'configurada' : 'ausente (só motor local)'
+      deepl: config.deeplApiKey ? 'configurada' : 'ausente (só motor local)',
+      motorPrincipal: config.motorPrincipal
     });
     console.log(`MODALIS: API em http://${config.host}:${config.porta} (Ctrl+C para parar)`);
   });

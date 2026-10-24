@@ -29,6 +29,7 @@ async function subir(opcoes = {}) {
     config: {
       deeplApiKey: 'chave-de-teste:fx',
       deeplUrl: 'https://exemplo.invalido/v2/translate',
+      motorPrincipal: 'deepl', // os testes deste bloco exercitam o caminho DeepL; o da tabela tem testes próprios abaixo
       deeplTimeoutMs: 200,
       deeplTamanhoLote: 1,
       deeplTentativas: 3,
@@ -110,6 +111,9 @@ test('traduz pela DeepL e devolve origem, termos aplicados e tradução em caixa
     assert.equal(chamadas.length, 1);
     assert.match(chamadas[0].context, /CALÇA JEANS = JEANS/);
     assert.equal(chamadas[0].source_lang, 'PT', 'o idioma de origem é informado, nunca adivinhado');
+    assert.equal(dados.estado, 'revisar', 'EN(CALÇA JEANS BOOTCUT) tem as palavras, mas fora da ordem da estrutura');
+    assert.match(dados.motivo, /ordem diferente da estrutura/);
+    assert.equal(dados.sugestaoTabela, 'BOOTCUT JEANS');
   } finally {
     await servidor.fechar();
   }
@@ -253,7 +257,7 @@ test('em massa, com lote de 50 as descrições distintas vão numa só chamada e
     assert.match(chamadas[0].context, /GOLA ALTA = TURTLENECK/);
     assert.deepEqual(dados.origens, ['deepl', 'deepl', 'deepl', 'deepl']);
     assert.equal(dados.traducoes[3], dados.traducoes[0]);
-    assert.deepEqual(dados.estatisticas, { descricoes: 4, distintas: 3, lotes: 1, lotesEnviados: 1 });
+    assert.deepEqual(dados.estatisticas, { descricoes: 4, distintas: 3, pelaTabela: 0, paraDeepL: 4, lotes: 1, lotesEnviados: 1, revisar: 4, acimaDe40: 0 });
   } finally {
     await servidor.fechar();
   }
@@ -344,7 +348,7 @@ test('por padrão cada descrição distinta vai numa chamada própria (contexto 
     assert.equal(chamadas.length, 2, 'duas descrições distintas, duas chamadas');
     assert.deepEqual(chamadas.map(c => c.text), [['CALÇA JEANS BOOTCUT'], ['SAIA MIDI']]);
     assert.doesNotMatch(chamadas[0].context, /SAIA MIDI/, 'o contexto é só da própria descrição');
-    assert.deepEqual(dados.estatisticas, { descricoes: 3, distintas: 2, lotes: 2, lotesEnviados: 2 });
+    assert.deepEqual(dados.estatisticas, { descricoes: 3, distintas: 2, pelaTabela: 0, paraDeepL: 3, lotes: 2, lotesEnviados: 2, revisar: 3, acimaDe40: 0 });
   } finally {
     await servidor.fechar();
   }
@@ -539,6 +543,97 @@ test('Retry-After do 429 é respeitado: a nova chamada só sai depois do prazo',
     assert.equal(dados.origem, 'deepl');
     assert.equal(instantes.length, 2);
     assert.ok(instantes[1] - instantes[0] >= 950, `esperou só ${instantes[1] - instantes[0]} ms`);
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+/* ==================== Motor principal: a tabela monta, a DeepL só complementa ==================== */
+
+test('no motor "tabela", descrição coberta pela tabela não chama a DeepL', async () => {
+  const { fetchImpl, chamadas } = fetchFalso(corpo => respostaDeepL(corpo.text));
+  const servidor = await subir({ fetchImpl, config: { motorPrincipal: 'tabela' } });
+  try {
+    const { dados } = await post(servidor.base, '/api/traduzir', { textoPT: 'BERMUDA JEANS COMFORT CINTURA MÉDIA', targetLang: 'EN-US' });
+    assert.equal(chamadas.length, 0);
+    assert.deepEqual([dados.traducao, dados.origem, dados.estado], ['MID-RISE COMFORT JORTS', 'tabela', 'tabela']);
+    assert.ok(dados.termos.some(par => par.pt === 'BERMUDA JEANS' && par.en === 'JORTS'));
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('no motor "tabela", palavra desconhecida vai à DeepL e o validador confere o glossário na volta', async () => {
+  const { fetchImpl, chamadas } = fetchFalso(corpo => (corpo.text[0] === 'CAMISA AZUL PETRÓLEO'
+    ? new Response(JSON.stringify({ translations: [{ text: 'petrol blue shirt' }] }), { status: 200 })
+    : new Response(JSON.stringify({ translations: [{ text: 'blue top' }] }), { status: 200 })));
+  const servidor = await subir({ fetchImpl, config: { motorPrincipal: 'tabela' } });
+  try {
+    const ok = await post(servidor.base, '/api/traduzir', { textoPT: 'CAMISA AZUL PETRÓLEO', targetLang: 'EN' });
+    assert.equal(chamadas.length, 1);
+    assert.deepEqual([ok.dados.traducao, ok.dados.origem, ok.dados.estado], ['PETROL BLUE SHIRT', 'deepl', 'deepl']);
+    assert.match(ok.dados.motivo, /fora da tabela: AZUL, PETRÓLEO/);
+
+    const ruim = await post(servidor.base, '/api/traduzir', { textoPT: 'BLUSA AZUL PETRÓLEO', targetLang: 'EN' });
+    assert.equal(ruim.dados.estado, 'revisar');
+    assert.match(ruim.dados.motivo, /glossário não aplicado: BLOUSE/);
+    assert.equal(ruim.dados.sugestaoTabela, 'BLOUSE AZUL PETRÓLEO');
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('no motor "tabela", em massa só as descrições não cobertas vão à DeepL, com estados por linha', async () => {
+  const { fetchImpl, chamadas } = fetchFalso(corpo => respostaDeepL(corpo.text));
+  const servidor = await subir({ fetchImpl, config: { motorPrincipal: 'tabela' } });
+  try {
+    const textos = ['SAIA JEANS MINI CINTURA BAIXA COM BRILHO', 'CAMISA AZUL PETRÓLEO', 'BLUSA MANGA MÉDIA COM GOLA EM PLANO LEVE', 'SAIA JEANS MINI CINTURA BAIXA COM BRILHO'];
+    const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos, targetLang: 'EN' });
+    assert.equal(chamadas.length, 1, 'só a descrição com palavra desconhecida vai à DeepL');
+    assert.deepEqual(chamadas[0].text, ['CAMISA AZUL PETRÓLEO']);
+    assert.deepEqual(dados.origens, ['tabela', 'deepl', 'tabela', 'tabela']);
+    assert.deepEqual(dados.estados, ['tabela', 'revisar', 'acima-de-40', 'tabela']);
+    assert.equal(dados.traducoes[0], 'LOW-RISE DENIM MINI SKIRT WITH SHIMMER');
+    assert.match(dados.motivos[1], /glossário não aplicado: SHIRT/);
+    assert.equal(dados.motivos[2], '');
+    assert.deepEqual(dados.estatisticas, { descricoes: 4, distintas: 3, pelaTabela: 3, paraDeepL: 1, lotes: 1, lotesEnviados: 1, revisar: 1, acimaDe40: 1 });
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('no motor "tabela", se a DeepL falhar numa desconhecida a linha sai pela tabela, marcada para revisão e pendente', async () => {
+  const { fetchImpl } = fetchFalso(() => new Response('{}', { status: 500 }));
+  const servidor = await subir({ fetchImpl, config: { motorPrincipal: 'tabela' } });
+  try {
+    const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos: ['CAMISA AZUL PETRÓLEO', 'CALÇA JEANS BOOTCUT'], targetLang: 'EN' });
+    assert.deepEqual(dados.origens, ['local', 'tabela']);
+    assert.deepEqual(dados.estados, ['revisar', 'tabela']);
+    assert.equal(dados.traducoes[0], 'SHIRT AZUL PETRÓLEO');
+    assert.match(dados.motivos[0], /DeepL falhou; palavras fora da tabela: AZUL, PETRÓLEO/);
+    assert.deepEqual(dados.erros, ['DeepL respondeu 500 (erro no serviço)']);
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('validador: peça a mais, ordem trocada e repetição engolida viram "revisar"; várias peças também', async () => {
+  const respostas = {
+    'CALÇA JEANS XYZ': 'XYZ JEANS PANTS',                 // PANTS a mais
+    'SAIA JEANS XYZ': 'SKIRT DENIM XYZ',                  // ordem trocada
+    'VESTIDO CURTO MANGA CURTA XYZ': 'SHORT SLEEVE DRESS XYZ', // um SHORT a menos
+    'CAMISA XYZ': 'XYZ SHIRT',                            // ok
+    'CALÇA E SAIA': 'PANTS AND SKIRT'                     // várias peças
+  };
+  const { fetchImpl } = fetchFalso(corpo => new Response(JSON.stringify({ translations: corpo.text.map(t => ({ text: respostas[t] })) }), { status: 200 }));
+  const servidor = await subir({ fetchImpl, config: { motorPrincipal: 'tabela' } });
+  try {
+    const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos: Object.keys(respostas), targetLang: 'EN' });
+    assert.deepEqual(dados.estados, ['revisar', 'revisar', 'revisar', 'deepl', 'revisar']);
+    assert.match(dados.motivos[0], /peça a mais: PANTS/);
+    assert.match(dados.motivos[1], /ordem diferente/);
+    assert.match(dados.motivos[2], /glossário não aplicado: SHORT/);
+    assert.match(dados.motivos[4], /mais de uma peça/);
   } finally {
     await servidor.fechar();
   }

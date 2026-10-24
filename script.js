@@ -97,11 +97,14 @@ async function traduzirSingular() {
     inputEN.value = resultado.traducao;
     atualizarContadorEN(resultado.traducao);
     renderTermosAplicados(resultado.termos);
-    if (resultado.origem === 'local') {
-      setSingularStatus(`A DeepL não respondeu; esta tradução veio do motor local. Motivo: ${resultado.erro}`, true);
-    } else {
-      setSingularStatus('Tradução feita pela DeepL com o contexto do glossário.');
-    }
+    const descricoes = {
+      tabela: ['Montada pela tabela mestra, sem chamar a DeepL.', false],
+      'acima-de-40': ['Montada pela tabela, mas passou de 40 caracteres: ajuste à mão.', true],
+      deepl: [`Traduzida pela DeepL${resultado.motivo ? ` (${resultado.motivo})` : ''}; os termos do glossário foram conferidos.`, false],
+      revisar: [`A revisar: ${resultado.motivo}${resultado.sugestaoTabela ? `. Sugestão da tabela: ${resultado.sugestaoTabela}` : ''}`, true]
+    };
+    const [texto, alerta] = descricoes[resultado.estado] || [`Origem: ${resultado.origem}`, false];
+    setSingularStatus(texto, alerta);
   } catch (error) {
     console.error('Erro na tradução singular:', error);
     alert('Não foi possível realizar a tradução. Verifique se o servidor Node.js está rodando.\n\nDetalhes: ' + error.message);
@@ -246,7 +249,9 @@ async function processarArquivo(event) {
           estadoCorrecao: sugestao.ocorrencias.length ? 'pendente' : 'sem-sugestao',
           en: '',
           es: '',
-          origemEN: '', // 'deepl' | 'local' | 'manual'
+          origemEN: '', // 'tabela' | 'deepl' | 'local' | 'manual'
+          estadoEN: '', // 'tabela' | 'deepl' | 'revisar' | 'acima-de-40'
+          motivoEN: '',
           ecom: obterValor(row, colunas.ecom),
           compPT: obterValor(row, colunas.compPT),
           compEN: obterValor(row, colunas.compEN),
@@ -289,6 +294,8 @@ function aceitarCorrecao(index) {
   item.en = '';
   item.es = '';
   item.origemEN = '';
+  item.estadoEN = '';
+  item.motivoEN = '';
   renderTabelaMassa();
   atualizarStatusRevisao();
 }
@@ -301,6 +308,8 @@ function manterOriginal(index) {
   item.en = '';
   item.es = '';
   item.origemEN = '';
+  item.estadoEN = '';
+  item.motivoEN = '';
   renderTabelaMassa();
   atualizarStatusRevisao();
 }
@@ -374,12 +383,13 @@ function renderTabelaMassa() {
 
     const en = criarCelula(item.en);
     const es = criarCelula(item.es);
-    if (item.en && !modoEdicao && (item.origemEN === 'local' || item.origemEN === 'manual')) {
-      en.dataset.valorFiltro = item.en;
-      const selo = document.createElement('small');
-      selo.className = item.origemEN === 'local' ? 'selo-local' : 'selo-manual';
-      selo.textContent = item.origemEN === 'local' ? 'Motor local (DeepL falhou)' : 'Editado à mão';
-      en.appendChild(selo);
+    const selo = item.en && !modoEdicao ? descreverSelo(item) : null;
+    if (selo) {
+      en.dataset.valorFiltro = `${item.en} ${selo.texto}`;
+      const marca = document.createElement('small');
+      marca.className = selo.classe;
+      marca.textContent = selo.texto;
+      en.appendChild(marca);
     }
     if (modoEdicao) {
       en.contentEditable = 'true';
@@ -396,6 +406,17 @@ function renderTabelaMassa() {
   document.getElementById('resultMassaCard').style.display = 'block';
   filtrarTabelaMassa();
   atualizarBotaoTraduzir();
+}
+
+// Selo da coluna EN: de onde veio a tradução e se pede revisão. Sem selo = montada pela
+// tabela mestra, dentro do limite.
+function descreverSelo(item) {
+  if (item.origemEN === 'manual') return { classe: 'selo-manual', texto: 'Editado à mão' };
+  if (item.origemEN === 'local') return { classe: 'selo-local', texto: `DeepL falhou; montada pela tabela${item.motivoEN ? ` (${item.motivoEN})` : ''}` };
+  if (item.estadoEN === 'revisar') return { classe: 'selo-revisar', texto: `A revisar: ${item.motivoEN}` };
+  if (item.estadoEN === 'acima-de-40') return { classe: 'selo-limite', texto: `Acima de 40 caracteres (${item.en.length})` };
+  if (item.estadoEN === 'deepl') return { classe: 'selo-deepl', texto: `DeepL${item.motivoEN ? ` · ${item.motivoEN}` : ''}` };
+  return null;
 }
 
 // Mesma normalização para o que vem da API e para o que o usuário digita: sem isso, abrir
@@ -437,6 +458,8 @@ function aplicarTodasCorrecoes() {
     item.en = '';
     item.es = '';
     item.origemEN = '';
+    item.estadoEN = '';
+    item.motivoEN = '';
   });
 
   renderTabelaMassa();
@@ -495,7 +518,7 @@ async function traduzirMassa() {
     let interrompido = '';
     for (let inicio = 0; inicio < chaves.length; inicio += TAMANHO_PARTE) {
       const parte = chaves.slice(inicio, inicio + TAMANHO_PARTE);
-      const { traducoes, origens = [], erros = [] } = await chamarApiTraduzirMassa(parte.map(chave => porChave.get(chave)[0].pt), 'EN-US');
+      const { traducoes, origens = [], estados = [], motivos = [], erros = [] } = await chamarApiTraduzirMassa(parte.map(chave => porChave.get(chave)[0].pt), 'EN-US');
       if (dadosProcessados !== itens) {
         setMassaStatus('Outra planilha foi importada durante a tradução; o resultado da anterior foi descartado.', true);
         return;
@@ -505,29 +528,39 @@ async function traduzirMassa() {
         item.en = normalizarEN(traducoes[j]);
         item.es = '';
         item.origemEN = origens[j] || 'deepl';
+        item.estadoEN = estados[j] || '';
+        item.motivoEN = motivos[j] || '';
       }));
       erros.forEach(erro => { if (!errosVistos.includes(erro)) errosVistos.push(erro); });
       feitas += parte.length;
       renderTabelaMassa();
       // DeepL suspensa (limite de taxa ou indisponível): parar de enviar; o restante fica
       // pendente para "Traduzir pendentes" daqui a alguns minutos.
-      if (origens.length && origens.every(origem => origem === 'local') && erros.some(erro => /suspensas|limitando/.test(erro))) {
+      const remotas = origens.filter(origem => origem !== 'tabela');
+      if (remotas.length && remotas.every(origem => origem === 'local') && erros.some(erro => /suspensas|limitando/.test(erro))) {
         interrompido = erros.find(erro => /suspensas|limitando/.test(erro));
         break;
       }
       setMassaStatus(`Traduzidas ${feitas} de ${chaves.length} descrições distintas (parte ${Math.ceil(feitas / TAMANHO_PARTE)} de ${totalPartes})...`);
     }
 
-    const locais = alvos.filter(item => item.origemEN === 'local').length;
+    const contar = (campo, valor) => alvos.filter(item => item[campo] === valor).length;
+    const locais = contar('origemEN', 'local');
     const pendentes = alvos.filter(precisaTraduzir).length;
     const repetidas = alvos.length - chaves.length;
     const resumo = ` (${chaves.length} descrições distintas${repetidas ? `, ${repetidas} repetidas aproveitadas` : ''})`;
+    const balanco = [
+      `${contar('origemEN', 'tabela')} pela tabela`,
+      `${contar('origemEN', 'deepl')} pela DeepL`,
+      contar('estadoEN', 'revisar') ? `${contar('estadoEN', 'revisar')} a revisar` : '',
+      contar('estadoEN', 'acima-de-40') ? `${contar('estadoEN', 'acima-de-40')} acima de 40` : ''
+    ].filter(Boolean).join(', ');
     if (interrompido) {
       setMassaStatus(`Tradução interrompida: ${interrompido}. ${pendentes} linha(s) continuam pendentes e ${locais} vieram do motor local${resumo}.`, true);
     } else if (locais) {
       setMassaStatus(`A DeepL falhou em ${locais} de ${alvos.length} descrições; elas vieram do motor local e estão marcadas na tabela${resumo}. Motivo: ${errosVistos.join(' | ')}`, true);
     } else {
-      setMassaStatus(`Tradução concluída pela DeepL: ${alvos.length} linha(s)${resumo}. O espanhol será incluído em uma etapa posterior.`);
+      setMassaStatus(`Tradução concluída: ${balanco}${resumo}. Linhas marcadas pedem revisão. O espanhol será incluído em uma etapa posterior.`, contar('estadoEN', 'revisar') > 0);
     }
     renderTabelaMassa();
   } catch (error) {
@@ -569,6 +602,8 @@ function atualizarDadosAposEdicao() {
       if (enNovo !== normalizarEN(item.en)) {
         item.en = enNovo;
         item.origemEN = enNovo ? 'manual' : '';
+        item.estadoEN = '';
+        item.motivoEN = '';
       }
       item.es = celulas[4].innerText.replace(/\s+/g, ' ').trim().toUpperCase();
     }
@@ -591,9 +626,9 @@ function baixarExcel() {
     return;
   }
 
-  // Linhas do motor local mantêm a ordem do português; exportá-las é uma decisão consciente.
-  const locais = dadosProcessados.filter(item => item.origemEN === 'local').length;
-  if (locais && !window.confirm(`${locais} linha(s) vieram do motor local (a DeepL falhou) e ainda contam como pendentes. Exportar mesmo assim?`)) {
+  // Exportar linhas marcadas (a revisar, acima de 40, DeepL falhou) é uma decisão consciente.
+  const marcadas = dadosProcessados.filter(item => item.origemEN === 'local' || item.estadoEN === 'revisar' || item.estadoEN === 'acima-de-40').length;
+  if (marcadas && !window.confirm(`${marcadas} linha(s) estão marcadas para revisão (glossário não aplicado, acima de 40 caracteres ou DeepL falhou). Exportar mesmo assim?`)) {
     return;
   }
 
