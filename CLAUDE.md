@@ -10,13 +10,17 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 - **Nunca altere arquivos sem permissão explícita. A permissão é o comando "pode codar".**
   Antes disso: analisar, propor, listar o que será mudado e aguardar.
 - Ao aplicar um lote: rodar `npm test`, mostrar antes/depois e listar o que mudou.
+- **Commit no git só com o comando "pode commitar"** (permissão separada do "pode codar";
+  vale para commit, push, amend e merge). Ao fechar o lote, propor a mensagem e aguardar.
 - O dono do projeto valida terminologia; o Claude pesquisa, propõe e justifica.
 - Idioma de trabalho: português; termos da tabela em CAIXA ALTA.
 
 ## Stack e execução
 
-- Node.js 18+, servidor HTTP nativo (`server.js`, porta 3000), front em HTML/JS puro
-  (`index.html`, `script.js`), SheetJS por CDN no navegador. Dependência: `dotenv`.
+- Node.js 22.15+ (exigido em `engines` no `package.json`; é a versão que tem
+  `--use-system-ca`), servidor HTTP nativo (`server.js`, porta 3000), front em HTML/JS puro
+  (`index.html`, `estadoMassa.js`, `script.js`), SheetJS por CDN no navegador. Dependência:
+  `dotenv`.
 - `npm start` sobe a API (`node server.js` serve fora da rede da empresa); `npm test` roda
   `node --test` (ver a contagem no próprio comando; inclui a API HTTP com DeepL simulada).
 - Configuração só por variáveis de ambiente (`.env.example`): `HOST` (padrão `127.0.0.1`),
@@ -49,10 +53,11 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 | Arquivo | Papel |
 |---|---|
 | `tabelaMestra.js` | Glossário: literal `indices` (16 índices) + derivados `termosGlossario`, `expressoesCompostas`, `dicionarioTermos`. Função `adicionarTermos` existe para uso futuro. |
-| `processadorTexto.js` | Matching dos termos no texto (expressão mais longa vence; empate → índice menor), regras de contexto (`escolherContexto`), montagem do `context` para a DeepL e fallback local `processarTraducaoLocal`. Chave normalizada e regex de cada termo são preparadas **uma vez** no carregamento (`termosPreparados`; medido 23/10/2026: 2.464 descrições em 400 ms, antes 14.400 ms). `montarLotesParaTraducao` deduplica descrições, monta lotes de até `tamanhoMaximo` e nunca mistura dois sentidos do mesmo termo (MOLETOM = SWEATSHIRT vs FLEECE) no mesmo lote; com 50 por lote o corpus real dá 50 lotes, o mínimo teórico. |
+| `processadorTexto.js` | Matching dos termos no texto (expressão mais longa vence; empate → índice menor), sentido dos termos com contexto (`resolverSentido`), montador da frase em inglês (`montarTraducao`), montagem do `context` para a DeepL e fallback local `processarTraducaoLocal` (em EN, é o próprio `montarTraducao`). Chave normalizada e regex de cada termo são preparadas **uma vez** no carregamento (`chavesPreparadas`, com cache em `prepararTermo`; medido 23/10/2026: 2.464 descrições em 400 ms, antes 14.400 ms). `montarLotesParaTraducao` deduplica descrições, monta lotes de até `tamanhoMaximo` e nunca mistura dois sentidos do mesmo termo (MOLETOM = SWEATSHIRT vs FLEECE) no mesmo lote; com 50 por lote o corpus real dá 50 lotes, o mínimo teórico. |
 | `correcoesOrtograficas.js` | Sugestões de grafia (24 regras + colapso de palavra repetida em sequência); nunca aplicadas sem aceite do usuário. |
 | `server.js` | API em camadas: `lerConfiguracao` (tudo por env; `MOTOR_PRINCIPAL` tabela/deepl), `lerCorpoJson` (Buffer único, limite de bytes → 413), validação por rota antes de qualquer chamada externa (400), `criarClienteDeepL` (timeout, resposta validada, erros `fatal` para 401/403/456 e `repetivel` para 429/5xx/rede), `comNovasTentativas` (1 s, 2 s… com **disjuntor** para rede/timeout/5xx: 9 falhas seguidas suspendem a DeepL por 30 s; e **freio global** para 429: pausa compartilhada que dobra de 2 s a 30 s ou segue o Retry-After, repetindo até 2 min sem sucesso; o 429 nunca abre o disjuntor), `source_lang=PT` em toda chamada, `criarLimitador` (chamadas simultâneas, **um limite por servidor**, não por requisição; a tradução individual tem prioridade na fila), cancelamento cooperativo quando o cliente desiste (`AbortController` no `close` da resposta), `criarServicoTraducao` (lotes de `DEEPL_TAMANHO_LOTE` descrições, padrão 1, processados em paralelo, fallback local **por lote**; após erro fatal os lotes seguintes vão direto ao motor local; resposta traz `estatisticas`), `criarServicoTraducao` com a tabela como motor principal (só o que ela não cobre vai à DeepL) e `validarEstrutura` na volta (palavra da montagem ausente, peça a mais como PANTS, ou ordem diferente da estrutura → `revisar`; várias peças ou nenhuma peça sempre `revisar`), tabela de rotas e `criarServidor({ config, fetchImpl, silencioso })` exportado para testes. Resposta por linha: `origem` (tabela/deepl/local), `estado` (tabela/deepl/revisar/acima-de-40), `motivo`. Rotas: `/api/traduzir` (devolve `termos` aplicados), `/api/traduzir-massa`, `/api/sugerir-correcoes`, `GET /api/glossario`. Cada resposta traz `origem` (`deepl`/`local`) e um motivo curto; o detalhe vai para o log JSON. Escuta em `127.0.0.1` por padrão. |
-| `index.html`, `styles.css`, `script.js` | Interface com a linguagem visual do START (barra preta, painéis cinza, botões azul/verde, tabelas com borda), em escala menor. Três abas sempre visíveis: Individual, Em massa e Glossário (estilo relatório, com busca, filtro por índice/tipo e exportação). CSS próprio, sem Bootstrap. "Aplicar todas as correções" pede confirmação (a DESCRIÇÃO corrigida vai para o SAP). `TEXTO ECOM` exportado = descrição. O botão "Traduzir" (sem idioma no nome, o ES vem depois) envia só as linhas pendentes e vira "Traduzir pendentes (N)"; edição manual marca `origemEN = 'manual'` ("Editado à mão") e a linha não é reenviada; importar fica bloqueado durante a tradução e uma resposta de planilha antiga é descartada. |
+| `index.html`, `styles.css`, `script.js` | Interface com a linguagem visual do START (barra preta, painéis cinza, botões azul/verde, tabelas com borda), em escala menor. Três abas sempre visíveis: Individual, Em massa e Glossário (estilo relatório, com busca, filtro por índice/tipo e exportação). CSS próprio, sem Bootstrap. "Aplicar todas as correções" pede confirmação (a DESCRIÇÃO corrigida vai para o SAP). `TEXTO ECOM` exportado = descrição. O botão "Traduzir" (sem idioma no nome, o ES vem depois) envia só as linhas pendentes e vira "Traduzir pendentes (N)"; edição manual marca `origemEN = 'manual'` ("Editado à mão") e a linha não é reenviada; importar fica bloqueado durante a tradução e uma resposta de planilha antiga é descartada. Desde 24/10/2026: contador "38/40" no canto das células EN/ES (CSS `::after` com `data-contador`, fora do texto da célula); a edição grava a linha ao sair da célula (`focusout`), Enter desce de linha (Shift+Enter sobe), colar vira texto simples e soltar arrastado é bloqueado; botão "Confirmar" nas linhas a revisar/DeepL falhou até 40; a faixa de status é recalculada a partir de todas as linhas a cada mudança (bege com pendências, verde quando o download passa, presa no topo) e o progresso tem prioridade durante a tradução; no download, os bloqueios vêm antes da pergunta. |
+| `estadoMassa.js` | Regras da tabela em massa sem DOM, num único global `EstadoMassa` (no Node, `module.exports`), carregado antes do `script.js`: normalização e contador, selo de cada linha (inclui "Editado à mão · tinha 43, agora tem 38", com o "tinha" vindo de `enAutomatico`, o texto da máquina), edição manual, confirmação (`confirmadaEN`), `problemaDaLinha` (uma pendência por linha, nesta ordem: grafia, sem tradução, falha da DeepL, acima de 40, a revisar, PT acima de 40; as parcelas da faixa somam o total) e o texto da faixa (`resumirMassa`, `textoFaixaMassa`). "Acima de 40" vem do tamanho do texto gravado, não do `estadoEN` do servidor, e todo selo de linha acima de 40 diz o excesso (o filtro "ACIMA" acha tudo que o download bloqueia). |
 | `docs/decisoes-glossario-2026-10-22.md` | Registro completo das decisões de terminologia, categorização e estrutura da frase. |
 | `docs/glossario-setor-pt-en-es.tsv` | Lista PT/EN/ES do setor (403 linhas). O **espanhol** fica aqui para a feature ES. |
 | `docs/amostras/` | Planilhas das coleções IN27 e AI27 (base de teste; AI27 traz EN anterior, de qualidade desigual). |
@@ -147,7 +152,7 @@ Exemplos de referência (todos são testes em `tests/montador.test.js`):
 - SAIA JEANS MINI CINTURA BAIXA COM BRILHO → LOW-RISE DENIM MINI SKIRT WITH SHIMMER
 - JAQUETA PUFFER MÉDIA GOLA ALTA → MID-LENGTH HIGH COLLAR PUFFER JACKET
 
-## Estado atual (22/10/2026)
+## Estado em 22/10/2026 (histórico)
 
 - Lote de validação IN27/AI27 + lista do setor + recategorização aplicados.
 - Cobertura dos termos fechados nas 2.464 descrições únicas das coleções: 92%
@@ -155,8 +160,8 @@ Exemplos de referência (todos são testes em `tests/montador.test.js`):
   não contíguos, que dependem da regra geral abaixo).
 - Pendência de tradução: PALHA DE SEDA = SILK STRAW (confirmar o tecido).
 - Teste prático de 22/10/2026: a DeepL ignora parte do `context` (manteve SHORT JEANS em vez
-  de JORTS, acrescentou PANTS em CALÇA JEANS). Reforça os itens 2 e 5 da fila; avaliar se o
-  motor local + reordenador vira o caminho principal e a DeepL fica para o que a tabela não cobre.
+  de JORTS, acrescentou PANTS em CALÇA JEANS). Decidido e feito em 24/10/2026: a tabela
+  mestra é o motor e a DeepL fica só para o que ela não cobre (ver "Estrutura da frase").
 
 ## Pendências anotadas em 22/10/2026 (teste prático do dono do projeto)
 
@@ -165,7 +170,7 @@ Exemplos de referência (todos são testes em `tests/montador.test.js`):
 - Algumas descrições ainda saem erradas no teste em massa (a maioria ficou certa). Coletar
   exemplos na próxima sessão e levar para o conjunto de referência (item 4 da fila).
 - Tela "Em massa": aprovada, mas o dono quer uma segunda rodada de refino no visual.
-- Glossário: a coluna ES vem da lista do setor (395 de 805 termos); o restante fica vazio até
+- Glossário: a coluna ES vem da lista do setor (395 de 806 termos); o restante fica vazio até
   a feature de espanhol.
 
 ## Contexto de uso e roteiro até o piloto (dezembro de 2026)
@@ -190,7 +195,7 @@ Decisões de 23/10/2026:
   CAMISETA, SUDADERA, PANTALÓN, TRAJE DE BAÑO, TIRO ALTO/MEDIO/BAJO); quando não houver
   forma neutra, a planilha de proposta marca a opção recomendada e a alternativa. A base
   antiga do setor (`docs/glossario-setor-pt-en-es.tsv`) é insumo, não fonte de verdade:
-  cobre 395 dos 805 termos, tem erros (COSECHADA, BOTTONES, FLENCOS) e mistura países. O
+  cobre 395 dos 806 termos, tem erros (COSECHADA, BOTTONES, FLENCOS) e mistura países. O
   EN dessa base é ignorado.
 - Composição: `Z_COMPOS_PT` tem formato fixo (`* PARTE pct FIBRA pct FIBRA; PARTE …`),
   ~15 fibras e ~40 partes; tradução por dicionário e regra, sem DeepL. A IN27 traz EN/ES
@@ -213,7 +218,7 @@ Escopo de dezembro (ordem "valor entregue se o tempo acabar"):
 
 Perguntas abertas (TI e líder, a partir de 26/10/2026): o relatório do SAP sempre vem com
 linha de cabeçalho? (a AI27 veio sem e a ferramenta a rejeita); como a empresa hospeda
-sistemas internos como o START; quem valida os 805 termos em espanhol.
+sistemas internos como o START; quem valida os 806 termos em espanhol.
 
 ## Modelos e esforço por tarefa (aprovado em 24/10/2026)
 
@@ -261,11 +266,30 @@ em opus. Perguntas conceituais nunca viram workflow.
    iguais antes de chamar a DeepL. Ganhos: tempo, cota (a IN27 tem 274 descrições repetidas
    em 1.622) e consistência entre coleções. Cuidados: invalidar quando a tabela mestra mudar
    (guardar a versão/hash da tabela junto) e distinguir tradução aprovada de tradução bruta.
+8. **STRAIGHT na tabela mestra** (pedido do dono em 24/10/2026, para a sessão seguinte):
+   `STRAIGHT` = STRAIGHT no índice 3, como RETA. Hoje "CALÇA JEANS STRAIGHT CINTURA MÉDIA" vai
+   à DeepL (STRAIGHT fica fora da tabela) e sai "STRAIGHT-LEG JEANS, MID-RISE", marcada pelo
+   validador como "ordem diferente"; com o termo, a tabela monta "MID-RISE STRAIGHT JEANS".
+   Teste em `tests/montador.test.js`. Junto, propor para validação os outros termos novos
+   (LEG, BASE, ASSIMETRIA, PESCOÇO…).
+9. **Lista de referências a revisar no topo da aba Em massa** (pedido do dono em 24/10/2026):
+   igual à lista de "Referências que precisam de correção" (`renderCorrecoesPendentes`), em
+   letra pequena; depois de corrigir e traduzir, lista as refs com pendência de tradução (a
+   revisar, acima de 40, DeepL falhou, sem tradução) e o clique leva à linha exata.
+   Reaproveitar `problemaDaLinha` de `estadoMassa.js`.
+10. **Tabela na hora, DeepL por trás** (pedido do dono em 24/10/2026; prioridade antes do
+    piloto, porque o setor não tem paciência para esperar): as linhas que a tabela cobre
+    (~90%) aparecem de uma vez, as que vão à DeepL ficam "traduzindo…" e são preenchidas
+    conforme chegam; edição e Confirmar liberados durante a tradução. Cuidado de
+    concorrência: resposta da DeepL nunca sobrescreve linha editada ou confirmada no meio
+    (hoje `precisaTraduzir` já protege a gravação). Medir antes e depois o tempo de uma
+    coleção real. Combina com o item 7 (memória em SQLite: só traduções aprovadas, chave =
+    PT normalizada, invalidar pela versão da tabela) e com o 5 (lotes maiores, menos 429).
 
 ## Testes
 
-- `tests/processadorTexto.test.js`, `tests/correcoesOrtograficas.test.js` e
-  `tests/server.test.js`. O do servidor usa `criarServidor({ fetchImpl, config, silencioso })`
+- `tests/processadorTexto.test.js`, `tests/montador.test.js`, `tests/correcoesOrtograficas.test.js`,
+  `tests/server.test.js` e `tests/estadoMassa.test.js` (descrito abaixo). O do servidor usa `criarServidor({ fetchImpl, config, silencioso })`
   com uma DeepL falsa e porta aleatória; `subir()` fixa todos os parâmetros da DeepL, então
   nada do `.env` influencia a suíte.
 - Revisão adversarial do Lote 2 (24/10/2026): 13 achados confirmados e corrigidos no mesmo
@@ -276,8 +300,19 @@ em opus. Perguntas conceituais nunca viram workflow.
   commit; os graves eram o "E" passando o conectivo para expressões que já têm o seu (SEM BOLSO E
   COM CINTO), COM CAPUZ não propagando o papel de detalhe e o validador sem checar ordem e peça a
   mais. Lição: toda regra de linguagem precisa de casos com conectivos encadeados nos testes.
-- Pendente do Lote 4: testes automatizados do front ("só pendentes", "manual"), via módulo
-  sem DOM ou DOM mínimo em `tests/apoio/`.
+- `tests/estadoMassa.test.js` (24/10/2026) cobre as regras da tabela em massa sem DOM ("só
+  pendentes", "manual", confirmação, selo "tinha/agora", faixa) e carrega `estadoMassa.js` e
+  `script.js` juntos num `vm`, na ordem do `index.html`: scripts clássicos dividem o escopo
+  global, e um nome repetido entre eles derrubaria a página com SyntaxError sem o
+  `node --test` perceber. Ainda sem teste automatizado: a parte de eventos (focusout, Enter,
+  colagem), conferida em 24/10/2026 num Edge headless dirigido pelo protocolo de depuração
+  (script no scratchpad da sessão; refazer se precisar).
+- Revisão adversarial do lote contador/faixa (24/10/2026, 4 revisores + 4 verificadores):
+  8 achados confirmados e corrigidos no mesmo dia; o médio era a faixa presa no topo
+  escondendo a célula de destino do Shift+Enter (o `focus()` do navegador não desconta
+  elementos sticky). Lição: todo elemento sticky ou fixed pede um teste de foco por teclado
+  embaixo dele; e trava global (`traduzindo`) vira referência ao objeto travado
+  (`itensEmTraducao`), senão congela a tela de quem não tem nada a ver com a operação.
 - Incidente de 24/10/2026: o dono rodou uma coleção e "deu 429 e não traduziu nada". Causa:
   o disjuntor tratava o 429 como queda (9 recusas em 3 s abriam o circuito e a coleção
   inteira ia para o motor local). Lição: **429 e "fora do ar" são falhas diferentes com

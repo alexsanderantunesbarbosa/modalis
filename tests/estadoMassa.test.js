@@ -1,0 +1,314 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const EstadoMassa = require('../estadoMassa');
+const { LIMITE_SAP } = require('../processadorTexto');
+
+const {
+  LIMITE_CARACTERES, textoContador, acimaDoLimite, precisaTraduzir, linhaMarcada, podeConfirmar,
+  confirmarTraducao, aplicarTraducaoAutomatica, registrarEdicaoEN, limparTraducao, descreverSelo,
+  problemaDaLinha, resumirMassa, textoFaixaMassa
+} = EstadoMassa;
+
+// Linha como processarArquivo (script.js) cria, com a grafia já decidida.
+function novaLinha(campos = {}) {
+  return {
+    ref: 'REF', ptOriginal: 'SAIA JEANS', pt: 'SAIA JEANS', ptSugerido: 'SAIA JEANS',
+    correcoesSugeridas: [], estadoCorrecao: 'sem-sugestao',
+    en: '', es: '', origemEN: '', estadoEN: '', motivoEN: '', enAutomatico: '', confirmadaEN: false,
+    ...campos
+  };
+}
+
+function traduzida(traducao, origem = 'tabela', estado = 'tabela', motivo = '') {
+  const item = novaLinha();
+  aplicarTraducaoAutomatica(item, { traducao, origem, estado, motivo });
+  return item;
+}
+
+const textoDe = tamanho => 'X'.repeat(tamanho);
+
+test('o limite do front é o mesmo do servidor', () => {
+  assert.equal(LIMITE_CARACTERES, LIMITE_SAP);
+});
+
+test('contador conta o texto normalizado, que é o que vai para a planilha', () => {
+  assert.equal(textoContador(''), '');
+  assert.equal(textoContador('  saia   jeans '), '10/40');
+  // O contentEditable troca espaços repetidos por espaço inquebrável (U+00A0).
+  assert.equal(textoContador('A  B'), '3/40');
+  assert.equal(acimaDoLimite(textoDe(40)), false);
+  assert.equal(acimaDoLimite(textoDe(41)), true);
+});
+
+test('tradução automática guarda o texto da máquina e zera ES e confirmação', () => {
+  const item = novaLinha({ es: 'FALDA', confirmadaEN: true });
+  aplicarTraducaoAutomatica(item, { traducao: '  high-rise  jeans ', origem: 'tabela', estado: 'tabela', motivo: '' });
+
+  assert.equal(item.en, 'HIGH-RISE JEANS');
+  assert.equal(item.enAutomatico, 'HIGH-RISE JEANS');
+  assert.equal(item.es, '');
+  assert.equal(item.confirmadaEN, false);
+});
+
+test('edição de uma linha acima de 40: "tinha 43, agora tem 38"', () => {
+  const item = traduzida(textoDe(43), 'tabela', 'acima-de-40');
+  assert.deepEqual(descreverSelo(item), { classe: 'selo-limite', texto: 'Acima de 40 caracteres (43)' });
+
+  assert.equal(registrarEdicaoEN(item, textoDe(38)), true);
+
+  assert.equal(item.origemEN, 'manual');
+  assert.equal(item.estadoEN, '');
+  assert.equal(item.enAutomatico.length, 43);
+  assert.deepEqual(descreverSelo(item), { classe: 'selo-manual', texto: 'Editado à mão · tinha 43, agora tem 38' });
+  assert.equal(problemaDaLinha(item), '');
+});
+
+test('edição que ainda passa de 40 continua marcada e pendente', () => {
+  const continuaAcima = traduzida(textoDe(45), 'tabela', 'acima-de-40');
+  registrarEdicaoEN(continuaAcima, textoDe(42));
+  assert.deepEqual(descreverSelo(continuaAcima), { classe: 'selo-limite', texto: 'Editado à mão · tinha 45, agora tem 42 · ainda acima de 40' });
+  assert.equal(problemaDaLinha(continuaAcima), 'acima');
+
+  const passouAcima = traduzida(textoDe(38));
+  registrarEdicaoEN(passouAcima, textoDe(42));
+  assert.deepEqual(descreverSelo(passouAcima), { classe: 'selo-limite', texto: 'Editado à mão · tinha 38, agora tem 42 · acima de 40' });
+});
+
+test('em várias edições o "tinha" é sempre o tamanho do que a máquina entregou', () => {
+  const item = traduzida(textoDe(43), 'tabela', 'acima-de-40');
+
+  registrarEdicaoEN(item, textoDe(41));
+  assert.equal(descreverSelo(item).texto, 'Editado à mão · tinha 43, agora tem 41 · ainda acima de 40');
+
+  registrarEdicaoEN(item, textoDe(38));
+  assert.equal(descreverSelo(item).texto, 'Editado à mão · tinha 43, agora tem 38');
+});
+
+test('edição sem nada acima de 40 mostra só "Editado à mão"; sem texto da máquina, mostra o excesso', () => {
+  const dentro = traduzida(textoDe(30));
+  registrarEdicaoEN(dentro, textoDe(33));
+  assert.deepEqual(descreverSelo(dentro), { classe: 'selo-manual', texto: 'Editado à mão' });
+
+  const semMaquina = novaLinha();
+  registrarEdicaoEN(semMaquina, textoDe(42));
+  assert.deepEqual(descreverSelo(semMaquina), { classe: 'selo-limite', texto: 'Editado à mão · acima de 40 (42)' });
+});
+
+test('salvar o mesmo texto não marca a linha como editada', () => {
+  const item = traduzida('SAIA JEANS');
+
+  assert.equal(registrarEdicaoEN(item, ' saia   jeans '), false);
+  assert.equal(item.origemEN, 'tabela');
+});
+
+test('apagar o inglês devolve a linha para tradução', () => {
+  const item = traduzida('SAIA JEANS');
+
+  assert.equal(registrarEdicaoEN(item, '   '), true);
+  assert.equal(item.origemEN, '');
+  assert.equal(precisaTraduzir(item), true);
+  assert.equal(descreverSelo(item), null);
+});
+
+test('digitar de volta o texto da máquina mantém a linha como editada (e validada)', () => {
+  const item = traduzida('WIDE LEG JEANS', 'deepl', 'revisar', 'ordem diferente da estrutura');
+  registrarEdicaoEN(item, 'WIDE JEANS');
+  registrarEdicaoEN(item, 'WIDE LEG JEANS');
+
+  assert.equal(item.origemEN, 'manual');
+  assert.equal(linhaMarcada(item), false);
+  assert.equal(descreverSelo(item).texto, 'Editado à mão');
+});
+
+test('confirmar tira a marca sem mudar o texto; acima de 40 precisa de edição', () => {
+  const revisar = traduzida('WIDE LEG JEANS', 'deepl', 'revisar', 'ordem diferente da estrutura');
+  assert.equal(podeConfirmar(revisar), true);
+  assert.equal(confirmarTraducao(revisar), true);
+  assert.equal(revisar.en, 'WIDE LEG JEANS');
+  assert.equal(linhaMarcada(revisar), false);
+  assert.equal(problemaDaLinha(revisar), '');
+  assert.deepEqual(descreverSelo(revisar), { classe: 'selo-manual', texto: 'Confirmada na revisão' });
+
+  const longa = traduzida(textoDe(45), 'deepl', 'revisar', 'peça a mais: PANTS');
+  assert.equal(podeConfirmar(longa), false);
+  assert.equal(confirmarTraducao(longa), false);
+  assert.equal(longa.confirmadaEN, false);
+
+  assert.equal(podeConfirmar(traduzida('SAIA JEANS')), false, 'linha sem marca não tem o que confirmar');
+});
+
+test('linha do motor local confirmada não é reenviada à DeepL', () => {
+  const item = traduzida('SAIA JEANS', 'local', 'revisar', 'DeepL falhou; montada pela tabela');
+  assert.equal(precisaTraduzir(item), true);
+
+  confirmarTraducao(item);
+  assert.equal(precisaTraduzir(item), false);
+
+  // Editar desfaz a confirmação; a linha editada à mão também nunca é reenviada.
+  registrarEdicaoEN(item, 'DENIM SKIRT');
+  assert.equal(item.confirmadaEN, false);
+  assert.equal(item.origemEN, 'manual');
+  assert.equal(precisaTraduzir(item), false);
+});
+
+test('decisão de grafia zera a tradução, a base do "tinha" e a confirmação', () => {
+  const item = traduzida('SAIA JEANS', 'local', 'revisar');
+  confirmarTraducao(item);
+
+  limparTraducao(item);
+
+  assert.deepEqual(
+    [item.en, item.es, item.origemEN, item.estadoEN, item.motivoEN, item.enAutomatico, item.confirmadaEN],
+    ['', '', '', '', '', '', false]
+  );
+});
+
+test('DeepL com espaço duplo: o servidor mediu 41, mas o texto gravado tem 40 e não fica marcado', () => {
+  const item = traduzida(`${textoDe(20)}  ${textoDe(19)}`, 'deepl', 'acima-de-40');
+
+  assert.equal(item.en.length, 40);
+  assert.deepEqual(descreverSelo(item), { classe: 'selo-deepl', texto: 'DeepL' });
+  assert.equal(problemaDaLinha(item), '');
+});
+
+test('cada linha conta só no primeiro problema, na mesma ordem dos selos', () => {
+  const casos = [
+    [novaLinha({ estadoCorrecao: 'pendente' }), 'grafia'],
+    [novaLinha(), 'semTraducao'],
+    [traduzida('SAIA', 'local', 'revisar'), 'falhaDeepL'],
+    [traduzida('SAIA', 'deepl', 'revisar'), 'revisar'],
+    // A revisar e acima de 40: só editar resolve (não há Confirmar) e o download bloqueia.
+    [traduzida(textoDe(45), 'deepl', 'revisar'), 'acima'],
+    [traduzida(textoDe(45), 'local', 'revisar'), 'falhaDeepL'],
+    [traduzida(textoDe(41), 'tabela', 'acima-de-40'), 'acima'],
+    [Object.assign(traduzida('SKIRT'), { pt: textoDe(41) }), 'ptAcima'],
+    [traduzida('SKIRT'), ''],
+    [traduzida('SKIRT', 'deepl', 'deepl'), '']
+  ];
+  for (const [item, esperado] of casos) assert.equal(problemaDaLinha(item), esperado, JSON.stringify(item));
+});
+
+test('todo selo de linha acima de 40 diz o excesso, para o filtro "ACIMA" achar o que o download bloqueia', () => {
+  assert.deepEqual(descreverSelo(traduzida(textoDe(45), 'deepl', 'revisar', 'peça a mais: PANTS')), {
+    classe: 'selo-revisar', texto: 'A revisar: peça a mais: PANTS · acima de 40 (45)'
+  });
+  assert.deepEqual(descreverSelo(traduzida(textoDe(45), 'local', 'revisar', 'DeepL falhou')), {
+    classe: 'selo-local', texto: 'DeepL falhou; montada pela tabela (DeepL falhou) · acima de 40 (45)'
+  });
+  assert.equal(descreverSelo(traduzida('SAIA', 'deepl', 'revisar', 'peça a mais: PANTS')).texto, 'A revisar: peça a mais: PANTS');
+});
+
+test('quantidades no formato brasileiro, no singular ou no plural', () => {
+  assert.equal(EstadoMassa.formatarQuantidade(1, 'descrição distinta', 'descrições distintas'), '1 descrição distinta');
+  assert.equal(EstadoMassa.formatarQuantidade(1622, 'linha', 'linhas'), '1.622 linhas');
+  assert.equal(EstadoMassa.formatarQuantidade(0, 'linha', 'linhas'), '0 linhas');
+});
+
+// Planilha com um pouco de tudo: 4 pendências, uma de cada tipo.
+function planilhaMista() {
+  const corrigida = traduzida(textoDe(43), 'tabela', 'acima-de-40');
+  registrarEdicaoEN(corrigida, textoDe(38));
+  const confirmada = traduzida('SAIA JEANS', 'local', 'revisar');
+  confirmarTraducao(confirmada);
+  return [
+    traduzida('SKIRT'), traduzida('SKIRT'), traduzida('SKIRT'),
+    traduzida('DENIM SKIRT', 'deepl', 'deepl'),
+    traduzida('WIDE LEG DENIM PANTS', 'deepl', 'revisar', 'ordem diferente da estrutura'),
+    traduzida('SAIA JEANS', 'local', 'revisar', 'DeepL falhou'),
+    traduzida(textoDe(43), 'tabela', 'acima-de-40'),
+    corrigida,
+    novaLinha(),
+    confirmada
+  ];
+}
+
+test('resumo: origens sem sobreposição e pendências que somam o total', () => {
+  const resumo = resumirMassa(planilhaMista());
+
+  assert.equal(resumo.total, 10);
+  assert.equal(resumo.comTraducao, 9);
+  assert.deepEqual(resumo.origens, { tabela: 4, deepl: 2, falhaDeepL: 1, editadas: 1, confirmadas: 1, semTraducao: 1 });
+  assert.equal(resumo.corrigidas, 1);
+  assert.deepEqual(resumo.pendencias, { grafia: 0, semTraducao: 1, falhaDeepL: 1, revisar: 1, acima: 1, ptAcima: 0 });
+  assert.equal(resumo.pendentes, Object.values(resumo.pendencias).reduce((soma, n) => soma + n, 0));
+  assert.equal(resumo.pronto, false);
+});
+
+test('faixa no meio da revisão: bege, com o balanço e o que falta resolver', () => {
+  assert.deepEqual(textoFaixaMassa(resumirMassa(planilhaMista())), {
+    texto: '10 linhas: 4 pela tabela, 2 pela DeepL, 1 editada à mão (1 estava acima de 40 e agora cabe), 1 confirmada na revisão. '
+      + 'Falta resolver 4 linhas: 1 sem tradução, 1 com falha da DeepL, 1 acima de 40, 1 a revisar.',
+    tipo: 'aviso'
+  });
+});
+
+test('faixa nomeia também grafia pendente e DESCRIÇÃO PT acima de 40, que bloqueiam o download', () => {
+  const grafiaPendente = novaLinha({ estadoCorrecao: 'pendente' });
+  registrarEdicaoEN(grafiaPendente, 'DENIM SKIRT');
+  const ptLongo = Object.assign(traduzida('SKIRT'), { pt: textoDe(41) });
+
+  assert.equal(
+    textoFaixaMassa(resumirMassa([grafiaPendente, ptLongo])).texto,
+    '2 linhas: 1 pela tabela, 0 pela DeepL, 1 editada à mão. Falta resolver 2 linhas: 1 com grafia a decidir, 1 com DESCRIÇÃO PT acima de 40.'
+  );
+});
+
+test('faixa fica verde quando nada impede o download, com números no formato brasileiro', () => {
+  const itens = Array.from({ length: 1622 }, () => traduzida('SKIRT'));
+  assert.deepEqual(textoFaixaMassa(resumirMassa(itens)), {
+    texto: '1.622 linhas: 1.622 pela tabela, 0 pela DeepL. Nada pendente: pode baixar o Excel.',
+    tipo: 'ok'
+  });
+
+  const corrigidas = [textoDe(43), textoDe(44)].map(texto => {
+    const item = traduzida(texto, 'tabela', 'acima-de-40');
+    registrarEdicaoEN(item, textoDe(39));
+    return item;
+  });
+  assert.equal(
+    textoFaixaMassa(resumirMassa(corrigidas), { prefixo: 'Tradução concluída (2 descrições distintas).' }).texto,
+    'Tradução concluída (2 descrições distintas). 2 linhas: 0 pela tabela, 0 pela DeepL, 2 editadas à mão (2 estavam acima de 40 e agora cabem). Nada pendente: pode baixar o Excel.'
+  );
+});
+
+test('antes da tradução a faixa acompanha a grafia, sem cor; um aviso de erro vem antes e pinta de bege', () => {
+  const pendentes = [novaLinha({ estadoCorrecao: 'pendente' }), novaLinha({ estadoCorrecao: 'pendente' }), novaLinha()];
+  assert.deepEqual(textoFaixaMassa(resumirMassa(pendentes)), {
+    texto: '2 linhas ainda precisam de uma decisão de grafia antes da tradução.',
+    tipo: ''
+  });
+  assert.equal(
+    textoFaixaMassa(resumirMassa([novaLinha({ estadoCorrecao: 'pendente' })])).texto,
+    '1 linha ainda precisa de uma decisão de grafia antes da tradução.'
+  );
+  assert.deepEqual(textoFaixaMassa(resumirMassa([novaLinha()]), { aviso: 'A tradução não foi concluída: Failed to fetch.' }), {
+    texto: 'A tradução não foi concluída: Failed to fetch. Revisão de grafia concluída. Clique em Traduzir quando estiver pronto.',
+    tipo: 'aviso'
+  });
+});
+
+test('estadoMassa.js e script.js carregam juntos no mesmo escopo, na ordem do index.html', () => {
+  const raiz = path.join(__dirname, '..');
+  const html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
+  const scripts = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)]
+    .map(([, src]) => src)
+    .filter(src => !src.startsWith('http'));
+  assert.deepEqual(scripts, ['estadoMassa.js', 'script.js']);
+
+  // DOM mínimo: ao carregar, o script.js só registra eventos.
+  const elemento = { addEventListener() {} };
+  const contexto = vm.createContext({ document: { getElementById: () => elemento, querySelectorAll: () => [] } });
+  for (const arquivo of scripts) {
+    vm.runInContext(fs.readFileSync(path.join(raiz, arquivo), 'utf8'), contexto, { filename: arquivo });
+  }
+
+  // Um nome repetido entre os arquivos daria SyntaxError acima ou trocaria a regra em
+  // silêncio; aqui, todo nome do EstadoMassa visível no script.js tem de ser o mesmo.
+  for (const nome of Object.keys(EstadoMassa)) {
+    assert.equal(vm.runInContext(`typeof ${nome} === 'undefined' || ${nome} === EstadoMassa.${nome}`, contexto), true, nome);
+  }
+  assert.equal(vm.runInContext('typeof renderTabelaMassa', contexto), 'function');
+});

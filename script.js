@@ -1,10 +1,23 @@
 /**
  * script.js
  * Interface, revisão de grafia, importação SAP e exportação MODALIS.
+ * As regras da tabela em massa que não dependem da tela ficam em estadoMassa.js.
  */
+
+const {
+  LIMITE_CARACTERES, normalizarEN, acimaDoLimite, textoContador, precisaTraduzir, linhaMarcada,
+  podeConfirmar, confirmarTraducao, aplicarTraducaoAutomatica, registrarEdicaoEN, limparTraducao,
+  descreverSelo, resumirMassa, textoFaixaMassa, formatarQuantidade
+} = EstadoMassa;
 
 let dadosProcessados = [];
 let modoEdicao = false;
+// Planilha em tradução: enquanto ela estiver na tela, a faixa mostra o progresso e o
+// resumo volta no fim. Uma planilha importada no meio tem a faixa dela normalmente.
+let itensEmTraducao = null;
+// Problema da última tradução ({ texto, itens }): fica na faixa enquanto alguma dessas
+// linhas ainda precisar de tradução.
+let avisoTraducao = null;
 
 function switchTab(tabName) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
@@ -130,11 +143,26 @@ function obterValor(row, index) {
   return String(row[index]);
 }
 
-function setMassaStatus(texto, aviso = false) {
+// tipo: '' (neutro), 'aviso' (bege: falta resolver ou houve problema) ou 'ok' (verde).
+function setMassaStatus(texto, tipo = '') {
   const status = document.getElementById('massaStatus');
   if (!status) return;
+  // Reescrever o mesmo texto faria o leitor de tela (aria-live) repetir a frase.
+  if (status.textContent === texto && status.dataset.tipo === tipo) return;
   status.textContent = texto;
-  status.classList.toggle('aviso', aviso);
+  status.dataset.tipo = tipo;
+  status.classList.toggle('aviso', tipo === 'aviso');
+  status.classList.toggle('ok', tipo === 'ok');
+}
+
+// A faixa é calculada a partir de dadosProcessados, por isso acompanha cada edição,
+// confirmação e decisão de grafia. `prefixo` é o recado da ação que acabou de acontecer e
+// some na próxima atualização. Durante a tradução, o progresso tem prioridade.
+function atualizarFaixaMassa(prefixo = '') {
+  if (itensEmTraducao === dadosProcessados) return;
+  const aviso = avisoTraducao && avisoTraducao.itens.some(precisaTraduzir) ? avisoTraducao.texto : '';
+  const { texto, tipo } = textoFaixaMassa(resumirMassa(dadosProcessados), { prefixo, aviso });
+  setMassaStatus(texto, tipo);
 }
 
 function normalizarValorFiltro(valor) {
@@ -252,6 +280,8 @@ async function processarArquivo(event) {
           origemEN: '', // 'tabela' | 'deepl' | 'local' | 'manual'
           estadoEN: '', // 'tabela' | 'deepl' | 'revisar' | 'acima-de-40'
           motivoEN: '',
+          enAutomatico: '', // texto que a máquina entregou; base do "tinha X" depois de editar
+          confirmadaEN: false, // linha marcada aprovada na revisão sem mudar o texto
           ecom: obterValor(row, colunas.ecom),
           compPT: obterValor(row, colunas.compPT),
           compEN: obterValor(row, colunas.compEN),
@@ -266,6 +296,7 @@ async function processarArquivo(event) {
       }
 
       modoEdicao = false;
+      avisoTraducao = null;
       document.getElementById('btnAlterar').classList.remove('btn-primary');
       document.getElementById('btnAlterar').classList.add('btn-default');
       document.getElementById('btnAlterar').textContent = 'Alterar / Editar';
@@ -291,13 +322,9 @@ function aceitarCorrecao(index) {
   if (!item) return;
   item.pt = item.ptSugerido;
   item.estadoCorrecao = 'aceita';
-  item.en = '';
-  item.es = '';
-  item.origemEN = '';
-  item.estadoEN = '';
-  item.motivoEN = '';
+  limparTraducao(item);
   renderTabelaMassa();
-  atualizarStatusRevisao();
+  atualizarFaixaMassa();
 }
 
 function manterOriginal(index) {
@@ -305,22 +332,17 @@ function manterOriginal(index) {
   if (!item) return;
   item.pt = item.ptOriginal;
   item.estadoCorrecao = 'recusada';
-  item.en = '';
-  item.es = '';
-  item.origemEN = '';
-  item.estadoEN = '';
-  item.motivoEN = '';
+  limparTraducao(item);
   renderTabelaMassa();
-  atualizarStatusRevisao();
+  atualizarFaixaMassa();
 }
 
-function atualizarStatusRevisao() {
-  const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente').length;
-  if (pendentes) {
-    setMassaStatus(`${pendentes} linha(s) ainda precisam de uma decisão de grafia antes da tradução.`);
-  } else {
-    setMassaStatus('Revisão de grafia concluída. Clique em Traduzir quando estiver pronto.');
-  }
+// Tira a marca de uma linha "a revisar" ou "DeepL falhou" cuja tradução está certa.
+function confirmarLinha(index) {
+  const item = dadosProcessados[index];
+  if (!item || !confirmarTraducao(item)) return;
+  renderTabelaMassa();
+  atualizarFaixaMassa();
 }
 
 function criarCelula(valor, classe = '') {
@@ -330,7 +352,7 @@ function criarCelula(valor, classe = '') {
   return td;
 }
 
-function criarBotaoCorrecao(rotulo, classe, acao) {
+function criarBotaoPequeno(rotulo, classe, acao) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = `btn btn-small ${classe}`;
@@ -368,8 +390,8 @@ function renderTabelaMassa() {
     if (item.estadoCorrecao === 'pendente') {
       const acoes = document.createElement('div');
       acoes.className = 'acoes-correcao';
-      acoes.appendChild(criarBotaoCorrecao('Aplicar', 'btn-primary', () => aceitarCorrecao(index)));
-      acoes.appendChild(criarBotaoCorrecao('Manter original', 'btn-default', () => manterOriginal(index)));
+      acoes.appendChild(criarBotaoPequeno('Aplicar', 'btn-primary', () => aceitarCorrecao(index)));
+      acoes.appendChild(criarBotaoPequeno('Manter original', 'btn-default', () => manterOriginal(index)));
       celulaCorrecao.appendChild(acoes);
       const detalhe = document.createElement('small');
       detalhe.textContent = `Candidata(s): ${item.correcoesSugeridas.join(', ')}`;
@@ -383,19 +405,30 @@ function renderTabelaMassa() {
 
     const en = criarCelula(item.en);
     const es = criarCelula(item.es);
-    const selo = item.en && !modoEdicao ? descreverSelo(item) : null;
-    if (selo) {
-      en.dataset.valorFiltro = `${item.en} ${selo.texto}`;
-      const marca = document.createElement('small');
-      marca.className = selo.classe;
-      marca.textContent = selo.texto;
-      en.appendChild(marca);
-    }
+    aplicarContador(en, item.en);
+    aplicarContador(es, item.es);
+    gravarFiltroEN(en, item);
     if (modoEdicao) {
       en.contentEditable = 'true';
       es.contentEditable = 'true';
       en.classList.add('celula-editavel');
       es.classList.add('celula-editavel');
+    } else {
+      const selo = descreverSelo(item);
+      if (selo) {
+        const marca = document.createElement('small');
+        marca.className = selo.classe;
+        marca.textContent = selo.texto;
+        en.appendChild(marca);
+      }
+      if (podeConfirmar(item)) {
+        const acoes = document.createElement('div');
+        acoes.className = 'acoes-correcao';
+        const botao = criarBotaoPequeno('Confirmar', 'btn-default', () => confirmarLinha(index));
+        botao.title = 'A tradução está certa: tira a marca sem mudar o texto';
+        acoes.appendChild(botao);
+        en.appendChild(acoes);
+      }
     }
     tr.appendChild(en);
     tr.appendChild(es);
@@ -408,27 +441,23 @@ function renderTabelaMassa() {
   atualizarBotaoTraduzir();
 }
 
-// Selo da coluna EN: de onde veio a tradução e se pede revisão. Sem selo = montada pela
-// tabela mestra, dentro do limite.
-function descreverSelo(item) {
-  if (item.origemEN === 'manual') return { classe: 'selo-manual', texto: 'Editado à mão' };
-  if (item.origemEN === 'local') return { classe: 'selo-local', texto: `DeepL falhou; montada pela tabela${item.motivoEN ? ` (${item.motivoEN})` : ''}` };
-  if (item.estadoEN === 'revisar') return { classe: 'selo-revisar', texto: `A revisar: ${item.motivoEN}` };
-  if (item.estadoEN === 'acima-de-40') return { classe: 'selo-limite', texto: `Acima de 40 caracteres (${item.en.length})` };
-  if (item.estadoEN === 'deepl') return { classe: 'selo-deepl', texto: `DeepL${item.motivoEN ? ` · ${item.motivoEN}` : ''}` };
-  return null;
+// Contador "38/40" no canto da célula, desenhado pelo CSS (::after) a partir do atributo
+// data-contador. Conteúdo gerado pelo CSS não faz parte do texto da célula, então não vai
+// para o salvamento, o filtro nem a cópia.
+function aplicarContador(celula, texto) {
+  const contador = textoContador(texto);
+  if (contador) celula.dataset.contador = contador;
+  else delete celula.dataset.contador;
+  celula.toggleAttribute('data-estourou', acimaDoLimite(texto));
 }
 
-// Mesma normalização para o que vem da API e para o que o usuário digita: sem isso, abrir
-// e fechar a edição sem mudar nada marcaria a linha como editada à mão.
-function normalizarEN(texto) {
-  return String(texto ?? '').replace(/\s+/g, ' ').trim().toUpperCase();
-}
-
-// Uma linha precisa de tradução quando não tem inglês ou quando veio do motor local
-// (a DeepL falhou). Linhas editadas à mão nunca são reenviadas.
-function precisaTraduzir(item) {
-  return !item.en.trim() || item.origemEN === 'local';
+// O filtro da coluna EN procura no texto e no selo ("ACIMA", "A REVISAR", "EDITADO"),
+// também no modo de edição, quando o selo não aparece: sem isso, filtrar "ACIMA" e clicar
+// em Alterar esconderia todas as linhas.
+function gravarFiltroEN(celula, item) {
+  const selo = descreverSelo(item);
+  if (selo) celula.dataset.valorFiltro = `${item.en} ${selo.texto}`;
+  else delete celula.dataset.valorFiltro;
 }
 
 function atualizarBotaoTraduzir() {
@@ -455,15 +484,11 @@ function aplicarTodasCorrecoes() {
   pendentes.forEach(item => {
     item.pt = item.ptSugerido;
     item.estadoCorrecao = 'aceita';
-    item.en = '';
-    item.es = '';
-    item.origemEN = '';
-    item.estadoEN = '';
-    item.motivoEN = '';
+    limparTraducao(item);
   });
 
   renderTabelaMassa();
-  setMassaStatus(`${pendentes.length} correção(ões) aplicada(s). Revise as descrições antes de traduzir.`);
+  atualizarFaixaMassa(pendentes.length === 1 ? '1 correção aplicada.' : `${pendentes.length} correções aplicadas.`);
 }
 
 // Descrições distintas enviadas por requisição na tradução em massa. Partes menores dão
@@ -485,13 +510,13 @@ async function traduzirMassa() {
     return;
   }
 
-  // Só o que está pendente vai para a API: linhas já traduzidas ou editadas à mão ficam.
-  // `itens` é capturado antes do await: se outra planilha for importada durante a espera,
-  // a resposta pertence à planilha antiga e é descartada em vez de gravada na nova.
+  // Só o que está pendente vai para a API: linhas já traduzidas, editadas à mão ou
+  // confirmadas ficam. `itens` é capturado antes do await: se outra planilha for importada
+  // durante a espera, a resposta pertence à planilha antiga e é descartada.
   const itens = dadosProcessados;
   const alvos = itens.filter(precisaTraduzir);
   if (!alvos.length) {
-    setMassaStatus('Nada pendente: todas as linhas já têm tradução. Edite uma linha ou importe outra planilha.');
+    atualizarFaixaMassa('Nenhuma linha para enviar à tradução.');
     return;
   }
 
@@ -501,6 +526,9 @@ async function traduzirMassa() {
   btn.disabled = true;
   if (btnImportar) btnImportar.disabled = true;
   if (btnAlterar) btnAlterar.disabled = true;
+  itensEmTraducao = itens;
+  avisoTraducao = null;
+  let prefixo = '';
   // Descrições iguais vão uma vez só, em partes de TAMANHO_PARTE, com progresso na tela.
   // O que já voltou fica gravado mesmo que uma parte falhe no meio.
   const porChave = new Map();
@@ -515,21 +543,19 @@ async function traduzirMassa() {
   try {
     const errosVistos = [];
     let feitas = 0;
+    let falhas = 0; // linhas desta rodada que voltaram do motor local
     let interrompido = '';
     for (let inicio = 0; inicio < chaves.length; inicio += TAMANHO_PARTE) {
       const parte = chaves.slice(inicio, inicio + TAMANHO_PARTE);
       const { traducoes, origens = [], estados = [], motivos = [], erros = [] } = await chamarApiTraduzirMassa(parte.map(chave => porChave.get(chave)[0].pt), 'EN-US');
       if (dadosProcessados !== itens) {
-        setMassaStatus('Outra planilha foi importada durante a tradução; o resultado da anterior foi descartado.', true);
+        atualizarFaixaMassa('Outra planilha foi importada durante a tradução; o resultado da anterior foi descartado.');
         return;
       }
       parte.forEach((chave, j) => porChave.get(chave).forEach(item => {
-        if (!precisaTraduzir(item)) return; // a linha foi editada à mão durante a espera
-        item.en = normalizarEN(traducoes[j]);
-        item.es = '';
-        item.origemEN = origens[j] || 'deepl';
-        item.estadoEN = estados[j] || '';
-        item.motivoEN = motivos[j] || '';
+        if (!precisaTraduzir(item)) return; // a linha foi confirmada durante a espera
+        aplicarTraducaoAutomatica(item, { traducao: traducoes[j], origem: origens[j], estado: estados[j], motivo: motivos[j] });
+        if (item.origemEN === 'local') falhas += 1;
       }));
       erros.forEach(erro => { if (!errosVistos.includes(erro)) errosVistos.push(erro); });
       feitas += parte.length;
@@ -544,35 +570,44 @@ async function traduzirMassa() {
       setMassaStatus(`Traduzidas ${feitas} de ${chaves.length} descrições distintas (parte ${Math.ceil(feitas / TAMANHO_PARTE)} de ${totalPartes})...`);
     }
 
-    const contar = (campo, valor) => alvos.filter(item => item[campo] === valor).length;
-    const locais = contar('origemEN', 'local');
-    const pendentes = alvos.filter(precisaTraduzir).length;
-    const repetidas = alvos.length - chaves.length;
-    const resumo = ` (${chaves.length} descrições distintas${repetidas ? `, ${repetidas} repetidas aproveitadas` : ''})`;
-    const balanco = [
-      `${contar('origemEN', 'tabela')} pela tabela`,
-      `${contar('origemEN', 'deepl')} pela DeepL`,
-      contar('estadoEN', 'revisar') ? `${contar('estadoEN', 'revisar')} a revisar` : '',
-      contar('estadoEN', 'acima-de-40') ? `${contar('estadoEN', 'acima-de-40')} acima de 40` : ''
-    ].filter(Boolean).join(', ');
+    // O balanço da faixa vem de resumirMassa (planilha inteira); aqui fica só o recado da
+    // rodada. Um problema fica preso às linhas que ele deixou pendentes.
+    const pendentes = alvos.filter(precisaTraduzir);
     if (interrompido) {
-      setMassaStatus(`Tradução interrompida: ${interrompido}. ${pendentes} linha(s) continuam pendentes e ${locais} vieram do motor local${resumo}.`, true);
-    } else if (locais) {
-      setMassaStatus(`A DeepL falhou em ${locais} de ${alvos.length} descrições; elas vieram do motor local e estão marcadas na tabela${resumo}. Motivo: ${errosVistos.join(' | ')}`, true);
+      avisoTraducao = { texto: `Tradução interrompida: ${semPontoFinal(interrompido)}.`, itens: pendentes };
+    } else if (falhas) {
+      const marcadas = falhas === 1 ? 'ela foi montada pela tabela e está marcada' : 'elas foram montadas pela tabela e estão marcadas';
+      const motivo = errosVistos.length ? ` Motivo: ${semPontoFinal(errosVistos.join(' | '))}.` : '';
+      avisoTraducao = {
+        texto: `A DeepL falhou em ${falhas.toLocaleString('pt-BR')} de ${formatarQuantidade(alvos.length, 'linha enviada', 'linhas enviadas')}; ${marcadas}.${motivo}`,
+        itens: pendentes
+      };
     } else {
-      setMassaStatus(`Tradução concluída: ${balanco}${resumo}. Linhas marcadas pedem revisão. O espanhol será incluído em uma etapa posterior.`, contar('estadoEN', 'revisar') > 0);
+      const repetidas = alvos.length - chaves.length;
+      const aproveitadas = repetidas ? `, ${formatarQuantidade(repetidas, 'repetida aproveitada', 'repetidas aproveitadas')}` : '';
+      prefixo = `Tradução concluída (${formatarQuantidade(chaves.length, 'descrição distinta', 'descrições distintas')}${aproveitadas}).`;
     }
     renderTabelaMassa();
   } catch (error) {
     console.error('Erro ao traduzir planilha:', error);
     alert('Erro ao traduzir a planilha:\n\n' + error.message);
-    setMassaStatus('A tradução não foi concluída.', true);
+    if (dadosProcessados === itens) {
+      avisoTraducao = { texto: `A tradução não foi concluída: ${semPontoFinal(error.message)}.`, itens: alvos.filter(precisaTraduzir) };
+    }
   } finally {
+    itensEmTraducao = null;
     btn.disabled = false;
     if (btnImportar) btnImportar.disabled = false;
     if (btnAlterar) btnAlterar.disabled = false;
+    // Planilha trocada no meio: a mensagem de descarte fica.
+    if (dadosProcessados === itens) atualizarFaixaMassa(prefixo);
     atualizarBotaoTraduzir();
   }
+}
+
+// Tira o ponto final de uma mensagem que vai ganhar outro no fim da frase.
+function semPontoFinal(texto) {
+  return String(texto).trim().replace(/\.+$/, '');
 }
 
 function toggleModoEdicao() {
@@ -589,30 +624,33 @@ function toggleModoEdicao() {
     btn.textContent = 'Alterar / Editar';
   }
   renderTabelaMassa();
+  if (!modoEdicao) atualizarFaixaMassa();
 }
 
 function atualizarDadosAposEdicao() {
-  document.querySelectorAll('#massaTableBody tr').forEach(tr => {
-    const index = Number(tr.dataset.itemIndex);
-    const celulas = tr.querySelectorAll('td');
-    const item = dadosProcessados[index];
-    if (item) {
-      // Edição manual vira origem 'manual': a linha não é reenviada à DeepL.
-      const enNovo = normalizarEN(celulas[3].innerText);
-      if (enNovo !== normalizarEN(item.en)) {
-        item.en = enNovo;
-        item.origemEN = enNovo ? 'manual' : '';
-        item.estadoEN = '';
-        item.motivoEN = '';
-      }
-      item.es = celulas[4].innerText.replace(/\s+/g, ' ').trim().toUpperCase();
-    }
-  });
+  document.querySelectorAll('#massaTableBody tr').forEach(salvarLinhaEmEdicao);
+}
+
+// Grava EN e ES de uma linha da tabela em edição; devolve true se algo mudou. Lê
+// textContent, e não innerText, porque innerText força o layout da tabela inteira; o Enter
+// e a colagem já chegam à célula como texto de uma linha (ver os eventos no fim do arquivo).
+function salvarLinhaEmEdicao(tr) {
+  const item = dadosProcessados[Number(tr.dataset.itemIndex)];
+  if (!item) return false;
+  const mudouEN = registrarEdicaoEN(item, tr.cells[3].textContent);
+  if (mudouEN) gravarFiltroEN(tr.cells[3], item);
+  const esNovo = normalizarEN(tr.cells[4].textContent);
+  const mudouES = esNovo !== item.es;
+  item.es = esNovo;
+  return mudouEN || mudouES;
 }
 
 function baixarExcel() {
   if (!dadosProcessados.length) return;
-  if (modoEdicao) atualizarDadosAposEdicao();
+  if (modoEdicao) {
+    atualizarDadosAposEdicao();
+    atualizarFaixaMassa();
+  }
 
   const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente');
   if (pendentes.length) {
@@ -626,20 +664,22 @@ function baixarExcel() {
     return;
   }
 
-  // Exportar linhas marcadas (a revisar, acima de 40, DeepL falhou) é uma decisão consciente.
-  const marcadas = dadosProcessados.filter(item => item.origemEN === 'local' || item.estadoEN === 'revisar' || item.estadoEN === 'acima-de-40').length;
-  if (marcadas && !window.confirm(`${marcadas} linha(s) estão marcadas para revisão (glossário não aplicado, acima de 40 caracteres ou DeepL falhou). Exportar mesmo assim?`)) {
+  // O bloqueio vem antes da pergunta: não adianta confirmar a exportação e depois ser barrado.
+  const foraDoLimite = dadosProcessados.flatMap(item => {
+    const referencia = item.ref || `linha ${item.linhaOrigem}`;
+    const problemas = [];
+    if (item.pt.length > LIMITE_CARACTERES) problemas.push(`${referencia} — DESCRIÇÃO PT: ${item.pt.length - LIMITE_CARACTERES} acima do limite`);
+    if (item.en.length > LIMITE_CARACTERES) problemas.push(`${referencia} — Descrição EN: ${item.en.length - LIMITE_CARACTERES} acima do limite`);
+    return problemas;
+  });
+  if (foraDoLimite.length) {
+    alert(`Download bloqueado pelos limites de ${LIMITE_CARACTERES} caracteres:\n\n` + foraDoLimite.slice(0, 20).join('\n'));
     return;
   }
 
-  const acimaDoLimite = dadosProcessados.flatMap(item => {
-    const problemas = [];
-    if (item.pt.length > 40) problemas.push(`${item.ref || `linha ${item.linhaOrigem}`} — DESCRIÇÃO PT: ${item.pt.length - 40} acima do limite`);
-    if (item.en.length > 40) problemas.push(`${item.ref || `linha ${item.linhaOrigem}`} — Descrição EN: ${item.en.length - 40} acima do limite`);
-    return problemas;
-  });
-  if (acimaDoLimite.length) {
-    alert('Download bloqueado pelos limites de 40 caracteres:\n\n' + acimaDoLimite.slice(0, 20).join('\n'));
+  // Exportar linhas marcadas (a revisar ou DeepL falhou) sem confirmá-las é uma decisão consciente.
+  const marcadas = dadosProcessados.filter(linhaMarcada).length;
+  if (marcadas && !window.confirm(`${marcadas} linha(s) estão marcadas para revisão (glossário não aplicado ou DeepL falhou) e não foram confirmadas. Exportar mesmo assim?`)) {
     return;
   }
 
@@ -670,6 +710,85 @@ function copiarTexto(elementId) {
 document.querySelectorAll('#tableMassa .filtro-coluna').forEach(campo => {
   campo.addEventListener(campo.tagName === 'SELECT' ? 'change' : 'input', filtrarTabelaMassa);
 });
+
+/* ==================== Edição na tabela em massa ==================== */
+
+// Eventos delegados no tbody, que nunca é recriado (renderTabelaMassa só troca as linhas).
+const corpoTabelaMassa = document.getElementById('massaTableBody');
+
+// Contador ao vivo enquanto digita: só a célula, sem redesenhar a tabela (O(L) por tecla).
+corpoTabelaMassa.addEventListener('input', event => {
+  const celula = celulaEmEdicao(event);
+  if (celula) aplicarContador(celula, celula.textContent);
+});
+
+// Ao sair da célula a linha é gravada, e a faixa de status acompanha a edição.
+corpoTabelaMassa.addEventListener('focusout', event => {
+  const celula = celulaEmEdicao(event);
+  if (celula && salvarLinhaEmEdicao(celula.parentElement)) atualizarFaixaMassa();
+});
+
+// A faixa de status fica presa no topo e o focus() do navegador não a desconta: uma célula
+// que recebe o foco por baixo dela (Shift+Enter, Tab) é rolada até aparecer.
+corpoTabelaMassa.addEventListener('focusin', event => {
+  const celula = celulaEmEdicao(event);
+  if (celula) manterVisivelAbaixoDaFaixa(celula);
+});
+
+// Enter confirma e desce para a mesma coluna da próxima linha visível (Shift+Enter sobe),
+// como no Excel. O campo do SAP tem uma linha só: a célula nunca recebe quebra de linha.
+corpoTabelaMassa.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' || event.isComposing) return;
+  const celula = celulaEmEdicao(event);
+  if (!celula) return;
+  event.preventDefault();
+  irParaLinhaVizinha(celula, event.shiftKey ? -1 : 1);
+});
+
+// Colar entra como texto simples de uma linha: sem HTML e sem as quebras que vêm do Excel.
+corpoTabelaMassa.addEventListener('paste', event => {
+  if (!celulaEmEdicao(event)) return;
+  event.preventDefault();
+  const texto = (event.clipboardData?.getData('text/plain') || '').replace(/\s+/g, ' ');
+  document.execCommand('insertText', false, texto);
+});
+
+// Arrastar conteúdo para a célula traria HTML; a edição é só por teclado e colagem.
+corpoTabelaMassa.addEventListener('drop', event => {
+  if (celulaEmEdicao(event)) event.preventDefault();
+});
+
+// Célula editável da tabela atual. Fora do modo de edição, ou com a célula já fora da tela
+// (tabela redesenhada, planilha trocada), nada é gravado.
+function celulaEmEdicao(event) {
+  if (!modoEdicao) return null;
+  const celula = event.target?.closest?.('td.celula-editavel');
+  return celula && celula.isConnected ? celula : null;
+}
+
+function manterVisivelAbaixoDaFaixa(celula) {
+  const limite = document.getElementById('massaStatus').getBoundingClientRect().bottom;
+  const caixa = celula.getBoundingClientRect();
+  if (caixa.top < limite) window.scrollBy(0, caixa.top - limite - 8);
+  else if (caixa.bottom > window.innerHeight) window.scrollBy(0, caixa.bottom - window.innerHeight + 8);
+}
+
+function irParaLinhaVizinha(celula, direcao) {
+  let linha = celula.parentElement;
+  do {
+    linha = direcao > 0 ? linha.nextElementSibling : linha.previousElementSibling;
+  } while (linha && linha.hidden);
+  const destino = linha?.cells[celula.cellIndex];
+  if (!destino) {
+    celula.blur();
+    return;
+  }
+  destino.focus();
+  // Cursor no fim do texto, pronto para continuar a edição.
+  const selecao = window.getSelection();
+  selecao.selectAllChildren(destino);
+  selecao.collapseToEnd();
+}
 
 /* ==================== Glossário (consulta à tabela mestra) ==================== */
 

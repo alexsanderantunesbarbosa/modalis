@@ -20,6 +20,7 @@
   --aviso-texto: #8a6d3b;
   --alerta: #b45309;
   --ok: #3c763d;
+  --ok-fundo: #dff0d8;
   --relatorio-cabecalho: #d9d9d9;
   --relatorio-texto: #1f3f7a;
 }
@@ -267,10 +268,16 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
   border-bottom: 1px solid var(--borda);
   font-size: 13px;
   color: var(--texto);
+  background: #fff;
+  /* Presa no topo da tela enquanto se rola a tabela: ela muda a cada edição. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .faixa-status:empty { display: none; }
 .faixa-status.aviso { background: var(--aviso-fundo); color: var(--aviso-texto); }
+.faixa-status.ok { background: var(--ok-fundo); color: var(--ok); }
 
 .correcoes-pendentes { padding: 0 15px; }
 .correcoes-pendentes:empty { display: none; }
@@ -313,6 +320,22 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
 .tabela td small.selo-revisar { color: #a94442; font-weight: 700; }
 .tabela td small.selo-limite { color: #8a6d3b; font-weight: 700; }
 .tabela td small.selo-deepl { color: #31708f; }
+
+/* Contador "38/40" no canto inferior direito das células EN e ES (aplicarContador em
+   script.js). O espaço à direita fica reservado para a linha não ficar mais alta. */
+.tabela td[data-contador] { position: relative; padding-right: 44px; }
+.tabela td[data-contador]::after {
+  content: attr(data-contador);
+  position: absolute;
+  right: 6px;
+  bottom: 10px;
+  font-size: 10px;
+  line-height: 1;
+  color: #666;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.tabela td[data-estourou]::after { color: #a94442; font-weight: 700; }
 
 .acoes-correcao { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .celula-editavel { background: #fff7ed !important; outline: 2px solid #fdba74; }
