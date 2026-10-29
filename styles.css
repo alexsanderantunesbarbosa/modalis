@@ -1,4 +1,6 @@
-/* MODALIS — visual alinhado ao START (padrão Bootstrap 3), em escala um pouco menor. */
+/* MODALIS — visual e tamanhos do START (Bootstrap 3): barra 50 px, nome 18, menu 14,
+   título 24, texto 14, campos 34. Espaços verticais enxutos para a tela Individual caber
+   sem rolar mesmo com o Windows em 150%. */
 :root {
   --preto: #222;
   --preto-ativo: #080808;
@@ -48,7 +50,7 @@ button, input, select { font-family: inherit; }
 .navbar {
   background: var(--preto);
   border-bottom: 1px solid var(--preto-ativo);
-  min-height: 56px;
+  min-height: 50px;
   display: flex;
   align-items: stretch;
   flex-wrap: wrap;
@@ -58,16 +60,21 @@ button, input, select { font-family: inherit; }
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   background: none;
   border: 0;
   color: #fff;
-  font-size: 20px;
+  font-size: 18px;
   padding: 0 14px 0 0;
   cursor: pointer;
 }
 
-.brand svg { width: 28px; height: 28px; }
+/* M da La Moda; a sombra dupla dá o relevo na barra quase preta. */
+.brand .logo-m {
+  width: 26px;
+  height: 26px;
+  filter: drop-shadow(1px 3px 3px #000) drop-shadow(0 1px 1px #000);
+}
 
 .nav-tabs { display: flex; align-items: stretch; }
 
@@ -75,7 +82,7 @@ button, input, select { font-family: inherit; }
   background: none;
   border: 0;
   color: var(--cinza-menu);
-  font-size: 16px;
+  font-size: 14px;
   padding: 0 15px;
   cursor: pointer;
 }
@@ -87,12 +94,12 @@ button, input, select { font-family: inherit; }
 .main-content {
   flex: 1 1 auto;
   width: 100%;
-  padding: 16px 20px 32px;
+  padding: 8px 20px 10px;
   display: flex;
   flex-direction: column;
 }
 
-.tab-content { display: none; flex-direction: column; gap: 16px; }
+.tab-content { display: none; flex-direction: column; gap: 12px; }
 .tab-content.active { display: flex; }
 
 .page-head {
@@ -102,11 +109,11 @@ button, input, select { font-family: inherit; }
   flex-wrap: wrap;
   gap: 12px;
   border-bottom: 1px solid #eee;
-  padding-bottom: 9px;
-  margin-top: 8px;
+  padding-bottom: 6px;
+  margin-top: 2px;
 }
 
-.page-head h1 { margin: 0; font-size: 28px; font-weight: 500; line-height: 1.1; }
+.page-head h1 { margin: 0; font-size: 24px; font-weight: 500; line-height: 1.1; }
 .acoes { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .coluna-estreita {
@@ -115,7 +122,7 @@ button, input, select { font-family: inherit; }
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 /* ---------- Painéis ---------- */
@@ -215,15 +222,19 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
 .contador.estourou { color: #a94442; font-weight: 700; }
 
 .termos-aplicados {
-  margin-top: 6px;
+  margin-top: 4px;
   border: 1px solid var(--borda);
   border-radius: 4px;
   background: var(--zebra);
-  padding: 10px 15px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
+/* O display: flex acima venceria o atributo hidden do HTML (a caixa aparecia vazia antes
+   da primeira tradução): todo elemento com hidden e display no CSS precisa desta regra. */
+.termos-aplicados[hidden] { display: none; }
 
 .termos-titulo { font-weight: 700; font-size: 13px; }
 .termos-lista { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -379,8 +390,8 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
 .rodape {
   background: #f8f8f8;
   border-top: 1px solid #e7e7e7;
-  padding: 12px 20px;
-  font-size: 14px;
+  padding: 8px 20px;
+  font-size: 13px;
 }
 
 @media (max-width: 720px) {

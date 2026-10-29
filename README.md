@@ -71,7 +71,7 @@ O download é bloqueado se houver sugestões ortográficas pendentes, descriçõ
 | Tradução externa | DeepL API |
 | Leitura e geração de planilhas | SheetJS carregado por CDN no navegador |
 
-A interface segue a linguagem visual do sistema interno START (padrão Bootstrap 3), com CSS próprio. O único recurso externo do HTML é o SheetJS por CDN; para tradução via DeepL, o servidor precisa de acesso à API.
+A interface segue a linguagem visual do sistema interno START (padrão Bootstrap 3), com CSS próprio e os mesmos tamanhos de barra, fontes e campos; a barra traz o M do logo La Moda. A tela Individual cabe sem rolar mesmo com a escala do Windows em 150%. O único recurso externo do HTML é o SheetJS por CDN; para tradução via DeepL, o servidor precisa de acesso à API.
 
 ## Executar localmente
 
