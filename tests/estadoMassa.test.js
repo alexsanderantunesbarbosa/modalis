@@ -290,6 +290,51 @@ test('antes da tradução a faixa acompanha a grafia, sem cor; um aviso de erro 
   });
 });
 
+test('filtros rápidos: os de problema têm os mesmos números da faixa', () => {
+  const itens = planilhaMista();
+  const { pendencias } = resumirMassa(itens);
+  const contagens = EstadoMassa.contarFiltros(itens);
+
+  assert.equal(contagens.todas, 10);
+  for (const chave of ['revisar', 'acima', 'falhaDeepL', 'semTraducao', 'ptAcima']) {
+    assert.equal(contagens[chave], pendencias[chave], chave);
+  }
+  assert.equal(contagens.editadas, 1);
+  assert.equal(contagens.confirmadas, 1);
+  assert.deepEqual(EstadoMassa.FILTROS_RAPIDOS.map(f => f.chave), ['todas', 'revisar', 'acima', 'falhaDeepL', 'semTraducao', 'ptAcima', 'editadas', 'confirmadas']);
+});
+
+test('filtro "editadas" inclui a editada que ainda passa de 40 (ela também está em "acima")', () => {
+  const item = traduzida(textoDe(45), 'tabela', 'acima-de-40');
+  registrarEdicaoEN(item, textoDe(42));
+
+  assert.equal(EstadoMassa.passaNoFiltro(item, 'editadas'), true);
+  assert.equal(EstadoMassa.passaNoFiltro(item, 'acima'), true);
+  assert.equal(EstadoMassa.passaNoFiltro(item, 'revisar'), false);
+});
+
+test('exportação: bloqueios listam cada problema; sem bloqueio nem marcada, a faixa está verde', () => {
+  const grafia = novaLinha({ ref: 'G1', estadoCorrecao: 'pendente' });
+  const semEN = novaLinha({ ref: 'S1' });
+  const longa = Object.assign(traduzida(textoDe(43)), { ref: 'L1', pt: textoDe(41) });
+  const marcada = Object.assign(traduzida('SKIRT', 'deepl', 'revisar', 'ordem diferente'), { ref: 'M1' });
+
+  const { bloqueios, marcadas } = EstadoMassa.verificarExportacao([grafia, semEN, longa, marcada]);
+  assert.deepEqual(bloqueios.map(b => `${b.referencia}: ${b.problema}`), [
+    'G1: Grafia a decidir',
+    'S1: Sem Descrição EN',
+    'L1: DESCRIÇÃO PT com 41 caracteres',
+    'L1: Descrição EN com 43 caracteres'
+  ]);
+  assert.deepEqual(marcadas.map(i => i.ref), ['M1']);
+
+  // Mesma regra da faixa: pronta para baixar <=> nenhum bloqueio e nenhuma marcada.
+  for (const itens of [planilhaMista(), [traduzida('SKIRT'), marcada], [traduzida('SKIRT'), traduzida('DRESS', 'deepl', 'deepl')]]) {
+    const verificacao = EstadoMassa.verificarExportacao(itens);
+    assert.equal(resumirMassa(itens).pronto, !verificacao.bloqueios.length && !verificacao.marcadas.length);
+  }
+});
+
 test('estadoMassa.js e script.js carregam juntos no mesmo escopo, na ordem do index.html', () => {
   const raiz = path.join(__dirname, '..');
   const html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
@@ -300,7 +345,7 @@ test('estadoMassa.js e script.js carregam juntos no mesmo escopo, na ordem do in
 
   // DOM mínimo: ao carregar, o script.js só registra eventos.
   const elemento = { addEventListener() {} };
-  const contexto = vm.createContext({ document: { getElementById: () => elemento, querySelectorAll: () => [] } });
+  const contexto = vm.createContext({ document: { getElementById: () => elemento, querySelectorAll: () => [], addEventListener() {} } });
   for (const arquivo of scripts) {
     vm.runInContext(fs.readFileSync(path.join(raiz, arquivo), 'utf8'), contexto, { filename: arquivo });
   }

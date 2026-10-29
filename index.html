@@ -112,7 +112,10 @@
 
         <p id="massaStatus" class="faixa-status" aria-live="polite"></p>
 
+        <div id="filtrosRapidos" class="filtros-rapidos" role="group" aria-label="Filtros rápidos da tabela" hidden></div>
+
         <div id="correcoesPendentes" class="correcoes-pendentes" aria-live="polite"></div>
+        <div id="refsRevisar" class="correcoes-pendentes"></div>
 
         <div class="table-container">
           <table class="tabela" id="tableMassa">
@@ -152,8 +155,9 @@
     <section id="tab-glossario" class="tab-content">
       <div class="relatorio-titulo">
         <div class="relatorio-marca">
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h9M8.5 3v2M11 5c-.6 3.2-2.6 6-6 8.5"/><path d="M6 8.5c1.2 2 3 3.8 5.5 5"/><path d="M13 20l5-11 5 11M15 16h6"/></svg>
-          MODALIS
+          <!-- Como nos relatórios do START: M + LA MODA -->
+          <svg class="logo-m" aria-hidden="true" viewBox="0 0 62 58" fill="currentColor"><path fill-rule="evenodd" d="M0 0H50A12 12 0 0 1 62 12V58H0ZM7 7V51H55V12A5 5 0 0 0 50 7Z"/><rect x="16.33" y="16" width="10" height="35.5"/><rect x="35.67" y="16" width="10" height="35.5"/></svg>
+          <span class="relatorio-marca-nome">LA MODA</span>
         </div>
         <h1 id="glossarioTitulo">GLOSSÁRIO — TABELA MESTRA</h1>
         <div class="relatorio-data" id="glossarioData"></div>
@@ -170,11 +174,12 @@
           <option value="termo">TERMO</option>
           <option value="expressao">EXPRESSÃO</option>
         </select>
+        <label class="alternar-tecnicas"><input type="checkbox" id="glossarioTecnicas" autocomplete="off" onchange="alternarColunasTecnicas(this.checked)"> Mostrar detalhes técnicos</label>
         <span class="contador" id="glossarioContador"></span>
         <button type="button" class="btn btn-success" onclick="exportarGlossario()">Exportar Excel</button>
       </div>
 
-      <div class="table-container relatorio-caixa">
+      <div class="relatorio-caixa">
         <table class="relatorio" id="tableGlossario">
           <thead>
             <tr>
@@ -182,12 +187,12 @@
               <th>PORTUGUÊS</th>
               <th>INGLÊS</th>
               <th>ESPANHOL</th>
-              <th>TIPO</th>
-              <th>CONTEXTO</th>
-              <th>STATUS</th>
-              <th>POSIÇÃO NA FRASE</th>
+              <th class="col-tecnica">TIPO</th>
+              <th class="col-tecnica">CONTEXTO</th>
+              <th class="col-tecnica">STATUS</th>
+              <th class="col-tecnica">POSIÇÃO NA FRASE</th>
               <th>NOME DO ÍNDICE</th>
-              <th>ÍNDICE</th>
+              <th class="col-tecnica">ÍNDICE</th>
             </tr>
           </thead>
           <tbody id="glossarioTableBody"></tbody>

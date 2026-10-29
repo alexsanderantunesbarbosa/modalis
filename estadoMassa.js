@@ -239,6 +239,47 @@
     return { texto: partes.filter(Boolean).join(' '), tipo };
   }
 
+  // Filtros rápidos da tabela ("Mostrar:"). Os de problema usam problemaDaLinha, então o
+  // número de cada um é o mesmo da faixa; "editadas" e "confirmadas" olham a origem e podem
+  // se sobrepor a um problema (editada que ainda passa de 40). `opcional` só aparece se > 0.
+  const FILTROS_RAPIDOS = [
+    { chave: 'todas', rotulo: 'Todas' },
+    { chave: 'revisar', rotulo: 'A revisar' },
+    { chave: 'acima', rotulo: `Acima de ${LIMITE_CARACTERES}` },
+    { chave: 'falhaDeepL', rotulo: 'Falha da DeepL' },
+    { chave: 'semTraducao', rotulo: 'Sem tradução' },
+    { chave: 'ptAcima', rotulo: `PT acima de ${LIMITE_CARACTERES}`, opcional: true },
+    { chave: 'editadas', rotulo: 'Editadas à mão' },
+    { chave: 'confirmadas', rotulo: 'Confirmadas' }
+  ];
+
+  function passaNoFiltro(item, chave) {
+    if (chave === 'todas') return true;
+    if (chave === 'editadas') return item.origemEN === 'manual';
+    if (chave === 'confirmadas') return Boolean(item.confirmadaEN);
+    return problemaDaLinha(item) === chave;
+  }
+
+  // { todas: 18, revisar: 1, ... }: O(n·f), com f = 8 filtros.
+  function contarFiltros(itens) {
+    return Object.fromEntries(FILTROS_RAPIDOS.map(({ chave }) => [chave, itens.filter(item => passaNoFiltro(item, chave)).length]));
+  }
+
+  // O que impede o download (bloqueios) e o que pede confirmação (marcadas), com a mesma
+  // regra da faixa: sem bloqueio nem marcada, a faixa está verde. Uma linha pode ter mais de
+  // um bloqueio (PT e EN acima de 40); grafia pendente esconde "sem EN", que é consequência.
+  function verificarExportacao(itens) {
+    const bloqueios = [];
+    for (const item of itens) {
+      const referencia = item.ref || `linha ${item.linhaOrigem}`;
+      if (item.estadoCorrecao === 'pendente') bloqueios.push({ item, referencia, problema: 'Grafia a decidir' });
+      else if (!item.en.trim()) bloqueios.push({ item, referencia, problema: 'Sem Descrição EN' });
+      if (item.pt.length > LIMITE_CARACTERES) bloqueios.push({ item, referencia, problema: `DESCRIÇÃO PT com ${item.pt.length} caracteres` });
+      if (item.en.length > LIMITE_CARACTERES) bloqueios.push({ item, referencia, problema: `Descrição EN com ${item.en.length} caracteres` });
+    }
+    return { bloqueios, marcadas: itens.filter(linhaMarcada) };
+  }
+
   return {
     LIMITE_CARACTERES,
     normalizarEN,
@@ -256,6 +297,10 @@
     problemaDaLinha,
     resumirMassa,
     textoFaixaMassa,
-    formatarQuantidade
+    formatarQuantidade,
+    FILTROS_RAPIDOS,
+    passaNoFiltro,
+    contarFiltros,
+    verificarExportacao
   };
 });

@@ -210,6 +210,7 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
 
 .btn-addon svg { width: 18px; height: 18px; }
 .btn-addon:hover { background: #e6e6e6; }
+.btn-addon.copiado { background: var(--ok-fundo); border-color: #b2dba1; color: var(--ok); }
 
 .linha-status {
   display: flex;
@@ -311,6 +312,33 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
 }
 
 .ref-pendente:hover { background: #e6e6e6; }
+.ref-pendente small { font-weight: 400; color: var(--texto-suave); margin-left: 4px; }
+.refs-resto { align-self: center; font-size: 12px; color: var(--texto-suave); }
+
+/* ---------- Filtros rápidos ("Mostrar:") ---------- */
+.filtros-rapidos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 15px; border-bottom: 1px solid var(--borda); }
+.filtros-rapidos[hidden] { display: none; }
+.rotulo-filtros { font-size: 12px; color: var(--texto-suave); margin-right: 2px; }
+
+.chip {
+  border: 1px solid #ccc;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--texto);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 2px 11px;
+  cursor: pointer;
+}
+
+.chip:hover { background: #e6e6e6; }
+.chip b { margin-left: 3px; }
+.chip-revisar b, .chip-acima b, .chip-ptAcima b { color: #a94442; }
+.chip-falhaDeepL b { color: var(--alerta); }
+.chip-editadas b, .chip-confirmadas b { color: #31708f; }
+.chip.ativo, .chip.ativo:hover { background: var(--azul); border-color: var(--azul-borda); color: #fff; }
+.chip.ativo b { color: #fff; }
+.chip:disabled { opacity: .45; cursor: default; background: #fff; }
 
 /* ---------- Tabela da tradução em massa ---------- */
 .table-container { overflow-x: auto; }
@@ -356,6 +384,43 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
 .celula-editavel { background: #fff7ed !important; outline: 2px solid #fdba74; }
 .badge-count { font-size: 13px; color: var(--texto-suave); font-weight: 400; }
 
+/* Linha encontrada pela lista de referências: pisca em amarelo para o olho achar. */
+.tabela tbody tr.destacada td { animation: destaque-linha 1.6s ease-out; }
+@keyframes destaque-linha { from { background: #fcf8e3; } to { background: transparent; } }
+
+/* ---------- Janelas (como o modal do START, Bootstrap 3) ---------- */
+.janela-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 50px 16px 16px;
+  background: rgba(0, 0, 0, .5);
+  overflow-y: auto; /* tela baixa: os botões do rodapé continuam alcançáveis */
+}
+
+/* Texto só para leitor de tela (anúncios como "Texto copiado"). */
+.so-leitor { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.janela { width: min(900px, 100%); background: #fff; border-radius: 6px; box-shadow: 0 5px 15px rgba(0, 0, 0, .5); }
+.janela-cabecalho { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #e5e5e5; }
+.janela-cabecalho h4 { margin: 0; font-size: 18px; font-weight: 500; }
+.janela-fechar { background: none; border: 0; font-size: 21px; font-weight: 700; line-height: 1; color: #000; opacity: .2; cursor: pointer; }
+.janela-fechar:hover { opacity: .5; }
+.janela-corpo { padding: 15px; max-height: 60vh; overflow: auto; }
+.janela-corpo p { margin: 0 0 10px; }
+.janela-corpo p:last-child { margin-bottom: 0; }
+.janela-rodape { display: flex; justify-content: flex-end; gap: 8px; padding: 15px; border-top: 1px solid #e5e5e5; }
+.janela-alerta { margin-bottom: 12px; padding: 8px 12px; border: 1px solid #faebcc; border-radius: 4px; background: var(--aviso-fundo); color: var(--aviso-texto); }
+.janela-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+.janela-tabela th { text-align: left; padding: 8px; border-bottom: 2px solid var(--borda); }
+.janela-tabela td { padding: 8px; border-top: 1px solid var(--borda); vertical-align: middle; }
+.janela-tabela tbody tr:nth-child(odd) { background: var(--zebra); }
+.troca-antes s { color: #a94442; }
+.troca-depois b { background: var(--ok-fundo); color: var(--ok); padding: 0 2px; }
+
 /* ---------- Glossário: estilo relatório ---------- */
 .relatorio-titulo {
   border: 1px solid var(--borda-forte);
@@ -368,8 +433,9 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
   margin-top: 8px;
 }
 
-.relatorio-marca { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+.relatorio-marca { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #222; }
 .relatorio-marca svg { width: 26px; height: 26px; }
+.relatorio-marca-nome { font-weight: 400; letter-spacing: 2px; }
 .relatorio-titulo h1 { margin: 0; text-align: center; font-size: 15px; font-weight: 700; }
 .relatorio-data { text-align: right; font-size: 11px; color: #444; }
 
@@ -379,12 +445,29 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
 .filtros-glossario label { margin-left: 4px; }
 .filtros-glossario .contador { margin-left: auto; }
 .filtros-glossario .btn { padding: 4px 12px; font-size: 13px; border-radius: 3px; }
+.filtros-glossario .alternar-tecnicas { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-weight: 400; }
+.filtros-glossario .alternar-tecnicas input { width: auto; height: auto; margin: 0; box-shadow: none; }
 
+/* Sem overflow na caixa: é o que deixa os títulos das colunas presos no topo ao rolar. */
 .relatorio-caixa { border: 1px solid var(--borda-forte); }
 
-.relatorio { width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; }
+.relatorio { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; }
+.relatorio.com-tecnicas { font-size: 11px; }
 .relatorio th, .relatorio td { border: 1px solid var(--borda-forte); padding: 7px 6px; }
-.relatorio thead th { background: var(--relatorio-cabecalho); font-weight: 700; }
+.relatorio .col-tecnica { display: none; }
+.relatorio.com-tecnicas .col-tecnica { display: table-cell; }
+/* Títulos das colunas presos no topo; com border-collapse a borda não acompanha o
+   sticky, então ela é desenhada por sombra. */
+.relatorio thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--relatorio-cabecalho);
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 var(--borda-forte), inset 0 -1px 0 var(--borda-forte);
+}
+.relatorio mark { background: #fcf8e3; color: inherit; padding: 0 1px; border-bottom: 2px solid #f0ad4e; }
+.relatorio td.vazio { color: #aaa; }
 .relatorio tbody { color: var(--relatorio-texto); }
 .relatorio tbody tr:nth-child(even) { background: var(--painel-cabecalho); }
 .relatorio tbody td:nth-child(2) { font-weight: 700; }
@@ -405,4 +488,10 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
   .relatorio-data { text-align: center; }
   .filtros-glossario input { width: 100%; }
   .filtros-glossario .contador { margin-left: 0; }
+}
+
+/* Abaixo de 900 px as colunas técnicas do Glossário não cabem: a tabela rola de lado
+   (e os títulos deixam de ficar presos no topo). */
+@media (max-width: 900px) {
+  .relatorio-caixa { overflow-x: auto; }
 }

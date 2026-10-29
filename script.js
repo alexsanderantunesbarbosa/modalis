@@ -7,7 +7,8 @@
 const {
   LIMITE_CARACTERES, normalizarEN, acimaDoLimite, textoContador, precisaTraduzir, linhaMarcada,
   podeConfirmar, confirmarTraducao, aplicarTraducaoAutomatica, registrarEdicaoEN, limparTraducao,
-  descreverSelo, resumirMassa, textoFaixaMassa, formatarQuantidade
+  descreverSelo, problemaDaLinha, resumirMassa, textoFaixaMassa, formatarQuantidade,
+  FILTROS_RAPIDOS, passaNoFiltro, contarFiltros, verificarExportacao
 } = EstadoMassa;
 
 let dadosProcessados = [];
@@ -18,6 +19,8 @@ let itensEmTraducao = null;
 // Problema da última tradução ({ texto, itens }): fica na faixa enquanto alguma dessas
 // linhas ainda precisar de tradução.
 let avisoTraducao = null;
+// Filtro da barra "Mostrar:" (chave de FILTROS_RAPIDOS), somado aos filtros por coluna.
+let filtroRapido = 'todas';
 
 function switchTab(tabName) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
@@ -120,8 +123,11 @@ async function traduzirSingular() {
     setSingularStatus(texto, alerta);
   } catch (error) {
     console.error('Erro na tradução singular:', error);
-    alert('Não foi possível realizar a tradução. Verifique se o servidor Node.js está rodando.\n\nDetalhes: ' + error.message);
     inputEN.value = '';
+    avisar('Não foi possível traduzir', [
+      'Verifique se o servidor do MODALIS está rodando (npm start).',
+      `Detalhe: ${error.message}`
+    ]);
   }
 }
 
@@ -183,8 +189,8 @@ function filtrarTabelaMassa() {
   document.querySelectorAll('#massaTableBody tr').forEach(linha => {
     const item = dadosProcessados[Number(linha.dataset.itemIndex)];
     const valores = Array.from(linha.cells).map(celula => celula.dataset.valorFiltro ?? celula.textContent);
-    const corresponde = filtros.every(filtro => filtro.seletor
-      ? item?.estadoCorrecao === filtro.valor
+    const corresponde = Boolean(item) && passaNoFiltro(item, filtroRapido) && filtros.every(filtro => filtro.seletor
+      ? item.estadoCorrecao === filtro.valor
       : normalizarValorFiltro(valores[filtro.coluna]).includes(normalizarValorFiltro(filtro.valor)));
     linha.hidden = !corresponde;
     if (corresponde) visiveis += 1;
@@ -222,17 +228,102 @@ function renderCorrecoesPendentes() {
     botao.className = 'ref-pendente';
     botao.textContent = item.ref || `Linha ${item.linhaOrigem}`;
     botao.title = `Ir para ${botao.textContent}`;
-    botao.addEventListener('click', () => {
-      document.querySelectorAll('.filtro-coluna').forEach(input => { input.value = ''; });
-      filtrarTabelaMassa();
-      const linha = document.querySelector(`#massaTableBody tr[data-item-index="${index}"]`);
-      if (linha) {
-        linha.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    });
+    botao.addEventListener('click', () => irParaLinhaDaTabela(index));
     lista.appendChild(botao);
   });
   container.appendChild(lista);
+}
+
+// Mostra a linha de uma referência: limpa os filtros (de coluna e rápido), rola até ela e a
+// destaca por um instante, para o olho achar.
+function irParaLinhaDaTabela(index) {
+  document.querySelectorAll('#tableMassa .filtro-coluna').forEach(campo => { campo.value = ''; });
+  filtroRapido = 'todas';
+  renderFiltrosRapidos();
+  filtrarTabelaMassa();
+  const linha = document.querySelector(`#massaTableBody tr[data-item-index="${index}"]`);
+  if (!linha) return;
+  linha.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  linha.classList.remove('destacada');
+  void linha.offsetWidth; // reinicia a animação se a mesma linha for chamada de novo
+  linha.classList.add('destacada');
+}
+
+/* ==================== Filtros rápidos e referências a revisar ==================== */
+
+// Contagens dos filtros e lista de refs a revisar acompanham cada redesenho da tabela; só
+// aparecem depois que existe alguma tradução (antes disso, a revisão é a de grafia).
+function atualizarPainelDeRevisao() {
+  renderFiltrosRapidos();
+  renderRefsRevisar();
+}
+
+// Os botões são criados uma vez e depois só atualizados (número, ativo, desabilitado). Se
+// fossem recriados, um clique que começa quando a célula em edição perde o foco cairia num
+// botão que já saiu da página, e o foco do teclado se perderia a cada atualização.
+function renderFiltrosRapidos() {
+  const barra = document.getElementById('filtrosRapidos');
+  if (!barra) return;
+  const contagens = contarFiltros(dadosProcessados);
+  barra.hidden = !dadosProcessados.some(item => item.en);
+  // Filtro que ficou vazio (a última linha "a revisar" foi resolvida) volta para "Todas";
+  // durante a edição não, porque as linhas só são refiltradas ao salvar.
+  if (!modoEdicao && filtroRapido !== 'todas' && !contagens[filtroRapido]) filtroRapido = 'todas';
+  if (!barra.querySelector('.chip')) {
+    barra.appendChild(criarElemento('span', { className: 'rotulo-filtros', textContent: 'Mostrar:' }));
+    for (const { chave, rotulo } of FILTROS_RAPIDOS) {
+      const chip = criarElemento('button', { type: 'button', className: `chip chip-${chave}` }, rotulo, criarElemento('b'));
+      chip.dataset.chave = chave;
+      chip.addEventListener('click', () => {
+        filtroRapido = chave;
+        renderFiltrosRapidos();
+        filtrarTabelaMassa();
+      });
+      barra.appendChild(chip);
+    }
+  }
+  for (const { chave, opcional } of FILTROS_RAPIDOS) {
+    const chip = barra.querySelector(`.chip[data-chave="${chave}"]`);
+    const total = contagens[chave];
+    chip.querySelector('b').textContent = total.toLocaleString('pt-BR');
+    chip.hidden = Boolean(opcional) && !total;
+    chip.classList.toggle('ativo', chave === filtroRapido);
+    chip.setAttribute('aria-pressed', String(chave === filtroRapido));
+    chip.disabled = chave !== 'todas' && chave !== filtroRapido && !total;
+  }
+}
+
+const NOME_DO_PROBLEMA = {
+  revisar: 'a revisar', acima: `acima de ${LIMITE_CARACTERES}`, falhaDeepL: 'falha DeepL',
+  semTraducao: 'sem tradução', ptAcima: `PT acima de ${LIMITE_CARACTERES}`
+};
+// Acima disso a lista vira ruído: os filtros rápidos mostram o restante.
+const MAXIMO_REFS_A_REVISAR = 60;
+
+// Item 9 da fila: referências com pendência de tradução, clicáveis até a linha, no mesmo
+// formato da lista de correções de grafia (que cuida das pendências de grafia).
+function renderRefsRevisar() {
+  const container = document.getElementById('refsRevisar');
+  if (!container) return;
+  container.replaceChildren();
+  // Durante a tradução, as linhas que só ainda não foram enviadas apareceriam como pendentes.
+  if (itensEmTraducao === dadosProcessados || !dadosProcessados.some(item => item.en)) return;
+  const pendentes = dadosProcessados
+    .map((item, index) => ({ item, index, problema: problemaDaLinha(item) }))
+    .filter(({ problema }) => problema && problema !== 'grafia');
+  if (!pendentes.length) return;
+
+  const lista = criarElemento('div', { className: 'lista-refs-pendentes' });
+  for (const { item, index, problema } of pendentes.slice(0, MAXIMO_REFS_A_REVISAR)) {
+    const referencia = item.ref || `Linha ${item.linhaOrigem}`;
+    const botao = criarElemento('button', { type: 'button', className: 'ref-pendente', title: `Ir para ${referencia}` },
+      referencia, criarElemento('small', { textContent: NOME_DO_PROBLEMA[problema] }));
+    botao.addEventListener('click', () => irParaLinhaDaTabela(index));
+    lista.appendChild(botao);
+  }
+  const resto = pendentes.length - MAXIMO_REFS_A_REVISAR;
+  if (resto > 0) lista.appendChild(criarElemento('span', { className: 'refs-resto', textContent: `… e mais ${resto.toLocaleString('pt-BR')} (use os filtros acima)` }));
+  container.append(criarElemento('h4', { textContent: `Referências que precisam de revisão (${pendentes.length.toLocaleString('pt-BR')})` }), lista);
 }
 
 async function processarArquivo(event) {
@@ -291,12 +382,13 @@ async function processarArquivo(event) {
       });
 
       if (dadosProcessados.length === 0) {
-        alert('Nenhuma linha com referência ou descrição foi encontrada.');
+        avisar('Planilha vazia', ['Nenhuma linha com referência ou descrição foi encontrada.']);
         return;
       }
 
       modoEdicao = false;
       avisoTraducao = null;
+      filtroRapido = 'todas';
       document.getElementById('btnAlterar').classList.remove('btn-primary');
       document.getElementById('btnAlterar').classList.add('btn-default');
       document.getElementById('btnAlterar').textContent = 'Alterar / Editar';
@@ -310,7 +402,7 @@ async function processarArquivo(event) {
         : 'Revise as descrições e clique em “Traduzir” quando estiver pronto.');
     } catch (error) {
       console.error('Erro ao ler planilha:', error);
-      alert('Não foi possível ler a planilha:\n\n' + error.message);
+      avisar('Não foi possível ler a planilha', [error.message]);
     }
   };
 
@@ -359,6 +451,144 @@ function criarBotaoPequeno(rotulo, classe, acao) {
   button.textContent = rotulo;
   button.addEventListener('click', acao);
   return button;
+}
+
+// Elemento com propriedades e filhos (texto ou elementos). Texto entra sempre como texto,
+// nunca como HTML: o que vem da planilha ou da DeepL não vira código na página.
+function criarElemento(tag, propriedades = {}, ...filhos) {
+  const elemento = Object.assign(document.createElement(tag), propriedades);
+  elemento.append(...filhos);
+  return elemento;
+}
+
+/* ==================== Janelas (no estilo das janelas do START) ==================== */
+
+let janelasCriadas = 0;
+// Janelas abertas, da de baixo para a de cima: só a do topo responde ao teclado.
+const pilhaDeJanelas = [];
+// Clique no fundo logo depois de abrir é o 2º clique de um duplo clique, não "fechar".
+const ESPERA_CLIQUE_FORA_MS = 400;
+
+// Abre uma janela por cima da página e devolve uma promessa com o `valor` do botão
+// clicado, ou null se ela for fechada pelo ×, pelo Esc ou por um clique fora (este, só se
+// `fecharAoClicarFora`). Substitui o alert/confirm do navegador, que foge do visual e
+// mostra "file://" no título. Diferente do confirm, a página NÃO para enquanto ela está
+// aberta: quem usa o resultado precisa conferir de novo os dados depois do await.
+// `conteudo` pode ser uma lista de elementos ou uma função que recebe `fechar`.
+function abrirJanela({ titulo, conteudo = [], botoes = [{ rotulo: 'Fechar', valor: null, classe: 'btn-default' }], fecharAoClicarFora = true }) {
+  return new Promise(resolver => {
+    const focoAnterior = document.activeElement;
+    const idTitulo = `janela-titulo-${++janelasCriadas}`;
+    const fundo = criarElemento('div', { className: 'janela-fundo' });
+    const janela = criarElemento('div', { className: 'janela' });
+    janela.setAttribute('role', 'dialog');
+    janela.setAttribute('aria-modal', 'true');
+    janela.setAttribute('aria-labelledby', idTitulo);
+    const abertaEm = performance.now();
+
+    let aberta = true;
+    const fechar = (valor = null) => {
+      if (!aberta) return;
+      aberta = false;
+      document.removeEventListener('keydown', teclado, true);
+      pilhaDeJanelas.splice(pilhaDeJanelas.indexOf(fundo), 1);
+      fundo.remove();
+      if (focoAnterior?.isConnected) focoAnterior.focus();
+      resolver(valor);
+    };
+    // Esc fecha; Tab circula só entre os botões e campos da janela (foco preso nela).
+    const teclado = event => {
+      if (pilhaDeJanelas[pilhaDeJanelas.length - 1] !== fundo) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        fechar(null);
+      } else if (event.key === 'Tab') {
+        const focaveis = [...janela.querySelectorAll('button, [href], input, select, textarea')].filter(el => !el.disabled);
+        if (!focaveis.length) return;
+        const primeiro = focaveis[0], ultimo = focaveis[focaveis.length - 1];
+        if (!janela.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? ultimo : primeiro).focus(); }
+        else if (event.shiftKey && document.activeElement === primeiro) { event.preventDefault(); ultimo.focus(); }
+        else if (!event.shiftKey && document.activeElement === ultimo) { event.preventDefault(); primeiro.focus(); }
+      }
+    };
+
+    const botaoX = criarElemento('button', { type: 'button', className: 'janela-fechar', title: 'Fechar', textContent: '×' });
+    botaoX.setAttribute('aria-label', 'Fechar');
+    botaoX.addEventListener('click', () => fechar(null));
+    const corpo = criarElemento('div', { className: 'janela-corpo' }, ...(typeof conteudo === 'function' ? conteudo(fechar) : conteudo));
+    const rodape = criarElemento('div', { className: 'janela-rodape' });
+    let botaoPrincipal = null;
+    for (const { rotulo, valor = null, classe = 'btn-default', principal = false } of botoes) {
+      const botao = criarElemento('button', { type: 'button', className: `btn ${classe}`, textContent: rotulo });
+      botao.addEventListener('click', () => fechar(valor));
+      rodape.appendChild(botao);
+      if (principal || !botaoPrincipal) botaoPrincipal = botao;
+    }
+    janela.append(
+      criarElemento('div', { className: 'janela-cabecalho' }, criarElemento('h4', { id: idTitulo, textContent: titulo }), botaoX),
+      corpo, rodape);
+    fundo.appendChild(janela);
+    fundo.addEventListener('mousedown', event => {
+      if (fecharAoClicarFora && event.target === fundo && performance.now() - abertaEm > ESPERA_CLIQUE_FORA_MS) fechar(null);
+    });
+    document.addEventListener('keydown', teclado, true);
+    pilhaDeJanelas.push(fundo);
+    document.body.appendChild(fundo);
+    botaoPrincipal?.focus();
+  });
+}
+
+// Mensagem simples (substitui o alert): cada item de `paragrafos` vira um parágrafo.
+function avisar(titulo, paragrafos) {
+  return abrirJanela({ titulo, conteudo: paragrafos.map(texto => criarElemento('p', { textContent: texto })) });
+}
+
+// Pergunta sim/não (substitui o confirm); resolve true só no botão de confirmar. Decisão
+// pede escolha explícita: clique fora não fecha (Esc e × continuam valendo como "não").
+async function confirmar({ titulo, conteudo, rotuloConfirmar, rotuloCancelar = 'Cancelar' }) {
+  const resposta = await abrirJanela({
+    titulo,
+    conteudo,
+    fecharAoClicarFora: false,
+    botoes: [
+      { rotulo: rotuloCancelar, valor: false, classe: 'btn-default' },
+      { rotulo: rotuloConfirmar, valor: true, classe: 'btn-primary', principal: true }
+    ]
+  });
+  return resposta === true;
+}
+
+function tabelaDaJanela(cabecalhos, linhas) {
+  return criarElemento('table', { className: 'janela-tabela' },
+    criarElemento('thead', {}, criarElemento('tr', {}, ...cabecalhos.map(texto => criarElemento('th', { textContent: texto })))),
+    criarElemento('tbody', {}, ...linhas));
+}
+
+// Duas células "como está" / "como fica" com as palavras trocadas em destaque. Compara
+// por contagem de palavras (não por posição), então também marca a palavra repetida
+// que a correção removeu ("SAIA SAIA JEANS" → "SAIA JEANS"). O(a + b) palavras.
+function celulasDaTroca(antes, depois) {
+  const marcar = (palavras, outras, tag) => {
+    const restantes = new Map();
+    for (const palavra of outras) restantes.set(palavra, (restantes.get(palavra) || 0) + 1);
+    const partes = [];
+    palavras.forEach((palavra, i) => {
+      if (i) partes.push(' ');
+      if (restantes.get(palavra)) {
+        restantes.set(palavra, restantes.get(palavra) - 1);
+        partes.push(palavra);
+      } else {
+        partes.push(criarElemento(tag, { textContent: palavra }));
+      }
+    });
+    return partes;
+  };
+  const a = antes.split(/\s+/).filter(Boolean);
+  const d = depois.split(/\s+/).filter(Boolean);
+  return [
+    criarElemento('td', { className: 'troca-antes' }, ...marcar(a, d, 's')),
+    criarElemento('td', { className: 'troca-depois' }, ...marcar(d, a, 'b'))
+  ];
 }
 
 function renderTabelaMassa() {
@@ -436,6 +666,7 @@ function renderTabelaMassa() {
   });
 
   renderCorrecoesPendentes();
+  atualizarPainelDeRevisao();
   document.getElementById('resultMassaCard').style.display = 'block';
   filtrarTabelaMassa();
   atualizarBotaoTraduzir();
@@ -468,27 +699,35 @@ function atualizarBotaoTraduzir() {
   btn.textContent = traduzidas && pendentes ? `Traduzir pendentes (${pendentes})` : 'Traduzir';
 }
 
-function aplicarTodasCorrecoes() {
+async function aplicarTodasCorrecoes() {
   const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente');
   if (!pendentes.length) return;
 
   // A coluna DESCRIÇÃO exportada é gravada no SAP pela transação da TI: aplicar em
   // lote é uma escrita em massa no sistema de registro, por isso pede confirmação.
-  const amostra = pendentes.slice(0, 5).map(item => `• ${item.ref || `linha ${item.linhaOrigem}`}: ${item.ptOriginal} → ${item.ptSugerido}`);
-  const restante = pendentes.length > 5 ? `\n… e mais ${pendentes.length - 5}.` : '';
-  const confirmado = window.confirm(
-    `Aplicar ${pendentes.length} correção(ões) de grafia?\n\nElas entram na coluna DESCRIÇÃO exportada e, pela transação, no SAP.\n\n${amostra.join('\n')}${restante}`
-  );
+  const rotulo = formatarQuantidade(pendentes.length, 'correção', 'correções');
+  const confirmado = await confirmar({
+    titulo: `Aplicar ${rotulo} de grafia?`,
+    conteudo: [
+      criarElemento('div', { className: 'janela-alerta', textContent: 'Elas entram na coluna DESCRIÇÃO exportada e, pela transação, no SAP.' }),
+      tabelaDaJanela(['Referência', 'Como está', 'Como fica'], pendentes.map(item => criarElemento('tr', {},
+        criarCelula(item.ref || `linha ${item.linhaOrigem}`), ...celulasDaTroca(item.ptOriginal, item.ptSugerido))))
+    ],
+    rotuloConfirmar: `Aplicar ${rotulo}`
+  });
   if (!confirmado) return;
+  // A planilha pode ter mudado enquanto a janela estava aberta: só aplica nas que seguem pendentes.
+  const aindaPendentes = pendentes.filter(item => dadosProcessados.includes(item) && item.estadoCorrecao === 'pendente');
+  if (!aindaPendentes.length) return;
 
-  pendentes.forEach(item => {
+  aindaPendentes.forEach(item => {
     item.pt = item.ptSugerido;
     item.estadoCorrecao = 'aceita';
     limparTraducao(item);
   });
 
   renderTabelaMassa();
-  atualizarFaixaMassa(pendentes.length === 1 ? '1 correção aplicada.' : `${pendentes.length} correções aplicadas.`);
+  atualizarFaixaMassa(aindaPendentes.length === 1 ? '1 correção aplicada.' : `${aindaPendentes.length} correções aplicadas.`);
 }
 
 // Descrições distintas enviadas por requisição na tradução em massa. Partes menores dão
@@ -500,13 +739,13 @@ async function traduzirMassa() {
   // Com a edição aberta, primeiro salva o que foi digitado (vira 'manual' e não é reenviado).
   if (modoEdicao) toggleModoEdicao();
   if (dadosProcessados.some(item => item.estadoCorrecao === 'pendente')) {
-    alert('Decida cada sugestão de grafia antes de enviar as descrições para tradução.');
+    avisar('Falta decidir a grafia', ['Decida cada sugestão de grafia (Aplicar ou Manter original) antes de enviar as descrições para tradução.']);
     return;
   }
 
   const semDescricao = dadosProcessados.filter(item => !item.pt.trim());
   if (semDescricao.length) {
-    alert('Há linhas sem descrição. Preencha ou remova essas linhas na planilha de origem antes de traduzir.');
+    avisar('Há linhas sem descrição', ['Preencha ou remova essas linhas na planilha de origem antes de traduzir.']);
     return;
   }
 
@@ -590,7 +829,10 @@ async function traduzirMassa() {
     renderTabelaMassa();
   } catch (error) {
     console.error('Erro ao traduzir planilha:', error);
-    alert('Erro ao traduzir a planilha:\n\n' + error.message);
+    avisar('A tradução não foi concluída', [
+      `Detalhe: ${error.message}`,
+      'O que já voltou ficou gravado; o restante segue pendente para "Traduzir pendentes".'
+    ]);
     if (dadosProcessados === itens) {
       avisoTraducao = { texto: `A tradução não foi concluída: ${semPontoFinal(error.message)}.`, itens: alvos.filter(precisaTraduzir) };
     }
@@ -600,7 +842,10 @@ async function traduzirMassa() {
     if (btnImportar) btnImportar.disabled = false;
     if (btnAlterar) btnAlterar.disabled = false;
     // Planilha trocada no meio: a mensagem de descarte fica.
-    if (dadosProcessados === itens) atualizarFaixaMassa(prefixo);
+    if (dadosProcessados === itens) {
+      atualizarFaixaMassa(prefixo);
+      atualizarPainelDeRevisao(); // a lista de refs fica escondida durante a tradução
+    }
     atualizarBotaoTraduzir();
   }
 }
@@ -645,45 +890,65 @@ function salvarLinhaEmEdicao(tr) {
   return mudouEN || mudouES;
 }
 
-function baixarExcel() {
+async function baixarExcel() {
   if (!dadosProcessados.length) return;
+  if (itensEmTraducao === dadosProcessados) {
+    avisar('Tradução em andamento', ['Espere a tradução terminar para baixar o Excel: as linhas ainda estão mudando.']);
+    return;
+  }
   if (modoEdicao) {
     atualizarDadosAposEdicao();
     atualizarFaixaMassa();
+    atualizarPainelDeRevisao();
   }
 
-  const pendentes = dadosProcessados.filter(item => item.estadoCorrecao === 'pendente');
-  if (pendentes.length) {
-    alert('Resolva as sugestões de grafia antes de baixar a planilha.');
-    return;
-  }
-
-  const semEN = dadosProcessados.filter(item => !item.en.trim());
-  if (semEN.length) {
-    alert(`Download bloqueado: ${semEN.length} linha(s) ainda não têm Descrição EN.`);
-    return;
-  }
-
+  // A janela não congela a página: guarda a planilha e a lista mostrada para conferir de novo
+  // depois da resposta (outra planilha importada, linha que mudou enquanto ela estava aberta).
+  const itens = dadosProcessados;
   // O bloqueio vem antes da pergunta: não adianta confirmar a exportação e depois ser barrado.
-  const foraDoLimite = dadosProcessados.flatMap(item => {
-    const referencia = item.ref || `linha ${item.linhaOrigem}`;
-    const problemas = [];
-    if (item.pt.length > LIMITE_CARACTERES) problemas.push(`${referencia} — DESCRIÇÃO PT: ${item.pt.length - LIMITE_CARACTERES} acima do limite`);
-    if (item.en.length > LIMITE_CARACTERES) problemas.push(`${referencia} — Descrição EN: ${item.en.length - LIMITE_CARACTERES} acima do limite`);
-    return problemas;
-  });
-  if (foraDoLimite.length) {
-    alert(`Download bloqueado pelos limites de ${LIMITE_CARACTERES} caracteres:\n\n` + foraDoLimite.slice(0, 20).join('\n'));
+  const { bloqueios, marcadas } = verificarExportacao(itens);
+  if (bloqueios.length) {
+    await abrirJanela({
+      titulo: 'Download bloqueado',
+      conteudo: fechar => [
+        criarElemento('p', { textContent: `${formatarQuantidade(new Set(bloqueios.map(b => b.item)).size, 'linha impede', 'linhas impedem')} a planilha de subir ao SAP. Resolva e baixe de novo:` }),
+        tabelaDaJanela(['Referência', 'Problema', 'Descrição EN', ''], bloqueios.map(({ item, referencia, problema }) => criarElemento('tr', {},
+          criarCelula(referencia), criarCelula(problema), criarCelula(item.en || '—'),
+          criarElemento('td', {}, criarBotaoPequeno('Ir para a linha', 'btn-default', () => { fechar(); irParaLinhaDaTabela(dadosProcessados.indexOf(item)); })))))
+      ]
+    });
     return;
   }
 
   // Exportar linhas marcadas (a revisar ou DeepL falhou) sem confirmá-las é uma decisão consciente.
-  const marcadas = dadosProcessados.filter(linhaMarcada).length;
-  if (marcadas && !window.confirm(`${marcadas} linha(s) estão marcadas para revisão (glossário não aplicado ou DeepL falhou) e não foram confirmadas. Exportar mesmo assim?`)) {
-    return;
+  if (marcadas.length) {
+    const uma = marcadas.length === 1;
+    const textosMostrados = marcadas.map(item => item.en);
+    const exportar = await confirmar({
+      titulo: 'Exportar com linhas marcadas?',
+      conteudo: [
+        criarElemento('p', { textContent: uma
+          ? '1 linha está marcada para revisão e não foi confirmada nem editada. Ela vai para o SAP como está.'
+          : `${marcadas.length.toLocaleString('pt-BR')} linhas estão marcadas para revisão e não foram confirmadas nem editadas. Elas vão para o SAP como estão.` }),
+        tabelaDaJanela(['Referência', 'Marca', 'Descrição EN'], marcadas.map(item => criarElemento('tr', {},
+          criarCelula(item.ref || `linha ${item.linhaOrigem}`), criarCelula(descreverSelo(item)?.texto || ''), criarCelula(item.en))))
+      ],
+      rotuloCancelar: 'Revisar antes',
+      rotuloConfirmar: 'Exportar mesmo assim'
+    });
+    if (!exportar) return;
+    // Só exporta se nada mudou desde a janela: mesma planilha, nenhum bloqueio novo e as
+    // mesmas linhas marcadas, com o mesmo texto que a pessoa viu.
+    const agora = verificarExportacao(itens);
+    const mudou = dadosProcessados !== itens || itensEmTraducao === itens || agora.bloqueios.length
+      || agora.marcadas.length !== marcadas.length || agora.marcadas.some((item, i) => item !== marcadas[i] || item.en !== textosMostrados[i]);
+    if (mudou) {
+      avisar('A planilha mudou', ['As linhas mudaram enquanto a janela estava aberta. Confira e clique em Baixar Excel de novo.']);
+      return;
+    }
   }
 
-  const ws = XLSX.utils.json_to_sheet(dadosProcessados.map(item => ({
+  const ws = XLSX.utils.json_to_sheet(itens.map(item => ({
     'REFERÊNCIA': item.ref,
     'DESCRIÇÃO': item.pt,
     'Descrição EN': item.en,
@@ -700,11 +965,41 @@ function baixarExcel() {
   XLSX.writeFile(wb, 'MODALIS_Descricoes.xlsx');
 }
 
-function copiarTexto(elementId) {
+// Recado só para leitor de tela (o alert antigo era anunciado; o título do botão não é).
+function anunciarParaLeitorDeTela(texto) {
+  let regiao = document.getElementById('anuncioLeitor');
+  if (!regiao) {
+    regiao = criarElemento('div', { id: 'anuncioLeitor', className: 'so-leitor' });
+    regiao.setAttribute('aria-live', 'polite');
+    document.body.appendChild(regiao);
+  }
+  regiao.textContent = '';
+  setTimeout(() => { regiao.textContent = texto; }, 50); // texto novo, para ser anunciado de novo
+}
+
+// O retorno da cópia aparece no próprio botão por um instante: uma janela para isso
+// interromperia o trabalho sem necessidade.
+async function copiarTexto(elementId) {
   const input = document.getElementById(elementId);
   if (!input || !input.value) return;
-  navigator.clipboard.writeText(input.value);
-  alert('Texto copiado para a área de transferência!');
+  const botao = input.parentElement?.querySelector('.btn-addon');
+  try {
+    await navigator.clipboard.writeText(input.value);
+  } catch (error) {
+    avisar('Não foi possível copiar', [`Selecione o texto e use Ctrl+C. Detalhe: ${error.message}`]);
+    return;
+  }
+  anunciarParaLeitorDeTela('Texto copiado.');
+  if (!botao) return;
+  const tituloOriginal = botao.dataset.tituloOriginal || botao.title;
+  botao.dataset.tituloOriginal = tituloOriginal;
+  botao.classList.add('copiado');
+  botao.title = 'Copiado!';
+  clearTimeout(botao.temporizador);
+  botao.temporizador = setTimeout(() => {
+    botao.classList.remove('copiado');
+    botao.title = tituloOriginal;
+  }, 1500);
 }
 
 document.querySelectorAll('#tableMassa .filtro-coluna').forEach(campo => {
@@ -722,11 +1017,39 @@ corpoTabelaMassa.addEventListener('input', event => {
   if (celula) aplicarContador(celula, celula.textContent);
 });
 
-// Ao sair da célula a linha é gravada, e a faixa de status acompanha a edição.
+// Ao sair da célula a linha é gravada, e a faixa e os números dos filtros acompanham a
+// edição. As linhas não somem do filtro e a lista de refs não é refeita no meio da edição
+// (seus botões recriados engoliriam o clique que tirou o foco da célula); ambos se
+// atualizam ao salvar.
 corpoTabelaMassa.addEventListener('focusout', event => {
   const celula = celulaEmEdicao(event);
-  if (celula && salvarLinhaEmEdicao(celula.parentElement)) atualizarFaixaMassa();
+  if (celula && salvarLinhaEmEdicao(celula.parentElement)) {
+    atualizarDepoisDoClique(() => {
+      atualizarFaixaMassa();
+      renderFiltrosRapidos();
+    });
+  }
 });
+
+// A célula perde o foco no "apertar" do mouse. Se a faixa mudar de altura nesse instante,
+// o botão clicado logo abaixo dela (filtro, referência) sai de baixo do cursor antes do
+// "soltar" e o clique se perde. Com o mouse pressionado, o redesenho espera o clique
+// terminar; os dados já foram gravados.
+let mousePressionado = false;
+let atualizacaoAdiada = null;
+function atualizarDepoisDoClique(atualizar) {
+  if (mousePressionado) atualizacaoAdiada = atualizar;
+  else atualizar();
+}
+function soltarMouse() {
+  mousePressionado = false;
+  const atualizar = atualizacaoAdiada;
+  atualizacaoAdiada = null;
+  if (atualizar) setTimeout(atualizar, 0); // depois do click, que vem logo após o pointerup
+}
+document.addEventListener('pointerdown', () => { mousePressionado = true; }, true);
+document.addEventListener('pointerup', soltarMouse, true);
+document.addEventListener('pointercancel', soltarMouse, true);
 
 // A faixa de status fica presa no topo e o focus() do navegador não a desconta: uma célula
 // que recebe o foco por baixo dela (Shift+Enter, Tab) é rolada até aparecer.
@@ -845,11 +1168,18 @@ function listarTermosGlossario() {
     .filter(termo => !busca || [termo.pt, termo.en, termo.es].some(valor => normalizarValorFiltro(valor).includes(busca)));
 }
 
+// Colunas para quem mantém a tabela (tipo, contexto, status, posição, nº do índice): ficam
+// recolhidas até "Mostrar detalhes técnicos". Quem consulta quer PT, EN, ES e o índice.
+const COLUNAS_TECNICAS = new Set([4, 5, 6, 7, 9]);
+
 function renderGlossario() {
   const tbody = document.getElementById('glossarioTableBody');
   if (!tbody || !glossarioIndices) return;
   const termos = listarTermosGlossario();
   const total = glossarioIndices.reduce((soma, indice) => soma + indice.termos.length, 0);
+  const busca = normalizarValorFiltro(document.getElementById('glossarioBusca').value);
+  // A caixa pode voltar marcada ao recarregar a página: a tabela segue o estado dela.
+  alternarColunasTecnicas(document.getElementById('glossarioTecnicas').checked);
 
   tbody.replaceChildren();
   termos.forEach((termo, posicao) => {
@@ -865,11 +1195,40 @@ function renderGlossario() {
       POSICAO_POR_INDICE[termo.indice] || '',
       termo.nomeIndice,
       String(termo.indice)
-    ].forEach(valor => tr.appendChild(criarCelula(valor)));
+    ].forEach((valor, coluna) => {
+      const celula = coluna >= 1 && coluna <= 3 ? celulaComBusca(valor, busca) : criarCelula(valor);
+      if (COLUNAS_TECNICAS.has(coluna)) celula.classList.add('col-tecnica');
+      // ES vazio vira "—": diferencia "ainda sem espanhol" de célula esquecida em branco.
+      if (coluna === 3 && !valor) {
+        celula.textContent = '—';
+        celula.classList.add('vazio');
+        celula.title = 'Sem espanhol ainda';
+      }
+      tr.appendChild(celula);
+    });
     tbody.appendChild(tr);
   });
 
   document.getElementById('glossarioContador').textContent = `Mostrando ${termos.length} de ${total}`;
+}
+
+// Célula com o trecho buscado marcado. A busca ignora acentos; nos termos da tabela a
+// normalização não muda o tamanho do texto (letra acentuada vira uma letra só), então a
+// posição achada no texto normalizado vale no original. Se o tamanho mudar, não marca.
+function celulaComBusca(valor, busca) {
+  const celula = criarCelula(valor);
+  if (!busca || !valor) return celula;
+  const normalizado = normalizarValorFiltro(valor);
+  const posicao = normalizado.indexOf(busca);
+  if (posicao < 0 || normalizado.length !== valor.length) return celula;
+  celula.replaceChildren(valor.slice(0, posicao),
+    criarElemento('mark', { textContent: valor.slice(posicao, posicao + busca.length) }),
+    valor.slice(posicao + busca.length));
+  return celula;
+}
+
+function alternarColunasTecnicas(mostrar) {
+  document.getElementById('tableGlossario').classList.toggle('com-tecnicas', mostrar);
 }
 
 function exportarGlossario() {
