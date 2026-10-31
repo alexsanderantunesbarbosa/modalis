@@ -1,6 +1,6 @@
 # MODALIS
 
-Aplicação em desenvolvimento para revisar e padronizar descrições de peças de vestuário em português e gerar descrições em inglês. O sistema combina um glossário próprio com a API DeepL e permite processar uma descrição ou uma planilha.
+Aplicação em desenvolvimento para revisar e padronizar descrições de peças de vestuário em português e gerar descrições em inglês e em espanhol. O sistema combina um glossário próprio com a API DeepL e permite processar uma descrição ou uma planilha.
 
 O repositório contém uma implementação funcional para uso local, mas ainda há requisitos parcialmente implementados. Este README descreve o comportamento encontrado no código; não representa uma declaração de prontidão para produção.
 
@@ -10,16 +10,18 @@ O repositório contém uma implementação funcional para uso local, mas ainda h
 Descrição ou planilha SAP
   → revisão de sugestões ortográficas (em massa)
   → API local do MODALIS
-  → frase montada pela tabela mestra; DeepL (com o contexto do glossário) só para o que a tabela não cobre
+  → frase montada pela tabela mestra, em inglês e em espanhol; DeepL (com o contexto do glossário) só para o que a tabela não cobre
   → revisão manual (edição, confirmação, faixa de status)
   → exportação .xlsx
 ```
 
 A tabela mestra é o motor: o servidor casa os termos da descrição e monta a frase em inglês na estrutura combinada (`[nome de linha] [rise] [comprimento] [fit] [manga] [gola] [construção] [acabamento] [tecido] [modelo] PEÇA [WITH …] [WITHOUT …]`), sem chamar a DeepL. Só vão à DeepL as descrições com palavra fora da tabela, com mais de uma peça ou sem peça identificada, com o contexto do glossário. A resposta passa por um validador: termo da tabela ausente, peça a mais ou ordem diferente da estrutura marcam a linha "a revisar". Cada linha devolve origem (`tabela`, `deepl`, `local`) e estado (`tabela`, `deepl`, `revisar`, `acima-de-40`); a interface mostra um selo por linha e o balanço na faixa de status. Se a DeepL falhar, a linha sai pela tabela com as palavras desconhecidas em português, marcada e pendente. `MOTOR_PRINCIPAL=deepl` inverte: tudo vai à DeepL (para comparar qualidade).
 
+O espanhol (neutro, validado com o varejo de moda em espanhol em 29/10/2026) segue a frase em português ao pé da letra, termo a termo pelo glossário: nada muda de lugar e nenhuma preposição entra ou sai. Os ajustes são de gramática: concordância com o substantivo em espanhol (CALÇA PIJAMA LISTRADA → PANTALÓN PIJAMA RAYADO; COM GOLA BORDADA → CON CUELLO BORDADO), E e + viram Y, e COM/DE antes de termo cujo espanhol é adjetivo cai (BLAZER DE ALFAIATARIA → BLAZER SASTRE). As fusões do inglês (JORTS, HOODIE, SWEATPANTS) valem só no inglês. As regras e os casos de referência estão em `docs/decisoes-espanhol-2026-10-29.md`. O caminho da DeepL é o mesmo do inglês, com `target_lang=ES`, contexto em espanhol e o mesmo validador.
+
 ## Funcionalidades implementadas
 
-- **Tradução individual para inglês:** a descrição é montada pela tabela mestra; se houver palavra fora da tabela, vai à DeepL e volta validada. A tela diz de onde veio e lista os termos do glossário aplicados.
+- **Tradução individual para inglês e espanhol:** a descrição é montada pela tabela mestra nos dois idiomas, em paralelo; se houver palavra fora da tabela, vai à DeepL e volta validada. A tela diz de onde veio cada idioma, mostra o contador de 40 caracteres dos dois e lista os termos do glossário aplicados (PT = EN · ES).
 - **Importação em massa:** aceita `.xlsx`, `.xls` e `.csv`, lê a primeira aba e exige as colunas `Referencia` e `Descrição`. As colunas `Português` e `Z_ENCAIXE` não substituem `Descrição`.
 - **Sugestões ortográficas:** regras locais mostram o texto original e uma versão sugerida. É possível aceitar ou manter cada sugestão; o original não é alterado automaticamente.
 - **Revisão em massa:** inclui filtros por coluna, referências com correção pendente, aplicação de todas as sugestões e edição manual de EN/ES.
@@ -27,12 +29,13 @@ A tabela mestra é o motor: o servidor casa os termos da descrição e monta a f
   - A edição é gravada ao sair da célula. Enter desce para a linha de baixo (Shift+Enter sobe), e o texto colado entra como texto simples.
   - Depois de salvar, uma linha que passava de 40 mostra os dois tamanhos: "Editado à mão · tinha 43, agora tem 38".
   - Linhas "a revisar" ou "DeepL falhou" que já estão certas têm o botão "Confirmar", que tira a marca sem mudar o texto. Acima de 40 é preciso editar.
+  - O espanhol tem os mesmos controles do inglês, independentes: selo de origem, "tinha X, agora tem Y", Confirmar e bloqueio acima de 40. A linha só fica pronta quando EN e ES estão prontos; a faixa, os filtros e a lista de referências olham os dois.
   - A faixa no topo da tabela é recalculada a cada mudança sobre a planilha inteira: de onde veio o inglês e o que falta resolver. Fica bege enquanto há pendência e verde quando o download passa sem bloqueio nem pergunta. Ela continua visível ao rolar a tabela.
   - Abaixo da faixa, os filtros rápidos ("Mostrar: Todas · A revisar · Acima de 40 · Falha da DeepL · Sem tradução · Editadas à mão · Confirmadas", com as contagens) e a lista de referências que precisam de revisão; clicar numa referência leva à linha.
   - Confirmações e avisos aparecem em janelas no estilo do START, nunca nas caixas do navegador. O download bloqueado lista as linhas com o problema e o botão "Ir para a linha".
-- **Tradução em massa:** o botão "Traduzir" envia só as linhas pendentes (sem inglês, ou vindas do motor local e não confirmadas; linhas editadas à mão nunca são reenviadas), em partes de 100 descrições distintas, com progresso na faixa. O servidor monta pela tabela tudo o que ela cobre; o restante vai à DeepL, cada descrição distinta uma vez, com o contexto do glossário dela, em até 3 chamadas simultâneas e com nova tentativa em falhas passageiras. Lotes maiores (`DEEPL_TAMANHO_LOTE`, até 50) existem, mas medimos que a DeepL obedece menos ao glossário conforme o lote cresce (87% com 1 descrição por chamada, 68% com 50), então o padrão é 1 até o glossário nativo da DeepL entrar.
+- **Tradução em massa:** o botão "Traduzir" envia só o que está pendente em cada idioma (sem texto, ou vindo do motor local e não confirmado; texto editado à mão nunca é reenviado), em partes de 100 descrições distintas, com progresso na faixa. Em cada parte, inglês e espanhol saem em paralelo. O servidor monta pela tabela tudo o que ela cobre; o restante vai à DeepL, cada descrição distinta uma vez, com o contexto do glossário dela, em até 3 chamadas simultâneas e com nova tentativa em falhas passageiras. Lotes maiores (`DEEPL_TAMANHO_LOTE`, até 50) existem, mas medimos que a DeepL obedece menos ao glossário conforme o lote cresce (87% com 1 descrição por chamada, 68% com 50), então o padrão é 1 até o glossário nativo da DeepL entrar.
 - **Exportação `.xlsx`:** gera uma planilha com as oito colunas do modelo abaixo.
-- **Glossário (consulta):** aba com a tabela mestra completa (PT, EN, ES do setor quando existe, nome do índice; tipo, contexto, status, posição na frase e número do índice em "Mostrar detalhes técnicos"), cabeçalho "M LA MODA" como os relatórios do START, busca com o trecho encontrado marcado, ES ausente como "—", títulos das colunas presos no topo, filtros e exportação para Excel. Somente leitura; a edição dos termos continua na validação de terminologia.
+- **Glossário (consulta):** aba com a tabela mestra completa (PT, EN, ES da própria tabela, nome do índice; tipo, contexto, status, posição na frase e número do índice em "Mostrar detalhes técnicos"), cabeçalho cinza como os relatórios do START (sem a marca M LA MODA desde 30/10/2026), busca com o trecho encontrado marcado, ES ausente como "—", títulos das colunas presos no topo, filtros e exportação para Excel. Somente leitura; a edição dos termos continua na validação de terminologia.
 
 ### Limites e conteúdo exportado
 
@@ -41,7 +44,7 @@ A tabela mestra é o motor: o servidor casa os termos da descrição e monta a f
 | `REFERÊNCIA` | Referência importada da planilha |
 | `DESCRIÇÃO` | Texto PT atual; se uma correção for aceita, exporta o texto corrigido |
 | `Descrição EN` | Tradução ou edição manual em inglês |
-| `Descrição ES` | Campo disponível para edição, mas sem tradução automática nesta etapa |
+| `Descrição ES` | Tradução ou edição manual em espanhol |
 | `TEXTO ECOM` | Mesmo texto da coluna `DESCRIÇÃO` exportada (decisão de 23/10/2026); sem limite de 40 caracteres |
 | `Z_COMPOS_PT` | Composição em português importada, quando encontrada |
 | `Z_COMPOS_EN` | Composição em inglês importada, quando encontrada |
@@ -49,11 +52,10 @@ A tabela mestra é o motor: o servidor casa os termos da descrição e monta a f
 
 A saída contém somente essas oito colunas, que são o layout da transação de carga no SAP desenvolvida pela TI. Outras colunas da planilha de entrada não são copiadas. A interface mantém a descrição original durante a revisão, mas a saída não tem uma coluna separada para ela: após aceitar uma correção, `DESCRIÇÃO` contém a versão corrigida, e é essa que a transação grava no SAP. Por isso "Aplicar todas as correções" pede confirmação.
 
-O download é bloqueado se houver sugestões ortográficas pendentes, descrições EN vazias ou valores PT/EN acima de 40 caracteres. Depois dos bloqueios, linhas marcadas para revisão (a revisar ou DeepL falhou) que não foram editadas nem confirmadas pedem uma confirmação antes de exportar. A validação de 40 caracteres para ES ainda não está implementada. ECOM não entra nessa validação. O usuário informa que o SAP já entrega a descrição PT dentro de 40 caracteres; o sistema também valida esse limite antes do download.
+O download é bloqueado se houver sugestões ortográficas pendentes, descrições EN ou ES vazias ou valores PT/EN/ES acima de 40 caracteres. Depois dos bloqueios, traduções marcadas para revisão (a revisar ou DeepL falhou) que não foram editadas nem confirmadas pedem uma confirmação antes de exportar. Acima de 40 a correção é sempre humana: o sistema nunca corta nem encurta sozinho. Na medição de 29/10/2026 (2.457 descrições distintas da IN27 e da AI27), 10% das descrições em espanhol passam de 40, contra 2,5% em inglês, porque o espanhol ao pé da letra é mais longo (TIRO ALTO, MANGA LARGA). ECOM não entra nessa validação. O usuário informa que o SAP já entrega a descrição PT dentro de 40 caracteres; o sistema também valida esse limite antes do download.
 
 ## O que ainda não está implementado ou confirmado
 
-- A tradução automática para espanhol está adiada; a tela informa que será incluída depois.
 - O `TEXTO ECOM` é uma cópia da descrição; o texto completo do START (anterior ao corte de 40 caracteres) ainda não é usado.
 - A tradução da composição têxtil não é feita. Se as colunas de composição existirem na entrada, seus valores são carregados e exportados sem tradução.
 - O glossário nativo da DeepL ainda não é usado. A decisão é usá-lo depois, sincronizado a partir da tabela mestra, que continua sendo a fonte de verdade (ver fila de código no `CLAUDE.md`).
@@ -107,7 +109,7 @@ Para executar os testes automatizados locais:
 npm test
 ```
 
-Esse comando usa o test runner nativo do Node.js. Os testes em `tests/` cobrem o matching do glossário, a montagem da frase em inglês pela tabela (com os exemplos de referência do `CLAUDE.md`), o validador da resposta da DeepL, a montagem de lotes, as correções de grafia, as regras da tabela em massa (`estadoMassa.js`, inclusive o carregamento conjunto com o `script.js`) e a API HTTP com uma DeepL simulada injetada (sem rede e sem depender do `.env`): validação de entrada, limites, timeout, novas tentativas, disjuntor, fallback por lote, limite de chamadas simultâneas, cancelamento quando o cliente desiste e um corpo com acento partido entre dois pacotes TCP.
+Esse comando usa o test runner nativo do Node.js. Os testes em `tests/` cobrem o matching do glossário, a montagem da frase em inglês pela tabela (com os exemplos de referência do `CLAUDE.md`), a montagem em espanhol (`tests/montadorEspanhol.test.js`, com os 69 casos de referência; os que dependem de termo novo ainda em validação rodam como TODO), o validador da resposta da DeepL, a montagem de lotes, as correções de grafia, as regras da tabela em massa (`estadoMassa.js`, inclusive o carregamento conjunto com o `script.js`) e a API HTTP com uma DeepL simulada injetada (sem rede e sem depender do `.env`): validação de entrada, limites, timeout, novas tentativas, disjuntor, fallback por lote, limite de chamadas simultâneas, cancelamento quando o cliente desiste e um corpo com acento partido entre dois pacotes TCP.
 
 ## Estrutura principal
 
@@ -117,11 +119,11 @@ styles.css                    Estilos
 script.js                     Interface, importação, revisão e exportação
 estadoMassa.js                Regras da tabela em massa sem DOM (selo, contador, faixa de status)
 server.js                     Servidor HTTP, rotas e integração com DeepL
-processadorTexto.js            Correspondências do glossário e montagem da frase em inglês
+processadorTexto.js            Correspondências do glossário e montagem da frase em inglês e em espanhol
 tabelaMestra.js                Tabela mestra (glossário, fonte de verdade)
 correcoesOrtograficas.js       Sugestões locais de grafia
 tests/                         Testes automatizados
-docs/                          Decisões do glossário, lista PT/EN/ES do setor e planilhas de amostra
+docs/                          Decisões do glossário e do espanhol, lista PT/EN/ES do setor (histórico) e planilhas de amostra
 ```
 
 ## Segurança e limitações de uso
@@ -138,7 +140,7 @@ Não compartilhe arquivos `.env`. Se uma chave real já tiver sido exposta em um
 
 - Validar o inglês com um conjunto de referência aprovado pelo negócio e incluir na tabela os termos novos encontrados nas coleções (ex.: STRAIGHT).
 - Sincronizar uma cópia da tabela mestra com o glossário nativo da DeepL.
-- Implementar e validar o espanhol e o preenchimento automático de ECOM.
-- Definir o tratamento dos limites de ES e a preservação dos dados originais necessários no fluxo SAP.
+- Incluir na tabela os termos novos do espanhol em validação (MEIA CALÇA, CALÇA LEGGING, COM TOUCA, COM ABOTOAMENTO DUPLO, GOLA CACHECOL, FAIXA como produto) e decidir SLEEP/SLIP.
+- Implementar o preenchimento automático de ECOM e definir a preservação dos dados originais necessários no fluxo SAP.
 - Adiar a tradução de composição têxtil até a etapa de descrições estar validada.
 - Avaliar autenticação, histórico e hospedagem somente quando houver decisão de disponibilizar o sistema a outros usuários.

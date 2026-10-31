@@ -1,6 +1,6 @@
 /**
- * Motor de tradução local: matching da tabela mestra + montagem da frase em inglês.
- * O processamento é estático e não chama a API DeepL.
+ * Motor de tradução local: matching da tabela mestra + montagem da frase em inglês e em
+ * espanhol. O processamento é estático e não chama a API DeepL.
  *
  * Camadas, de cima para baixo:
  *   1. normalização do texto (acentos, caixa, pontuação);
@@ -9,12 +9,14 @@
  *      MOLETOM, GOLA ALTA) são resolvidos olhando as outras peças da própria descrição;
  *   4. montador: a frase em inglês segue a estrutura combinada com o negócio, e as
  *      preposições do português dizem o papel de cada termo (COM = detalhe, DE/EM +
- *      tecido = material, termo solto = adjetivo pela posição do índice).
+ *      tecido = material, termo solto = adjetivo pela posição do índice);
+ *   5. montador do espanhol: segue a frase em português ao pé da letra, com concordância.
  *
- * Decisões de 24/10/2026 (ver CLAUDE.md, "Estrutura da frase em inglês").
+ * Decisões de 24/10/2026 (ver CLAUDE.md, "Estrutura da frase em inglês") e de 29/10/2026
+ * (docs/decisoes-espanhol-2026-10-29.md).
  */
 
-const { termosGlossario, expressoesCompostas } = require('./tabelaMestra');
+const { termosGlossario } = require('./tabelaMestra');
 
 /* ==================== 1. Normalização ==================== */
 
@@ -172,19 +174,23 @@ function resolverSentido(alternativas, { outraPeca, pecaAgasalho }) {
   return { ...(semContexto || alternativas[0]) };
 }
 
-function listarCorrespondencias(textoPT, idiomaDestino = 'EN') {
-  const langKey = idiomaDestino.toUpperCase().startsWith('ES') ? 'ES' : 'EN';
-  if (langKey !== 'EN') return [];
-
+// O casamento é feito no português, então vale para os dois idiomas de destino.
+function listarCorrespondencias(textoPT) {
   const preparado = prepararTextoParaBusca(textoPT);
   const textoNormalizado = preparado.normalizado;
   if (!textoNormalizado) return [];
 
   // Passo 1: candidatas por chave (uma regex por chave, não por entrada).
   const candidatas = [];
-  for (const { regex, alternativas } of chavesPreparadas) {
+  for (const { chave, regex, alternativas } of chavesPreparadas) {
     const indicePrimario = Math.min(...alternativas.map(t => t.indice));
     for (const ocorrencia of acharOcorrencias(textoNormalizado, regex)) {
+      // Termo que, sem acento, é um conectivo (NÓ = NO, NÓS = NOS) só casa escrito com o acento:
+      // "COM FAIXA NO PESCOÇO" é a contração, não um nó.
+      if (Object.prototype.hasOwnProperty.call(CONECTIVOS, chave)) {
+        const original = preparado.originalMaiusculo.slice(preparado.mapaInicio[ocorrencia.inicio], preparado.mapaFim[ocorrencia.fim - 1]);
+        if (original !== alternativas[0].pt.toUpperCase()) continue;
+      }
       candidatas.push({ ...ocorrencia, alternativas, indicePrimario, textoEncontrado: textoNormalizado.slice(ocorrencia.inicio, ocorrencia.fim) });
     }
   }
@@ -213,14 +219,19 @@ function listarCorrespondencias(textoPT, idiomaDestino = 'EN') {
   });
 }
 
-// Pares PT → EN do glossário encontrados numa descrição, na ordem em que aparecem.
+const ehEspanhol = idiomaDestino => String(idiomaDestino).toUpperCase().startsWith('ES');
+
+// Pares PT → tradução do glossário encontrados numa descrição, na ordem em que aparecem. No
+// espanhol a tradução é a forma que o montador usou, já com a concordância (ACETINADA →
+// SATINADO em PANTALÓN), para o contexto da DeepL não ensinar o gênero errado.
 function paresDoGlossario(textoPT, idiomaDestino = 'EN') {
-  return listarCorrespondencias(textoPT, idiomaDestino).map(({ termo }) => ({ pt: termo.pt, en: termo.en }));
+  if (ehEspanhol(idiomaDestino)) return montarTraducaoES(textoPT).termos.map(({ pt, es }) => ({ pt, traducao: es }));
+  return listarCorrespondencias(textoPT).map(({ termo }) => ({ pt: termo.pt, traducao: termo.en }));
 }
 
 function montarContextoDePares(pares) {
   const unicos = new Map();
-  for (const { pt, en } of pares) unicos.set(`${pt} → ${en}`, `${pt} = ${en}`);
+  for (const { pt, traducao } of pares) unicos.set(`${pt} → ${traducao}`, `${pt} = ${traducao}`);
   if (unicos.size === 0) return '';
   return `Use estas traduções técnicas para os termos encontrados: ${Array.from(unicos.values()).join('; ')}.`;
 }
@@ -230,7 +241,6 @@ function montarContextoDePares(pares) {
  * O contexto orienta a API, mas não é uma garantia de aplicação exata.
  */
 function montarContextoGlossario(textosPT, idiomaDestino = 'EN') {
-  if (!idiomaDestino.toUpperCase().startsWith('EN')) return '';
   return montarContextoDePares(textosPT.flatMap(texto => paresDoGlossario(texto, idiomaDestino)));
 }
 
@@ -247,10 +257,10 @@ function montarLotesParaTraducao(textosPT, idiomaDestino = 'EN', { tamanhoMaximo
     porChave.get(chave).posicoes.push(posicao);
   });
 
-  const conflita = (sentidos, pares) => pares.some(({ pt, en }) => sentidos.has(pt) && sentidos.get(pt) !== en);
+  const conflita = (sentidos, pares) => pares.some(({ pt, traducao }) => sentidos.has(pt) && sentidos.get(pt) !== traducao);
   const lotes = [];
   for (const { texto, posicoes } of porChave.values()) {
-    const pares = idiomaDestino.toUpperCase().startsWith('EN') ? paresDoGlossario(texto, idiomaDestino) : [];
+    const pares = paresDoGlossario(texto, idiomaDestino);
     let lote = lotes.find(candidato => candidato.textos.length < tamanhoMaximo && !conflita(candidato.sentidos, pares));
     if (!lote) {
       lote = { textos: [], posicoes: [], pares: [], sentidos: new Map() };
@@ -259,7 +269,7 @@ function montarLotesParaTraducao(textosPT, idiomaDestino = 'EN', { tamanhoMaximo
     lote.textos.push(texto);
     lote.posicoes.push(posicoes);
     lote.pares.push(...pares);
-    for (const { pt, en } of pares) lote.sentidos.set(pt, en);
+    for (const { pt, traducao } of pares) lote.sentidos.set(pt, traducao);
   }
 
   return lotes.map(lote => ({ textos: lote.textos, posicoes: lote.posicoes, contexto: montarContextoDePares(lote.pares) }));
@@ -299,8 +309,8 @@ const MODIFICADOR_DE_DETALHE = new Set([9, 10, 12]); // soltos após um detalhe,
 const DETALHES_QUE_ACEITAM_DE = new Set([10, 11, 12]);  // COM BOTÕES EM METAL, COM DETALHE EM ZÍPER
 
 /**
- * Monta a tradução de uma descrição a partir dos termos da tabela.
- * Devolve { estado, traducao, desconhecidas, termos }:
+ * Monta a tradução de uma descrição a partir dos termos da tabela, em inglês (padrão) ou em
+ * espanhol (montarTraducaoES, seção 5). Devolve { estado, traducao, desconhecidas, termos }:
  *   estado 'tabela'       → todas as palavras cobertas, uma peça, até 40 caracteres;
  *          'acima-de-40'  → montada, mas passou do limite do SAP (nunca é cortada);
  *          'desconhecida' → há palavra fora da tabela (candidata à DeepL + validação);
@@ -310,11 +320,17 @@ const DETALHES_QUE_ACEITAM_DE = new Set([10, 11, 12]);  // COM BOTÕES EM METAL,
  * conhecidos e as palavras desconhecidas ficam no fim, em português.
  */
 function montarTraducao(textoPT, idiomaDestino = 'EN') {
+  return idiomaDestino.toUpperCase().startsWith('ES') ? montarTraducaoES(textoPT) : montarTraducaoEN(textoPT);
+}
+
+// Quebra a descrição em unidades, na ordem do texto: termo casado (com a preposição que
+// define o seu papel), conectivo ou palavra desconhecida. É a mesma análise para os dois
+// idiomas: o casamento é feito no português.
+function analisarDescricao(textoPT) {
   const preparado = prepararTextoParaBusca(textoPT);
   const normalizado = preparado.normalizado;
-  const casos = listarCorrespondencias(textoPT, idiomaDestino);
+  const casos = listarCorrespondencias(textoPT);
 
-  // Unidades na ordem do texto: termo casado, conectivo ou palavra desconhecida.
   const unidades = [];
   const regexPalavra = /[A-Z0-9/]+/g;
   let palavra;
@@ -327,7 +343,7 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
       continue;
     }
     if (Object.prototype.hasOwnProperty.call(CONECTIVOS, palavra[0])) {
-      unidades.push({ tipo: 'conectivo', papel: CONECTIVOS[palavra[0]] });
+      unidades.push({ tipo: 'conectivo', papel: CONECTIVOS[palavra[0]], palavra: palavra[0] });
       continue;
     }
     unidades.push({ tipo: 'desconhecida', valor: preparado.originalMaiusculo.slice(preparado.mapaInicio[inicio], preparado.mapaFim[fim - 1]) });
@@ -353,6 +369,11 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
     papelPendente = null;
   }
 
+  return { preparado, unidades };
+}
+
+function montarTraducaoEN(textoPT) {
+  const { preparado, unidades } = analisarDescricao(textoPT);
   const termos = unidades.filter(u => u.tipo === 'termo');
   const desconhecidas = unidades.filter(u => u.tipo === 'desconhecida').map(u => u.valor);
 
@@ -433,7 +454,7 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
   });
 
   antes.sort((a, b) => a.posicao - b.posicao || a.ordem - b.ordem);
-  // LOW e CINTURA BAIXA são ambos LOW-RISE: um inglês repetido entra uma vez.
+  // Dois termos com o mesmo inglês (SLIM e JUSTA são ambos SLIM): um inglês repetido entra uma vez.
   const vistos = new Set();
   const antesUnicos = antes.filter(a => !vistos.has(a.en) && vistos.add(a.en));
   const palavrasNucleo = nucleoEn ? nucleoEn.split(' ') : [];
@@ -461,25 +482,223 @@ function montarTraducao(textoPT, idiomaDestino = 'EN') {
   return { estado, traducao, desconhecidas, termos: termos.map(u => ({ pt: u.termo.pt, en: u.termo.en, indice: u.termo.indice, prep: u.prep })) };
 }
 
-/**
- * Tradução local: em inglês, a frase montada pela estrutura; em espanhol, o legado
- * (substituição das poucas expressões cadastradas), até a tabela ter a coluna ES.
- */
-function processarTraducaoLocal(textoPT, idiomaDestino = 'EN') {
-  const langKey = idiomaDestino.toUpperCase().startsWith('ES') ? 'ES' : 'EN';
+/* ==================== 5. Montador da frase em espanhol ==================== */
 
-  if (langKey === 'ES') {
-    let resultado = prepararTextoParaBusca(textoPT).normalizado;
-    for (const expressao of expressoesCompostas.ES) {
-      resultado = resultado.replace(
-        new RegExp(`(^|[^A-Z0-9])${escaparRegex(normalizarParaBusca(expressao.pt))}(?=$|[^A-Z0-9])`, 'g'),
-        (_, prefixo) => `${prefixo}${expressao.target}`
-      );
-    }
-    return resultado;
+/*
+ * Regras do dono (29/10/2026; ver docs/decisoes-espanhol-2026-10-29.md): o espanhol segue a
+ * frase em português ao pé da letra, termo a termo pelo glossário. Nada muda de lugar e
+ * nenhuma preposição entra ou sai. Os ajustes permitidos são de gramática:
+ *   - concordância: o adjetivo concorda, no ES, com o mesmo substantivo com que concorda no
+ *     PT (CALÇA PIJAMA LISTRADA → PANTALÓN PIJAMA RAYADO; COM GOLA BORDADA → CON CUELLO BORDADO);
+ *   - E e + viram Y (E antes de I ou HI, pela ortografia espanhola);
+ *   - COM/DE antes de um termo cujo ES é adjetivo cai (BLAZER DE ALFAIATARIA → BLAZER SASTRE);
+ *   - REGATA como segunda peça é SIN MANGAS (VESTIDO REGATA → VESTIDO SIN MANGAS).
+ * As fusões do EN (JORTS, HOODIE, SWEATPANTS, peça específica que absorve a genérica) valem
+ * só no inglês e não existem aqui.
+ */
+
+// Conectivos do português no espanhol. EM vira DE antes de um termo do glossário (EM PU = DE
+// PU) e EN antes de palavra desconhecida (EM V = EN V). Contrações e artigos concordam com o
+// substantivo espanhol seguinte (NAS MANGAS = EN LAS MANGAS); sem ele, seguem o português.
+const CONECTIVOS_ES = {
+  COM: 'CON', 'C/': 'CON', SEM: 'SIN', 'S/': 'SIN',
+  DE: 'DE', DA: 'DE', DO: 'DE', DAS: 'DE', DOS: 'DE',
+  E: 'Y', A: 'A', PARA: 'PARA', 'P/': 'PARA'
+};
+const ARTIGOS_PT = { NO: ['EN', 'ms'], NA: ['EN', 'fs'], NOS: ['EN', 'mp'], NAS: ['EN', 'fp'], O: ['', 'ms'], OS: ['', 'mp'], AS: ['', 'fp'] };
+const ARTIGOS_ES = { ms: 'EL', fs: 'LA', mp: 'LOS', fp: 'LAS' };
+const PREPOSICOES_ES = new Set(['CON', 'SIN', 'DE', 'EN', 'A', 'PARA']);
+// Preposições que caem antes de um termo cujo ES é adjetivo (R6).
+const CAEM_ANTES_DE_ADJETIVO = new Set(['COM', 'C/', 'DE', 'DA', 'DO', 'DAS', 'DOS', 'EM']);
+// Peças que, coladas depois de outra, fazem papel de modelo dela (decisões de 26 e 29/10/2026:
+// VESTIDO BLAZER, VESTIDO POLO, CAMISA PIJAMA, SAIA PAREO, BLUSA CORSET JEANS, TOP CROPPED
+// LINGERIE, SAIA CURTA ANÁGUA, VESTIDO REGATA). Outra peça colada (MEIA CALÇA, CALÇA LEGGING)
+// é sinal de expressão que falta na tabela, e SLEEP/SLIP esperam o dono: revisão.
+const SEGUNDAS_PECAS_ES = new Set(['BLAZER', 'POLO', 'PIJAMA', 'PAREO', 'CORSET JEANS', 'LINGERIE', 'ANAGUA', 'REGATA']);
+
+// Gênero no PT de substantivos cuja terminação engana (chave sem acento; expressão inteira
+// antes da palavra, como T SHIRT). O resto segue a terminação: -A/-ÇÃO/-GEM/-DADE/-OSE
+// femininos, o restante masculino; -S final é plural.
+const GENERO_PT = {
+  LEGGING: 'fs', LEGGINGS: 'fp', 'T SHIRT': 'fs', 'MINI SAIA': 'fs', LINGERIE: 'fs', VISCOSE: 'fs', PELE: 'fs',
+  REDE: 'fs', BASE: 'fs', CORRENTE: 'fs', CORRENTES: 'fp', FLOR: 'fs', ARTE: 'fs', MAO: 'fs', TRICOLINE: 'fs',
+  GEORGETTE: 'fs', PIJAMA: 'ms', CLIMA: 'ms', MONOGRAMA: 'ms', COS: 'ms', VIES: 'ms', JEANS: 'ms', SHORTS: 'ms',
+  XADREZ: 'ms', ILHOS: 'mp', ILHOSES: 'mp', MACACAO: 'ms', CARDIGA: 'ms', TAFETA: 'ms', COMPOSE: 'ms',
+  'CORTA VENTO': 'ms', POLO: 'fs'
+};
+// Adjetivos que não mudam no gênero no PT apesar da terminação (VESTIDO MESCLA, BLUSA MESCLA).
+const ADJETIVOS_INVARIAVEIS_PT = new Set(['MESCLA']);
+
+// Gênero e número do substantivo no PT, pela palavra principal (a 1ª depois de COM/SEM/DE/EM):
+// é com isso que se acha com quem o adjetivo concorda na frase em português.
+function generoNumeroPT(textoPT) {
+  const palavras = prepararTermo(textoPT).chave.split(' ');
+  const inicio = palavras.findIndex(p => !/^(COM|C\/|SEM|S\/|DE|EM)$/.test(p));
+  const palavra = palavras[Math.max(inicio, 0)];
+  const excecao = GENERO_PT[palavras.slice(Math.max(inicio, 0)).join(' ')] || GENERO_PT[palavra];
+  if (excecao) return { genero: excecao[0], numero: excecao[1] };
+  if (/(COES|SOES|GENS|DADES|OSES|AS)$/.test(palavra)) return { genero: 'f', numero: 'p' };
+  if (/(CAO|SAO|GEM|DADE|OSE|A)$/.test(palavra)) return { genero: 'f', numero: 's' };
+  if (/[^S]S$/.test(palavra)) return { genero: 'm', numero: 'p' };
+  return { genero: 'm', numero: 's' };
+}
+
+// Gênero e número de um adjetivo no PT pela terminação (ESTAMPADA = f/s). Adjetivo que não
+// muda no gênero (FRONTAL, LEVE) devolve gênero null e concorda com o substantivo mais próximo.
+function generoNumeroAdjetivoPT(textoPT) {
+  const palavra = prepararTermo(textoPT).chave.split(' ').at(-1);
+  if (ADJETIVOS_INVARIAVEIS_PT.has(palavra)) return { genero: null, numero: 's' };
+  if (/OS$/.test(palavra)) return { genero: 'm', numero: 'p' };
+  if (/AS$/.test(palavra)) return { genero: 'f', numero: 'p' };
+  if (/O$/.test(palavra)) return { genero: 'm', numero: 's' };
+  if (/A$/.test(palavra)) return { genero: 'f', numero: 's' };
+  return { genero: null, numero: /S$/.test(palavra) ? 'p' : 's' };
+}
+
+const chaveDoTermo = unidade => prepararTermo(unidade.termo.pt).chave;
+// Só COM abre um detalhe para a concordância: em SEM MANGA ALONGADA o adjetivo é da peça (não
+// existe "manga alongada" para concordar), e SIN MANGAS ainda mudaria o número para plural.
+const abreDetalhe = unidade => unidade.prep === 'COM' || /^(COM|C\/) /.test(chaveDoTermo(unidade));
+
+// Último elemento da lista que atende ao critério (o mais próximo, olhando para trás).
+function ultimoQue(lista, criterio) {
+  for (let i = lista.length - 1; i >= 0; i -= 1) if (criterio(lista[i])) return lista[i];
+  return null;
+}
+
+/**
+ * Monta a tradução em espanhol. Mesmo retorno de montarTraducaoEN; `termos` traz o ES usado
+ * em cada termo (`es`), já com a concordância. Estados: 'tabela', 'acima-de-40',
+ * 'desconhecida' (palavra fora da tabela fica no lugar, em português), 'sem-peca' e
+ * 'varias-pecas' (mais de uma peça fora de um KIT). As segundas peças decididas
+ * (SEGUNDAS_PECAS_ES: VESTIDO BLAZER, SAIA CURTA ANÁGUA...) e o KIT seguem o PT e não pedem revisão.
+ */
+function montarTraducaoES(textoPT) {
+  // "+" liga peças como o E (KIT BLUSA + SAIA) e vira Y.
+  const { unidades } = analisarDescricao(String(textoPT ?? '').replace(/\+/g, ' E '));
+  const termos = unidades.filter(u => u.tipo === 'termo');
+  const desconhecidas = unidades.filter(u => u.tipo === 'desconhecida').map(u => u.valor);
+  if (!termos.length) {
+    return { estado: desconhecidas.length ? 'desconhecida' : 'sem-peca', traducao: String(textoPT ?? '').toUpperCase().trim(), desconhecidas, termos: [] };
   }
 
-  return montarTraducao(textoPT, 'EN').traducao;
+  // Peças, como no EN ("COM X" nunca é a peça).
+  let pecas = termos.filter(u => u.prep !== 'COM' && ehPeca(u.termo));
+  if (!pecas.length) pecas = termos.filter(u => u.prep !== 'COM' && ehPecaPorModelo(u.termo));
+  const nucleo = pecas[0] || null;
+  const ehKit = Boolean(nucleo) && chaveDoTermo(nucleo) === 'KIT';
+  // REGATA depois de outra peça é a manga da primeira; num KIT é peça própria (CAMISETA SIN MANGAS).
+  const regataComoManga = new Set(pecas.filter(u => u !== nucleo && !ehKit && chaveDoTermo(u) === 'REGATA'));
+  const pecasReais = pecas.filter(u => !regataComoManga.has(u));
+  const colada = u => unidades[unidades.indexOf(u) - 1]?.tipo === 'termo' && SEGUNDAS_PECAS_ES.has(chaveDoTermo(u));
+  const variasPecas = !ehKit && pecas.slice(1).some(u => !colada(u));
+
+  // Substantivos com que um adjetivo pode concordar, na ordem em que aparecem. O modelo de
+  // jaqueta (PUFFER, BOMBER) e a segunda peça colada (CAMISA POLO, VESTIDO BLAZER), que fazem
+  // papel de modelo, cedem o gênero à peça.
+  const comoAlvo = u => {
+    const es = u.termo.es;
+    if (!es?.genero || regataComoManga.has(u) || (u !== nucleo && colada(u))) return null;
+    if (u.termo.indice === 14 && nucleo && u !== nucleo) return null;
+    const pt = generoNumeroPT(u.termo.pt);
+    return { generoPT: pt.genero, numeroPT: pt.numero, formaES: es.genero + (es.numero || 's'), peca: pecasReais.includes(u) };
+  };
+  const alvoDoNucleo = nucleo ? comoAlvo(nucleo) : null;
+  const alvos = [];
+  let detalheAberto = null; // substantivo de um "COM X" logo antes: COM GOLA BORDADA
+
+  const formaConcordada = u => {
+    const { formas, texto } = u.termo.es;
+    const adjetivo = generoNumeroAdjetivoPT(u.termo.pt);
+    // Depois de COM/SEM o particípio é substantivo (COM DRAPEADO = CON DRAPEADO): forma do próprio PT.
+    if (u.prep === 'COM' || u.prep === 'SEM') return formas[(adjetivo.genero || 'm') + adjetivo.numero] || texto;
+    const combina = alvo => (!adjetivo.genero || alvo.generoPT === adjetivo.genero) && alvo.numeroPT === adjetivo.numero;
+    const alvo = (detalheAberto && combina(detalheAberto) ? detalheAberto : null)
+      || ultimoQue(alvos, a => a.peca && combina(a))
+      || ultimoQue(alvos, a => !a.peca && combina(a));
+    if (alvo) return formas[alvo.formaES] || texto;
+    // Nenhum substantivo conhecido bate. Logo depois de uma palavra fora da tabela, é com ela que
+    // o adjetivo concorda (DE TUELE ESTAMPADO): fica a forma do PT. Senão, a peça principal
+    // (erro de concordância do PT, como ETIQUETA BORDADO, sai certo).
+    const desconhecidaAntes = unidades[unidades.indexOf(u) - 1]?.tipo === 'desconhecida';
+    if (desconhecidaAntes && adjetivo.genero) return formas[adjetivo.genero + adjetivo.numero] || texto;
+    const reserva = alvoDoNucleo || alvos.at(-1);
+    return (reserva && formas[reserva.formaES]) || texto;
+  };
+
+  const conectivo = (u, proxima) => {
+    const termo = proxima?.tipo === 'termo' ? proxima.termo : null;
+    if (termo?.es?.adjetivo && CAEM_ANTES_DE_ADJETIVO.has(u.palavra)) return '';
+    if (u.palavra === 'EM') return termo ? 'DE' : 'EN';
+    if (ARTIGOS_PT[u.palavra]) {
+      const [preposicao, formaPT] = ARTIGOS_PT[u.palavra];
+      const forma = termo?.es?.genero ? termo.es.genero + (termo.es.numero || 's') : formaPT;
+      return [preposicao, ARTIGOS_ES[forma]].filter(Boolean).join(' ');
+    }
+    return CONECTIVOS_ES[u.palavra] ?? u.palavra;
+  };
+
+  const saida = [];
+  const usados = [];
+  let preposicaoAnterior = false; // a última palavra da saída é uma preposição vinda de um conectivo
+  unidades.forEach((u, i) => {
+    if (u.tipo === 'desconhecida') {
+      saida.push(u.valor);
+      detalheAberto = null;
+      preposicaoAnterior = false;
+      return;
+    }
+    if (u.tipo === 'conectivo') {
+      const texto = conectivo(u, unidades[i + 1]);
+      saida.push(texto);
+      preposicaoAnterior = PREPOSICOES_ES.has(texto);
+      detalheAberto = null;
+      return;
+    }
+    const es = u.termo.es;
+    let texto;
+    if (regataComoManga.has(u)) texto = 'SIN MANGAS';
+    else if (es?.classe === 'flexivel') texto = formaConcordada(u);
+    else texto = es?.texto || u.termo.pt; // todo termo FECHADO tem ES (um teste confere)
+    // Expressão que traz a própria preposição (COM CAPUZ = CON CAPUCHA, ESPINHA DE PEIXE = DE
+    // ESPIGA, OMBRO ÚNICO = DE UN SOLO HOMBRO) vale no lugar da preposição do PT (R9). O Y fica,
+    // e o SIN também: tirar a negação inverteria o sentido (SEM ESPINHA DE PEIXE).
+    if (preposicaoAnterior && saida.at(-1) !== 'SIN' && PREPOSICOES_ES.has(texto.split(' ')[0])) saida.pop();
+    preposicaoAnterior = false;
+    saida.push(texto);
+    usados.push({ pt: u.termo.pt, es: texto, indice: u.termo.indice, prep: u.prep });
+
+    const alvo = comoAlvo(u);
+    if (alvo) {
+      alvos.push(alvo);
+      detalheAberto = abreDetalhe(u) ? alvo : null;
+    }
+  });
+
+  // Descrição cortada pelo SAP no meio (… COM DETALHE DE ZÍPER E): o conectivo solto no fim
+  // cai, como no EN, em vez de deixar "Y" ou "CON" pendurado na frase em espanhol.
+  for (let i = unidades.length - 1; i >= 0 && unidades[i].tipo === 'conectivo'; i -= 1) saida.pop();
+
+  // Y vira E antes de palavra que começa com o som de I (Y IMPRESO → E IMPRESO; HIELO fica Y).
+  const palavras = saida.join(' ').split(' ').filter(Boolean);
+  const traducao = palavras
+    .map((palavra, i) => (palavra === 'Y' && /^(I|Í|HI(?![AEOUÁÉÓÚ])|HÍ)/.test(palavras[i + 1] || '') ? 'E' : palavra))
+    .join(' ');
+
+  let estado = 'tabela';
+  if (desconhecidas.length) estado = 'desconhecida';
+  else if (!nucleo) estado = 'sem-peca';
+  else if (variasPecas) estado = 'varias-pecas';
+  else if (traducao.length > LIMITE_SAP) estado = 'acima-de-40';
+
+  return { estado, traducao, desconhecidas, termos: usados };
+}
+
+/**
+ * Tradução local: a frase montada pela tabela mestra, no idioma pedido.
+ */
+function processarTraducaoLocal(textoPT, idiomaDestino = 'EN') {
+  return montarTraducao(textoPT, idiomaDestino).traducao;
 }
 
 module.exports = {
@@ -489,6 +708,7 @@ module.exports = {
   montarContextoGlossario,
   montarLotesParaTraducao,
   montarTraducao,
+  montarTraducaoES,
   processarTraducaoLocal,
   LIMITE_SAP
 };

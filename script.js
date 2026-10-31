@@ -5,11 +5,16 @@
  */
 
 const {
-  LIMITE_CARACTERES, normalizarEN, acimaDoLimite, textoContador, precisaTraduzir, linhaMarcada,
-  podeConfirmar, confirmarTraducao, aplicarTraducaoAutomatica, registrarEdicaoEN, limparTraducao,
+  LIMITE_CARACTERES, IDIOMAS, acimaDoLimite, textoContador, precisaTraduzir, linhaMarcada,
+  podeConfirmar, confirmarTraducao, aplicarTraducaoAutomatica, registrarEdicao, limparTraducao,
   descreverSelo, problemaDaLinha, resumirMassa, textoFaixaMassa, formatarQuantidade,
   FILTROS_RAPIDOS, passaNoFiltro, contarFiltros, verificarExportacao
 } = EstadoMassa;
+
+// Código de idioma da API para cada coluna (o EN da planilha é o inglês americano).
+const CODIGO_API = { EN: 'EN-US', ES: 'ES' };
+// Coluna de cada idioma na tabela em massa (REFERÊNCIA, PT, CORREÇÃO, EN, ES).
+const COLUNA_DO_IDIOMA = { EN: 3, ES: 4 };
 
 let dadosProcessados = [];
 let modoEdicao = false;
@@ -52,36 +57,46 @@ async function chamarApiTraduzirMassa(textosPT, targetLang) {
   return data;
 }
 
-function setSingularStatus(texto, alerta = false) {
-  const status = document.getElementById('singularStatus');
+// Campos da tela Individual de cada idioma.
+const SAIDA_INDIVIDUAL = {
+  EN: { campo: 'outputDescEN', status: 'singularStatus', contador: 'contadorEN' },
+  ES: { campo: 'outputDescES', status: 'singularStatusES', contador: 'contadorES' }
+};
+
+function setSingularStatus(texto, alerta = false, idioma = 'EN') {
+  const status = document.getElementById(SAIDA_INDIVIDUAL[idioma].status);
   if (!status) return;
   status.textContent = texto;
   status.classList.toggle('status-alerta', alerta);
 }
 
-function atualizarContadorEN(texto) {
-  const contador = document.getElementById('contadorEN');
+function atualizarContador(texto, idioma = 'EN') {
+  const contador = document.getElementById(SAIDA_INDIVIDUAL[idioma].contador);
   if (!contador) return;
   if (!texto) {
     contador.textContent = '';
     contador.classList.remove('estourou');
     return;
   }
-  contador.textContent = `${texto.length} / 40 caracteres`;
-  contador.classList.toggle('estourou', texto.length > 40);
+  contador.textContent = `${texto.length} / ${LIMITE_CARACTERES} caracteres`;
+  contador.classList.toggle('estourou', texto.length > LIMITE_CARACTERES);
 }
 
-function renderTermosAplicados(termos = []) {
+// Um chip por termo: "CALÇA = PANTS · PANTALÓN". O ES vem casado pelo PT do termo.
+function renderTermosAplicados(termosEN = [], termosES = []) {
   const caixa = document.getElementById('termosAplicados');
   if (!caixa) return;
   const lista = caixa.querySelector('.termos-lista');
   lista.replaceChildren();
-  termos.forEach(({ pt, en }) => {
-    const chip = document.createElement('span');
-    chip.textContent = `${pt} = ${en}`;
-    lista.appendChild(chip);
+  const espanhol = new Map(termosES.map(({ pt, es }) => [pt, es]));
+  const pts = [...new Set([...termosEN.map(t => t.pt), ...termosES.map(t => t.pt)])];
+  const ingles = new Map(termosEN.map(({ pt, en }) => [pt, en]));
+  pts.forEach(pt => {
+    const traducoes = [ingles.get(pt), espanhol.get(pt)].filter(Boolean);
+    lista.appendChild(criarElemento('span', { textContent: `${pt} = ${traducoes.join(' · ')}` }));
   });
-  caixa.hidden = termos.length === 0;
+  caixa.querySelector('.termos-contagem').textContent = pts.length;
+  caixa.hidden = pts.length === 0;
 }
 
 async function chamarApiSugerirCorrecoes(textos) {
@@ -96,37 +111,53 @@ async function chamarApiSugerirCorrecoes(textos) {
   return data.sugestoes;
 }
 
+// Texto da linha de status de um resultado da API, e se ele pede atenção.
+function descreverResultadoIndividual(resultado) {
+  const descricoes = {
+    tabela: ['Montada pela tabela mestra, sem chamar a DeepL.', false],
+    'acima-de-40': [`Montada pela tabela, mas passou de ${LIMITE_CARACTERES} caracteres: ajuste à mão.`, true],
+    deepl: [`Traduzida pela DeepL${resultado.motivo ? ` (${resultado.motivo})` : ''}; os termos do glossário foram conferidos.`, false],
+    revisar: [`A revisar: ${resultado.motivo}${resultado.sugestaoTabela ? `. Sugestão da tabela: ${resultado.sugestaoTabela}` : ''}`, true]
+  };
+  return descricoes[resultado.estado] || [`Origem: ${resultado.origem}`, false];
+}
+
+// Inglês e espanhol saem juntos, em duas chamadas em paralelo; a falha de um não apaga o outro.
 async function traduzirSingular() {
   const textoPT = document.getElementById('inputDescPT').value.trim().toUpperCase();
   if (!textoPT) return;
 
-  const inputEN = document.getElementById('outputDescEN');
-  const inputES = document.getElementById('outputDescES');
-  inputEN.value = 'Traduzindo...';
-  inputES.value = '';
-  setSingularStatus('');
-  atualizarContadorEN('');
-  renderTermosAplicados([]);
+  for (const idioma of IDIOMAS) {
+    document.getElementById(SAIDA_INDIVIDUAL[idioma].campo).value = 'Traduzindo...';
+    setSingularStatus('', false, idioma);
+    atualizarContador('', idioma);
+  }
+  renderTermosAplicados();
 
-  try {
-    const resultado = await chamarApiTraduzir(textoPT, 'EN-US');
-    inputEN.value = resultado.traducao;
-    atualizarContadorEN(resultado.traducao);
-    renderTermosAplicados(resultado.termos);
-    const descricoes = {
-      tabela: ['Montada pela tabela mestra, sem chamar a DeepL.', false],
-      'acima-de-40': ['Montada pela tabela, mas passou de 40 caracteres: ajuste à mão.', true],
-      deepl: [`Traduzida pela DeepL${resultado.motivo ? ` (${resultado.motivo})` : ''}; os termos do glossário foram conferidos.`, false],
-      revisar: [`A revisar: ${resultado.motivo}${resultado.sugestaoTabela ? `. Sugestão da tabela: ${resultado.sugestaoTabela}` : ''}`, true]
-    };
-    const [texto, alerta] = descricoes[resultado.estado] || [`Origem: ${resultado.origem}`, false];
-    setSingularStatus(texto, alerta);
-  } catch (error) {
-    console.error('Erro na tradução singular:', error);
-    inputEN.value = '';
+  const respostas = await Promise.allSettled(IDIOMAS.map(idioma => chamarApiTraduzir(textoPT, CODIGO_API[idioma])));
+  const termos = {};
+  const falhas = [];
+  respostas.forEach((resposta, i) => {
+    const idioma = IDIOMAS[i];
+    const campo = document.getElementById(SAIDA_INDIVIDUAL[idioma].campo);
+    if (resposta.status === 'rejected') {
+      console.error(`Erro na tradução individual (${idioma}):`, resposta.reason);
+      campo.value = '';
+      falhas.push(`${idioma}: ${resposta.reason.message}`);
+      return;
+    }
+    const resultado = resposta.value;
+    campo.value = resultado.traducao;
+    atualizarContador(resultado.traducao, idioma);
+    termos[idioma] = resultado.termos || [];
+    const [texto, alerta] = descreverResultadoIndividual(resultado);
+    setSingularStatus(texto, alerta, idioma);
+  });
+  renderTermosAplicados(termos.EN, termos.ES);
+  if (falhas.length) {
     avisar('Não foi possível traduzir', [
       'Verifique se o servidor do MODALIS está rodando (npm start).',
-      `Detalhe: ${error.message}`
+      ...falhas.map(falha => `Detalhe: ${falha}`)
     ]);
   }
 }
@@ -166,7 +197,7 @@ function setMassaStatus(texto, tipo = '') {
 // some na próxima atualização. Durante a tradução, o progresso tem prioridade.
 function atualizarFaixaMassa(prefixo = '') {
   if (itensEmTraducao === dadosProcessados) return;
-  const aviso = avisoTraducao && avisoTraducao.itens.some(precisaTraduzir) ? avisoTraducao.texto : '';
+  const aviso = avisoTraducao && avisoTraducao.itens.some(item => precisaTraduzir(item)) ? avisoTraducao.texto : '';
   const { texto, tipo } = textoFaixaMassa(resumirMassa(dadosProcessados), { prefixo, aviso });
   setMassaStatus(texto, tipo);
 }
@@ -265,7 +296,7 @@ function renderFiltrosRapidos() {
   const barra = document.getElementById('filtrosRapidos');
   if (!barra) return;
   const contagens = contarFiltros(dadosProcessados);
-  barra.hidden = !dadosProcessados.some(item => item.en);
+  barra.hidden = !dadosProcessados.some(item => item.en || item.es);
   // Filtro que ficou vazio (a última linha "a revisar" foi resolvida) volta para "Todas";
   // durante a edição não, porque as linhas só são refiltradas ao salvar.
   if (!modoEdicao && filtroRapido !== 'todas' && !contagens[filtroRapido]) filtroRapido = 'todas';
@@ -307,7 +338,7 @@ function renderRefsRevisar() {
   if (!container) return;
   container.replaceChildren();
   // Durante a tradução, as linhas que só ainda não foram enviadas apareceriam como pendentes.
-  if (itensEmTraducao === dadosProcessados || !dadosProcessados.some(item => item.en)) return;
+  if (itensEmTraducao === dadosProcessados || !dadosProcessados.some(item => item.en || item.es)) return;
   const pendentes = dadosProcessados
     .map((item, index) => ({ item, index, problema: problemaDaLinha(item) }))
     .filter(({ problema }) => problema && problema !== 'grafia');
@@ -373,6 +404,12 @@ async function processarArquivo(event) {
           motivoEN: '',
           enAutomatico: '', // texto que a máquina entregou; base do "tinha X" depois de editar
           confirmadaEN: false, // linha marcada aprovada na revisão sem mudar o texto
+          // O espanhol tem os mesmos controles, independentes dos do inglês.
+          origemES: '',
+          estadoES: '',
+          motivoES: '',
+          esAutomatico: '',
+          confirmadaES: false,
           ecom: obterValor(row, colunas.ecom),
           compPT: obterValor(row, colunas.compPT),
           compEN: obterValor(row, colunas.compEN),
@@ -429,10 +466,10 @@ function manterOriginal(index) {
   atualizarFaixaMassa();
 }
 
-// Tira a marca de uma linha "a revisar" ou "DeepL falhou" cuja tradução está certa.
-function confirmarLinha(index) {
+// Tira a marca de uma tradução "a revisar" ou "DeepL falhou" que está certa.
+function confirmarLinha(index, idioma) {
   const item = dadosProcessados[index];
-  if (!item || !confirmarTraducao(item)) return;
+  if (!item || !confirmarTraducao(item, idioma)) return;
   renderTabelaMassa();
   atualizarFaixaMassa();
 }
@@ -633,35 +670,7 @@ function renderTabelaMassa() {
     }
     tr.appendChild(celulaCorrecao);
 
-    const en = criarCelula(item.en);
-    const es = criarCelula(item.es);
-    aplicarContador(en, item.en);
-    aplicarContador(es, item.es);
-    gravarFiltroEN(en, item);
-    if (modoEdicao) {
-      en.contentEditable = 'true';
-      es.contentEditable = 'true';
-      en.classList.add('celula-editavel');
-      es.classList.add('celula-editavel');
-    } else {
-      const selo = descreverSelo(item);
-      if (selo) {
-        const marca = document.createElement('small');
-        marca.className = selo.classe;
-        marca.textContent = selo.texto;
-        en.appendChild(marca);
-      }
-      if (podeConfirmar(item)) {
-        const acoes = document.createElement('div');
-        acoes.className = 'acoes-correcao';
-        const botao = criarBotaoPequeno('Confirmar', 'btn-default', () => confirmarLinha(index));
-        botao.title = 'A tradução está certa: tira a marca sem mudar o texto';
-        acoes.appendChild(botao);
-        en.appendChild(acoes);
-      }
-    }
-    tr.appendChild(en);
-    tr.appendChild(es);
+    for (const idioma of IDIOMAS) tr.appendChild(celulaDeTraducao(item, index, idioma));
     tbody.appendChild(tr);
   });
 
@@ -670,6 +679,28 @@ function renderTabelaMassa() {
   document.getElementById('resultMassaCard').style.display = 'block';
   filtrarTabelaMassa();
   atualizarBotaoTraduzir();
+}
+
+// Célula EN ou ES: texto, contador, selo de origem e o botão Confirmar; no modo de edição,
+// só o texto editável (o selo voltaria para dentro do texto salvo).
+function celulaDeTraducao(item, index, idioma) {
+  const texto = idioma === 'ES' ? item.es : item.en;
+  const celula = criarCelula(texto);
+  aplicarContador(celula, texto);
+  gravarFiltro(celula, item, idioma);
+  if (modoEdicao) {
+    celula.contentEditable = 'true';
+    celula.classList.add('celula-editavel');
+    return celula;
+  }
+  const selo = descreverSelo(item, idioma);
+  if (selo) celula.appendChild(criarElemento('small', { className: selo.classe, textContent: selo.texto }));
+  if (podeConfirmar(item, idioma)) {
+    const botao = criarBotaoPequeno('Confirmar', 'btn-default', () => confirmarLinha(index, idioma));
+    botao.title = 'A tradução está certa: tira a marca sem mudar o texto';
+    celula.appendChild(criarElemento('div', { className: 'acoes-correcao' }, botao));
+  }
+  return celula;
 }
 
 // Contador "38/40" no canto da célula, desenhado pelo CSS (::after) a partir do atributo
@@ -682,19 +713,19 @@ function aplicarContador(celula, texto) {
   celula.toggleAttribute('data-estourou', acimaDoLimite(texto));
 }
 
-// O filtro da coluna EN procura no texto e no selo ("ACIMA", "A REVISAR", "EDITADO"),
+// O filtro das colunas EN e ES procura no texto e no selo ("ACIMA", "A REVISAR", "EDITADO"),
 // também no modo de edição, quando o selo não aparece: sem isso, filtrar "ACIMA" e clicar
 // em Alterar esconderia todas as linhas.
-function gravarFiltroEN(celula, item) {
-  const selo = descreverSelo(item);
-  if (selo) celula.dataset.valorFiltro = `${item.en} ${selo.texto}`;
+function gravarFiltro(celula, item, idioma) {
+  const selo = descreverSelo(item, idioma);
+  if (selo) celula.dataset.valorFiltro = `${idioma === 'ES' ? item.es : item.en} ${selo.texto}`;
   else delete celula.dataset.valorFiltro;
 }
 
 function atualizarBotaoTraduzir() {
   const btn = document.getElementById('btnTraduzirMassa');
   if (!btn) return;
-  const pendentes = dadosProcessados.filter(precisaTraduzir).length;
+  const pendentes = dadosProcessados.filter(item => precisaTraduzir(item)).length;
   const traduzidas = dadosProcessados.length - pendentes;
   btn.textContent = traduzidas && pendentes ? `Traduzir pendentes (${pendentes})` : 'Traduzir';
 }
@@ -749,11 +780,11 @@ async function traduzirMassa() {
     return;
   }
 
-  // Só o que está pendente vai para a API: linhas já traduzidas, editadas à mão ou
-  // confirmadas ficam. `itens` é capturado antes do await: se outra planilha for importada
-  // durante a espera, a resposta pertence à planilha antiga e é descartada.
+  // Só o que está pendente vai para a API, idioma por idioma: textos já traduzidos, editados
+  // à mão ou confirmados ficam. `itens` é capturado antes do await: se outra planilha for
+  // importada durante a espera, a resposta pertence à planilha antiga e é descartada.
   const itens = dadosProcessados;
-  const alvos = itens.filter(precisaTraduzir);
+  const alvos = itens.filter(item => precisaTraduzir(item));
   if (!alvos.length) {
     atualizarFaixaMassa('Nenhuma linha para enviar à tradução.');
     return;
@@ -768,8 +799,9 @@ async function traduzirMassa() {
   itensEmTraducao = itens;
   avisoTraducao = null;
   let prefixo = '';
-  // Descrições iguais vão uma vez só, em partes de TAMANHO_PARTE, com progresso na tela.
-  // O que já voltou fica gravado mesmo que uma parte falhe no meio.
+  // Descrições iguais vão uma vez só, em partes de TAMANHO_PARTE, com progresso na tela. Em
+  // cada parte, inglês e espanhol saem em paralelo, cada um só com as descrições que ainda
+  // precisam dele. O que já voltou fica gravado mesmo que uma parte falhe no meio.
   const porChave = new Map();
   for (const item of alvos) {
     const chave = item.pt.trim().toUpperCase();
@@ -778,47 +810,67 @@ async function traduzirMassa() {
   }
   const chaves = Array.from(porChave.keys());
   const totalPartes = Math.ceil(chaves.length / TAMANHO_PARTE);
-  setMassaStatus(`Enviando ${chaves.length} descrições distintas (${alvos.length} linhas) em ${totalPartes} parte(s)...`);
+  setMassaStatus(`Enviando ${chaves.length} descrições distintas (${alvos.length} linhas) em ${totalPartes} parte(s), em inglês e espanhol...`);
   try {
     const errosVistos = [];
     let feitas = 0;
-    let falhas = 0; // linhas desta rodada que voltaram do motor local
+    let enviadas = 0; // traduções (linha × idioma) gravadas nesta rodada
+    let falhas = 0; // dessas, as que voltaram do motor local
     let interrompido = '';
     for (let inicio = 0; inicio < chaves.length; inicio += TAMANHO_PARTE) {
       const parte = chaves.slice(inicio, inicio + TAMANHO_PARTE);
-      const { traducoes, origens = [], estados = [], motivos = [], erros = [] } = await chamarApiTraduzirMassa(parte.map(chave => porChave.get(chave)[0].pt), 'EN-US');
+      const pedidos = IDIOMAS.map(idioma => {
+        const chavesDoIdioma = parte.filter(chave => porChave.get(chave).some(item => precisaTraduzir(item, idioma)));
+        if (!chavesDoIdioma.length) return null;
+        return chamarApiTraduzirMassa(chavesDoIdioma.map(chave => porChave.get(chave)[0].pt), CODIGO_API[idioma])
+          .then(resposta => ({ idioma, chavesDoIdioma, resposta }), erro => { throw Object.assign(erro, { idioma }); });
+      }).filter(Boolean);
+      // allSettled: se um idioma falhar, o que o outro já trouxe é gravado antes de parar.
+      const resultados = await Promise.allSettled(pedidos);
       if (dadosProcessados !== itens) {
         atualizarFaixaMassa('Outra planilha foi importada durante a tradução; o resultado da anterior foi descartado.');
         return;
       }
-      parte.forEach((chave, j) => porChave.get(chave).forEach(item => {
-        if (!precisaTraduzir(item)) return; // a linha foi confirmada durante a espera
-        aplicarTraducaoAutomatica(item, { traducao: traducoes[j], origem: origens[j], estado: estados[j], motivo: motivos[j] });
-        if (item.origemEN === 'local') falhas += 1;
-      }));
-      erros.forEach(erro => { if (!errosVistos.includes(erro)) errosVistos.push(erro); });
+      const respostas = resultados.filter(r => r.status === 'fulfilled').map(r => r.value);
+      const rejeicoes = resultados.filter(r => r.status === 'rejected').map(r => r.reason);
+      for (const { idioma, chavesDoIdioma, resposta } of respostas) {
+        const { traducoes, origens = [], estados = [], motivos = [], erros = [] } = resposta;
+        chavesDoIdioma.forEach((chave, j) => porChave.get(chave).forEach(item => {
+          if (!precisaTraduzir(item, idioma)) return; // confirmada durante a espera
+          aplicarTraducaoAutomatica(item, { traducao: traducoes[j], origem: origens[j], estado: estados[j], motivo: motivos[j] }, idioma);
+          enviadas += 1;
+          if (origens[j] === 'local') falhas += 1;
+        }));
+        erros.forEach(erro => { if (!errosVistos.includes(erro)) errosVistos.push(erro); });
+        // DeepL suspensa (limite de taxa ou indisponível): parar de enviar; o restante fica
+        // pendente para "Traduzir pendentes" daqui a alguns minutos.
+        const remotas = origens.filter(origem => origem !== 'tabela');
+        if (remotas.length && remotas.every(origem => origem === 'local') && erros.some(erro => /suspensas|limitando/.test(erro))) {
+          interrompido = erros.find(erro => /suspensas|limitando/.test(erro));
+        }
+      }
       feitas += parte.length;
       renderTabelaMassa();
-      // DeepL suspensa (limite de taxa ou indisponível): parar de enviar; o restante fica
-      // pendente para "Traduzir pendentes" daqui a alguns minutos.
-      const remotas = origens.filter(origem => origem !== 'tabela');
-      if (remotas.length && remotas.every(origem => origem === 'local') && erros.some(erro => /suspensas|limitando/.test(erro))) {
-        interrompido = erros.find(erro => /suspensas|limitando/.test(erro));
-        break;
+      // Falha de um idioma (servidor fora, erro 500) para a tradução, como antes do espanhol:
+      // o que voltou já está gravado e o restante fica para "Traduzir pendentes".
+      if (rejeicoes.length) {
+        const erro = new Error(rejeicoes.map(r => `${r.idioma}: ${semPontoFinal(r.message)}`).join(' | '));
+        throw erro;
       }
+      if (interrompido) break;
       setMassaStatus(`Traduzidas ${feitas} de ${chaves.length} descrições distintas (parte ${Math.ceil(feitas / TAMANHO_PARTE)} de ${totalPartes})...`);
     }
 
     // O balanço da faixa vem de resumirMassa (planilha inteira); aqui fica só o recado da
     // rodada. Um problema fica preso às linhas que ele deixou pendentes.
-    const pendentes = alvos.filter(precisaTraduzir);
+    const pendentes = alvos.filter(item => precisaTraduzir(item));
     if (interrompido) {
       avisoTraducao = { texto: `Tradução interrompida: ${semPontoFinal(interrompido)}.`, itens: pendentes };
     } else if (falhas) {
       const marcadas = falhas === 1 ? 'ela foi montada pela tabela e está marcada' : 'elas foram montadas pela tabela e estão marcadas';
       const motivo = errosVistos.length ? ` Motivo: ${semPontoFinal(errosVistos.join(' | '))}.` : '';
       avisoTraducao = {
-        texto: `A DeepL falhou em ${falhas.toLocaleString('pt-BR')} de ${formatarQuantidade(alvos.length, 'linha enviada', 'linhas enviadas')}; ${marcadas}.${motivo}`,
+        texto: `A DeepL falhou em ${falhas.toLocaleString('pt-BR')} de ${formatarQuantidade(enviadas, 'tradução enviada', 'traduções enviadas')} (EN e ES); ${marcadas}.${motivo}`,
         itens: pendentes
       };
     } else {
@@ -834,7 +886,7 @@ async function traduzirMassa() {
       'O que já voltou ficou gravado; o restante segue pendente para "Traduzir pendentes".'
     ]);
     if (dadosProcessados === itens) {
-      avisoTraducao = { texto: `A tradução não foi concluída: ${semPontoFinal(error.message)}.`, itens: alvos.filter(precisaTraduzir) };
+      avisoTraducao = { texto: `A tradução não foi concluída: ${semPontoFinal(error.message)}.`, itens: alvos.filter(item => precisaTraduzir(item)) };
     }
   } finally {
     itensEmTraducao = null;
@@ -882,12 +934,15 @@ function atualizarDadosAposEdicao() {
 function salvarLinhaEmEdicao(tr) {
   const item = dadosProcessados[Number(tr.dataset.itemIndex)];
   if (!item) return false;
-  const mudouEN = registrarEdicaoEN(item, tr.cells[3].textContent);
-  if (mudouEN) gravarFiltroEN(tr.cells[3], item);
-  const esNovo = normalizarEN(tr.cells[4].textContent);
-  const mudouES = esNovo !== item.es;
-  item.es = esNovo;
-  return mudouEN || mudouES;
+  let mudou = false;
+  for (const idioma of IDIOMAS) {
+    const celula = tr.cells[COLUNA_DO_IDIOMA[idioma]];
+    if (registrarEdicao(item, celula.textContent, idioma)) {
+      gravarFiltro(celula, item, idioma);
+      mudou = true;
+    }
+  }
+  return mudou;
 }
 
 async function baixarExcel() {
@@ -912,8 +967,8 @@ async function baixarExcel() {
       titulo: 'Download bloqueado',
       conteudo: fechar => [
         criarElemento('p', { textContent: `${formatarQuantidade(new Set(bloqueios.map(b => b.item)).size, 'linha impede', 'linhas impedem')} a planilha de subir ao SAP. Resolva e baixe de novo:` }),
-        tabelaDaJanela(['Referência', 'Problema', 'Descrição EN', ''], bloqueios.map(({ item, referencia, problema }) => criarElemento('tr', {},
-          criarCelula(referencia), criarCelula(problema), criarCelula(item.en || '—'),
+        tabelaDaJanela(['Referência', 'Problema', 'Texto', ''], bloqueios.map(({ item, referencia, problema, texto }) => criarElemento('tr', {},
+          criarCelula(referencia), criarCelula(problema), criarCelula(texto || '—'),
           criarElemento('td', {}, criarBotaoPequeno('Ir para a linha', 'btn-default', () => { fechar(); irParaLinhaDaTabela(dadosProcessados.indexOf(item)); })))))
       ]
     });
@@ -923,15 +978,18 @@ async function baixarExcel() {
   // Exportar linhas marcadas (a revisar ou DeepL falhou) sem confirmá-las é uma decisão consciente.
   if (marcadas.length) {
     const uma = marcadas.length === 1;
-    const textosMostrados = marcadas.map(item => item.en);
+    const textosMostrados = marcadas.map(item => `${item.en}|${item.es}`);
+    // Uma linha da janela por idioma marcado: a mesma linha pode estar marcada em EN e em ES.
+    const linhasDaJanela = marcadas.flatMap(item => IDIOMAS.filter(idioma => linhaMarcada(item, idioma)).map(idioma => criarElemento('tr', {},
+      criarCelula(item.ref || `linha ${item.linhaOrigem}`), criarCelula(idioma),
+      criarCelula(descreverSelo(item, idioma)?.texto || ''), criarCelula(idioma === 'ES' ? item.es : item.en))));
     const exportar = await confirmar({
       titulo: 'Exportar com linhas marcadas?',
       conteudo: [
         criarElemento('p', { textContent: uma
           ? '1 linha está marcada para revisão e não foi confirmada nem editada. Ela vai para o SAP como está.'
           : `${marcadas.length.toLocaleString('pt-BR')} linhas estão marcadas para revisão e não foram confirmadas nem editadas. Elas vão para o SAP como estão.` }),
-        tabelaDaJanela(['Referência', 'Marca', 'Descrição EN'], marcadas.map(item => criarElemento('tr', {},
-          criarCelula(item.ref || `linha ${item.linhaOrigem}`), criarCelula(descreverSelo(item)?.texto || ''), criarCelula(item.en))))
+        tabelaDaJanela(['Referência', 'Idioma', 'Marca', 'Descrição'], linhasDaJanela)
       ],
       rotuloCancelar: 'Revisar antes',
       rotuloConfirmar: 'Exportar mesmo assim'
@@ -941,7 +999,7 @@ async function baixarExcel() {
     // mesmas linhas marcadas, com o mesmo texto que a pessoa viu.
     const agora = verificarExportacao(itens);
     const mudou = dadosProcessados !== itens || itensEmTraducao === itens || agora.bloqueios.length
-      || agora.marcadas.length !== marcadas.length || agora.marcadas.some((item, i) => item !== marcadas[i] || item.en !== textosMostrados[i]);
+      || agora.marcadas.length !== marcadas.length || agora.marcadas.some((item, i) => item !== marcadas[i] || `${item.en}|${item.es}` !== textosMostrados[i]);
     if (mudou) {
       avisar('A planilha mudou', ['As linhas mudaram enquanto a janela estava aberta. Confira e clique em Baixar Excel de novo.']);
       return;

@@ -8,7 +8,7 @@ const { LIMITE_SAP } = require('../processadorTexto');
 
 const {
   LIMITE_CARACTERES, textoContador, acimaDoLimite, precisaTraduzir, linhaMarcada, podeConfirmar,
-  confirmarTraducao, aplicarTraducaoAutomatica, registrarEdicaoEN, limparTraducao, descreverSelo,
+  confirmarTraducao, aplicarTraducaoAutomatica, registrarEdicao, registrarEdicaoEN, limparTraducao, descreverSelo,
   problemaDaLinha, resumirMassa, textoFaixaMassa
 } = EstadoMassa;
 
@@ -18,13 +18,25 @@ function novaLinha(campos = {}) {
     ref: 'REF', ptOriginal: 'SAIA JEANS', pt: 'SAIA JEANS', ptSugerido: 'SAIA JEANS',
     correcoesSugeridas: [], estadoCorrecao: 'sem-sugestao',
     en: '', es: '', origemEN: '', estadoEN: '', motivoEN: '', enAutomatico: '', confirmadaEN: false,
+    origemES: '', estadoES: '', motivoES: '', esAutomatico: '', confirmadaES: false,
     ...campos
   };
 }
 
+// Linha traduzida: o EN como pedido e o ES pela tabela, sem pendência. Os testes de cada
+// regra olham um idioma; o outro fica pronto para não interferir.
 function traduzida(traducao, origem = 'tabela', estado = 'tabela', motivo = '') {
   const item = novaLinha();
   aplicarTraducaoAutomatica(item, { traducao, origem, estado, motivo });
+  aplicarTraducaoAutomatica(item, { traducao: 'FALDA DENIM', origem: 'tabela', estado: 'tabela' }, 'ES');
+  return item;
+}
+
+// O mesmo, com o ES como pedido e o EN pela tabela.
+function traduzidaES(traducao, origem = 'tabela', estado = 'tabela', motivo = '') {
+  const item = novaLinha();
+  aplicarTraducaoAutomatica(item, { traducao: 'DENIM SKIRT', origem: 'tabela', estado: 'tabela' });
+  aplicarTraducaoAutomatica(item, { traducao, origem, estado, motivo }, 'ES');
   return item;
 }
 
@@ -43,14 +55,20 @@ test('contador conta o texto normalizado, que é o que vai para a planilha', () 
   assert.equal(acimaDoLimite(textoDe(41)), true);
 });
 
-test('tradução automática guarda o texto da máquina e zera ES e confirmação', () => {
-  const item = novaLinha({ es: 'FALDA', confirmadaEN: true });
+test('tradução automática guarda o texto da máquina e zera a confirmação só do seu idioma', () => {
+  const item = novaLinha({ es: 'FALDA', origemES: 'manual', confirmadaEN: true });
   aplicarTraducaoAutomatica(item, { traducao: '  high-rise  jeans ', origem: 'tabela', estado: 'tabela', motivo: '' });
 
   assert.equal(item.en, 'HIGH-RISE JEANS');
   assert.equal(item.enAutomatico, 'HIGH-RISE JEANS');
-  assert.equal(item.es, '');
   assert.equal(item.confirmadaEN, false);
+  // O espanhol é independente: a tradução do EN não apaga o ES (antes do ES, apagava).
+  assert.equal(item.es, 'FALDA');
+  assert.equal(item.origemES, 'manual');
+
+  aplicarTraducaoAutomatica(item, { traducao: 'jeans  tiro alto', origem: 'deepl', estado: 'revisar', motivo: 'x' }, 'ES');
+  assert.deepEqual([item.es, item.esAutomatico, item.origemES, item.estadoES, item.motivoES], ['JEANS TIRO ALTO', 'JEANS TIRO ALTO', 'deepl', 'revisar', 'x']);
+  assert.equal(item.en, 'HIGH-RISE JEANS');
 });
 
 test('edição de uma linha acima de 40: "tinha 43, agora tem 38"', () => {
@@ -158,11 +176,18 @@ test('decisão de grafia zera a tradução, a base do "tinha" e a confirmação'
   const item = traduzida('SAIA JEANS', 'local', 'revisar');
   confirmarTraducao(item);
 
+  confirmarTraducao(item, 'ES');
+  registrarEdicao(item, 'FALDA', 'ES');
+
   limparTraducao(item);
 
   assert.deepEqual(
     [item.en, item.es, item.origemEN, item.estadoEN, item.motivoEN, item.enAutomatico, item.confirmadaEN],
     ['', '', '', '', '', '', false]
+  );
+  assert.deepEqual(
+    [item.origemES, item.estadoES, item.motivoES, item.esAutomatico, item.confirmadaES],
+    ['', '', '', '', false]
   );
 });
 
@@ -248,6 +273,7 @@ test('faixa no meio da revisão: bege, com o balanço e o que falta resolver', (
 test('faixa nomeia também grafia pendente e DESCRIÇÃO PT acima de 40, que bloqueiam o download', () => {
   const grafiaPendente = novaLinha({ estadoCorrecao: 'pendente' });
   registrarEdicaoEN(grafiaPendente, 'DENIM SKIRT');
+  registrarEdicao(grafiaPendente, 'FALDA DENIM', 'ES');
   const ptLongo = Object.assign(traduzida('SKIRT'), { pt: textoDe(41) });
 
   assert.equal(
@@ -323,9 +349,12 @@ test('exportação: bloqueios listam cada problema; sem bloqueio nem marcada, a 
   assert.deepEqual(bloqueios.map(b => `${b.referencia}: ${b.problema}`), [
     'G1: Grafia a decidir',
     'S1: Sem Descrição EN',
+    'S1: Sem Descrição ES',
     'L1: DESCRIÇÃO PT com 41 caracteres',
     'L1: Descrição EN com 43 caracteres'
   ]);
+  // A janela mostra o texto de cada problema ao lado dele.
+  assert.deepEqual(bloqueios.map(b => b.texto.length), [10, 0, 0, 41, 43]);
   assert.deepEqual(marcadas.map(i => i.ref), ['M1']);
 
   // Mesma regra da faixa: pronta para baixar <=> nenhum bloqueio e nenhuma marcada.
@@ -333,6 +362,88 @@ test('exportação: bloqueios listam cada problema; sem bloqueio nem marcada, a 
     const verificacao = EstadoMassa.verificarExportacao(itens);
     assert.equal(resumirMassa(itens).pronto, !verificacao.bloqueios.length && !verificacao.marcadas.length);
   }
+});
+
+/* ==================== Espanhol: os mesmos controles do inglês ==================== */
+
+test('ES: edição, "tinha X, agora tem Y" e confirmação valem só para o espanhol', () => {
+  const item = traduzidaES(textoDe(44), 'tabela', 'acima-de-40');
+  assert.deepEqual(descreverSelo(item, 'ES'), { classe: 'selo-limite', texto: 'Acima de 40 caracteres (44)' });
+  assert.equal(descreverSelo(item, 'EN'), null, 'o EN pela tabela continua sem selo');
+  assert.equal(problemaDaLinha(item), 'acima');
+
+  assert.equal(registrarEdicao(item, textoDe(39), 'ES'), true);
+  assert.equal(item.origemES, 'manual');
+  assert.equal(item.origemEN, 'tabela');
+  assert.deepEqual(descreverSelo(item, 'ES'), { classe: 'selo-manual', texto: 'Editado à mão · tinha 44, agora tem 39' });
+  assert.equal(problemaDaLinha(item), '');
+
+  const revisar = traduzidaES('FALDA DENIM', 'deepl', 'revisar', 'glossário não aplicado: FALDA');
+  assert.equal(podeConfirmar(revisar, 'EN'), false);
+  assert.equal(podeConfirmar(revisar, 'ES'), true);
+  assert.equal(problemaDaLinha(revisar), 'revisar');
+  assert.equal(confirmarTraducao(revisar, 'ES'), true);
+  assert.equal(revisar.confirmadaES, true);
+  assert.equal(problemaDaLinha(revisar), '');
+});
+
+test('ES: a linha só fica pronta com os dois idiomas; o que falta em um conta para a linha', () => {
+  const semES = traduzida('DENIM SKIRT');
+  limparTraducao(semES);
+  aplicarTraducaoAutomatica(semES, { traducao: 'DENIM SKIRT', origem: 'tabela', estado: 'tabela' });
+  assert.equal(precisaTraduzir(semES, 'EN'), false);
+  assert.equal(precisaTraduzir(semES, 'ES'), true);
+  assert.equal(precisaTraduzir(semES), true, 'sem idioma: algum dos dois');
+  assert.equal(problemaDaLinha(semES), 'semTraducao');
+
+  const falhaES = traduzidaES('FALDA DENIM', 'local', 'revisar', 'DeepL falhou');
+  assert.equal(problemaDaLinha(falhaES), 'falhaDeepL');
+  assert.equal(precisaTraduzir(falhaES, 'ES'), true);
+  assert.equal(precisaTraduzir(falhaES, 'EN'), false);
+
+  // Editada à mão no ES não é reenviada, como no EN.
+  registrarEdicao(falhaES, 'FALDA VAQUERA', 'ES');
+  assert.equal(precisaTraduzir(falhaES), false);
+});
+
+test('ES: faixa, filtros e origem olham a linha inteira (o idioma que mais pede atenção decide)', () => {
+  const editadaES = traduzidaES(textoDe(43), 'tabela', 'acima-de-40');
+  registrarEdicao(editadaES, textoDe(38), 'ES');
+  const itens = [traduzida('SKIRT'), traduzidaES('FALDA', 'deepl', 'deepl'), editadaES, traduzidaES('FALDA', 'deepl', 'revisar', 'x')];
+
+  const resumo = resumirMassa(itens);
+  assert.deepEqual(resumo.origens, { tabela: 1, deepl: 2, falhaDeepL: 0, editadas: 1, confirmadas: 0, semTraducao: 0 });
+  assert.equal(resumo.corrigidas, 1);
+  assert.deepEqual(resumo.pendencias, { grafia: 0, semTraducao: 0, falhaDeepL: 0, revisar: 1, acima: 0, ptAcima: 0 });
+  assert.equal(EstadoMassa.passaNoFiltro(editadaES, 'editadas'), true);
+  assert.equal(EstadoMassa.contarFiltros(itens).revisar, 1);
+});
+
+test('ES: os números de "Editadas" e "Confirmadas" batem com a faixa em linhas mistas EN/ES', () => {
+  // EN editado à mão e ES confirmado: a faixa conta como editada, e o botão também.
+  const mista = traduzidaES('FALDA', 'deepl', 'revisar', 'x');
+  registrarEdicaoEN(mista, 'SKIRT');
+  confirmarTraducao(mista, 'ES');
+  // EN editado antes de traduzir e ES vazio: a faixa conta como sem tradução.
+  const semES = novaLinha();
+  registrarEdicaoEN(semES, 'SKIRT');
+
+  const itens = [mista, semES];
+  const { origens } = resumirMassa(itens);
+  const contagens = EstadoMassa.contarFiltros(itens);
+  assert.equal(contagens.editadas, origens.editadas);
+  assert.equal(contagens.confirmadas, origens.confirmadas);
+  assert.equal(contagens.semTraducao, 1);
+});
+
+test('ES: download bloqueia espanhol acima de 40 e pede confirmação para ES marcado', () => {
+  const longa = Object.assign(traduzidaES(textoDe(42)), { ref: 'E1' });
+  const marcada = Object.assign(traduzidaES('FALDA', 'deepl', 'revisar', 'x'), { ref: 'E2' });
+
+  const { bloqueios, marcadas } = EstadoMassa.verificarExportacao([longa, marcada]);
+  assert.deepEqual(bloqueios.map(b => `${b.referencia}: ${b.problema}`), ['E1: Descrição ES com 42 caracteres']);
+  assert.deepEqual(marcadas.map(i => i.ref), ['E2']);
+  assert.equal(resumirMassa([longa]).pronto, false);
 });
 
 test('estadoMassa.js e script.js carregam juntos no mesmo escopo, na ordem do index.html', () => {

@@ -231,18 +231,16 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
   border: 1px solid var(--borda);
   border-radius: 4px;
   background: var(--zebra);
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  padding: 6px 12px;
+  display: block;
 }
 
-/* O display: flex acima venceria o atributo hidden do HTML (a caixa aparecia vazia antes
+/* O display acima venceria o atributo hidden do HTML (a caixa aparecia vazia antes
    da primeira tradução): todo elemento com hidden e display no CSS precisa desta regra. */
 .termos-aplicados[hidden] { display: none; }
 
-.termos-titulo { font-weight: 700; font-size: 13px; }
-.termos-lista { display: flex; gap: 6px; flex-wrap: wrap; }
+.termos-titulo { font-weight: 700; font-size: 13px; cursor: pointer; }
+.termos-lista { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .termos-lista span {
   border: 1px solid #ccc;
   background: #fff;
@@ -433,10 +431,8 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
   margin-top: 8px;
 }
 
-.relatorio-marca { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #222; }
-.relatorio-marca svg { width: 26px; height: 26px; }
-.relatorio-marca-nome { font-weight: 400; letter-spacing: 2px; }
-.relatorio-titulo h1 { margin: 0; text-align: center; font-size: 15px; font-weight: 700; }
+/* Título na coluna do meio (a da esquerda fica vazia), para continuar centralizado. */
+.relatorio-titulo h1 { grid-column: 2; margin: 0; text-align: center; font-size: 15px; font-weight: 700; }
 .relatorio-data { text-align: right; font-size: 11px; color: #444; }
 
 .filtros-glossario { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; }
@@ -485,6 +481,7 @@ input:focus, select:focus { outline: 0; border-color: #66afe9; box-shadow: inset
   .navbar { padding: 0 12px; }
   .main-content { padding: 12px 12px 24px; }
   .relatorio-titulo { grid-template-columns: 1fr; text-align: center; }
+  .relatorio-titulo h1 { grid-column: auto; }
   .relatorio-data { text-align: center; }
   .filtros-glossario input { width: 100%; }
   .filtros-glossario .contador { margin-left: 0; }

@@ -38,15 +38,14 @@
           <div class="panel-body">
             <label for="inputDescPT">Português (SAP)</label>
             <div class="linha-campo">
-              <input type="text" id="inputDescPT" placeholder="Ex.: CALÇA BAGGY CINTURA MÉDIA" onkeydown="if (event.key === 'Enter') traduzirSingular()">
+              <input type="text" id="inputDescPT" placeholder="Ex.: CALÇA BAGGY CINTURA MÉDIA (termos separados por espaço)" onkeydown="if (event.key === 'Enter') traduzirSingular()">
               <button type="button" class="btn btn-primary" onclick="traduzirSingular()">Traduzir</button>
             </div>
-            <p class="ajuda">Separe os termos com espaço; o limite do SAP é de 40 caracteres.</p>
           </div>
         </section>
 
-        <section class="panel">
-          <h2 class="panel-heading">Resultado</h2>
+        <!-- Sem título: os rótulos Inglês/Espanhol já dizem o que é, e a tela cabe sem rolar em 150%. -->
+        <section class="panel" aria-label="Resultado">
           <div class="panel-body">
             <label for="outputDescEN">Inglês</label>
             <div class="input-group">
@@ -62,16 +61,21 @@
 
             <label for="outputDescES">Espanhol</label>
             <div class="input-group">
-              <input type="text" id="outputDescES" placeholder="ES será incluído em uma etapa posterior." readonly>
+              <input type="text" id="outputDescES" placeholder="A tradução em espanhol aparecerá aqui..." readonly>
               <button type="button" class="btn-addon" onclick="copiarTexto('outputDescES')" title="Copiar espanhol" aria-label="Copiar espanhol">
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg>
               </button>
             </div>
-
-            <div id="termosAplicados" class="termos-aplicados" hidden>
-              <span class="termos-titulo">Termos do glossário aplicados</span>
-              <div class="termos-lista"></div>
+            <div class="linha-status">
+              <span id="singularStatusES" class="status-texto" aria-live="polite"></span>
+              <span id="contadorES" class="contador"></span>
             </div>
+
+            <!-- Recolhido por padrão: é apoio para conferir, não o resultado. -->
+            <details id="termosAplicados" class="termos-aplicados" hidden>
+              <summary class="termos-titulo">Termos do glossário aplicados (<span class="termos-contagem">0</span>)</summary>
+              <div class="termos-lista"></div>
+            </details>
           </div>
         </section>
       </div>
@@ -154,11 +158,6 @@
     <!-- ==================== 3. GLOSSÁRIO (consulta) ==================== -->
     <section id="tab-glossario" class="tab-content">
       <div class="relatorio-titulo">
-        <div class="relatorio-marca">
-          <!-- Como nos relatórios do START: M + LA MODA -->
-          <svg class="logo-m" aria-hidden="true" viewBox="0 0 62 58" fill="currentColor"><path fill-rule="evenodd" d="M0 0H50A12 12 0 0 1 62 12V58H0ZM7 7V51H55V12A5 5 0 0 0 50 7Z"/><rect x="16.33" y="16" width="10" height="35.5"/><rect x="35.67" y="16" width="10" height="35.5"/></svg>
-          <span class="relatorio-marca-nome">LA MODA</span>
-        </div>
         <h1 id="glossarioTitulo">GLOSSÁRIO — TABELA MESTRA</h1>
         <div class="relatorio-data" id="glossarioData"></div>
       </div>
@@ -198,7 +197,7 @@
           <tbody id="glossarioTableBody"></tbody>
         </table>
       </div>
-      <p class="relatorio-rodape" id="glossarioRodape">Fonte: tabelaMestra.js (somente leitura; alterações passam pela validação de terminologia). Espanhol: lista do setor, quando o termo coincide.</p>
+      <p class="relatorio-rodape" id="glossarioRodape">Fonte: tabelaMestra.js (somente leitura; alterações passam pela validação de terminologia). Espanhol neutro validado com o varejo de moda em espanhol (29/10/2026).</p>
     </section>
 
   </main>

@@ -14,8 +14,6 @@
 
 require('dotenv').config({ quiet: true });
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 const {
   montarTraducao,
   montarContextoGlossario,
@@ -27,7 +25,8 @@ const { indices } = require('./tabelaMestra');
 
 /* ==================== Configuração (toda por variável de ambiente) ==================== */
 
-const IDIOMAS_ACEITOS = ['EN', 'EN-US', 'EN-GB'];
+// ES = espanhol neutro (decisão de 23/10/2026), montado pela tabela como o EN.
+const IDIOMAS_ACEITOS = ['EN', 'EN-US', 'EN-GB', 'ES'];
 
 function lerConfiguracao(env = process.env) {
   const numero = (valor, padrao) => {
@@ -194,7 +193,7 @@ const MOTIVOS_DEEPL = {
 };
 
 function criarClienteDeepL({ apiKey, url, timeoutMs, fetchImpl }) {
-  // A descrição original segue inteira para a DeepL, que traduz PT→EN e pode
+  // A descrição original segue inteira para a DeepL, que traduz PT→EN ou PT→ES e pode
   // reorganizar a frase. O contexto orienta o vocabulário; não é um glossário nativo.
   return async function traduzir(textos, targetLang, contexto) {
     if (!apiKey) {
@@ -363,11 +362,15 @@ function criarLimitador(maximo) {
 
 /* ==================== Serviço de tradução: DeepL com fallback local ==================== */
 
+// Pares PT = tradução usados na montagem, sem repetição: { pt, en } no inglês, { pt, es } no espanhol.
 function termosAplicados(montado) {
   const vistos = new Set();
   return montado.termos
-    .map(t => ({ pt: t.pt, en: t.en }))
-    .filter(par => !vistos.has(`${par.pt}|${par.en}`) && vistos.add(`${par.pt}|${par.en}`));
+    .map(t => (t.es !== undefined ? { pt: t.pt, es: t.es } : { pt: t.pt, en: t.en }))
+    .filter(par => {
+      const chave = `${par.pt}|${par.es ?? par.en}`;
+      return !vistos.has(chave) && vistos.add(chave);
+    });
 }
 
 const normalizarPalavras = texto => String(texto ?? '')
@@ -379,22 +382,42 @@ const normalizarPalavras = texto => String(texto ?? '')
   .split(' ')
   .filter(Boolean);
 
-// Palavras que nomeiam uma peça em inglês (última palavra do EN dos índices de peça, mais
-// as fusões): se a DeepL trouxer uma que a tabela não mandou (PANTS em CALÇA JEANS), é revisão.
-const PALAVRAS_DE_PECA_EN = new Set([
-  ...indices.filter(i => [1, 15, 16].includes(i.id)).flatMap(i => i.termos.map(t => normalizarPalavras(t.en).at(-1))),
-  'JEANS', 'JORTS', 'SWEATPANTS'
-].filter(Boolean));
+// Palavras que nomeiam uma peça: se a DeepL trouxer uma que a tabela não mandou (PANTS em
+// CALÇA JEANS), é revisão. No inglês é a última palavra do EN dos índices de peça, mais as
+// fusões; no espanhol a peça vem primeiro (FALDA CORTA, PANTALÓN PIJAMA).
+const indicesDePeca = new Set([1, 15, 16]);
+const termosDePeca = indices.filter(i => indicesDePeca.has(i.id)).flatMap(i => i.termos);
+// No ES entra também o plural (a DeepL escreve PANTALONES JEANS) e a parte depois do hífen
+// (T-SHIRT → SHIRT). Ficam de fora palavras de peça que em espanhol são comuns sem ser a peça
+// (TIRANTES = alças, COPA = bojo, MEDIA = média, BABY de BABY LOOK), que dariam falso "peça a mais".
+const NAO_CONTAM_COMO_PECA_ES = new Set(['TIRANTES', 'COPA', 'MEDIA', 'BABY']);
+const pluralES = palavra => (/[AEIOU]$/.test(palavra) ? `${palavra}S` : `${palavra}ES`);
+const PALAVRAS_DE_PECA = {
+  EN: new Set([...termosDePeca.map(t => normalizarPalavras(t.en).at(-1)), 'JEANS', 'JORTS', 'SWEATPANTS'].filter(Boolean)),
+  ES: new Set(termosDePeca
+    .filter(t => t.es && t.es.classe === 'peca')
+    .map(t => normalizarPalavras(t.es.texto.split(' ')[0]).at(-1))
+    .filter(palavra => palavra && palavra.length > 2 && !NAO_CONTAM_COMO_PECA_ES.has(palavra))
+    .flatMap(palavra => [palavra, pluralES(palavra)]))
+};
+// Conectivos não contam na conferência: a estrutura é a dos termos. No ES, SIN e CON contam,
+// porque o sentido de termos fechados mora neles (SIN MANGAS, SIN TIRANTES, CON CAPUCHA).
+const CONECTIVOS_IGNORADOS = {
+  EN: new Set(['WITH', 'AND', 'WITHOUT']),
+  ES: new Set(['Y', 'E', 'DE', 'EN', 'EL', 'LA', 'LOS', 'LAS', 'A', 'PARA'])
+};
+const chaveIdioma = idioma => (String(idioma).toUpperCase().startsWith('ES') ? 'ES' : 'EN');
 
 // Validador de estrutura da tradução vinda da DeepL. Três checagens, nesta ordem:
 // 1. toda palavra que a tabela mandaria está lá (MID-RISE → MID e RISE; "MID-WAIST" deixa
 //    RISE faltando), respeitando repetições (SHORT SLEEVE SHORT DRESS precisa de dois SHORT);
 // 2. nenhuma palavra de peça a mais (XYZ JEANS PANTS);
 // 3. a ordem das palavras da tabela se mantém (subsequência): a estrutura é a combinada.
-// Palavras fora da tabela e conectivos (WITH, AND, WITHOUT) não contam.
-function validarEstrutura(traducao, montado) {
+// Palavras fora da tabela e conectivos (WITH, AND, WITHOUT; CON, Y, SIN, DE...) não contam.
+function validarEstrutura(traducao, montado, idioma = 'EN') {
   if (!montado.termos.length) return { ok: true, motivo: '' };
-  const ignorar = new Set(['WITH', 'AND', 'WITHOUT']);
+  const ignorar = CONECTIVOS_IGNORADOS[chaveIdioma(idioma)];
+  const pecas = PALAVRAS_DE_PECA[chaveIdioma(idioma)];
   const desconhecidas = new Set(montado.desconhecidas.flatMap(normalizarPalavras));
   const esperadas = normalizarPalavras(montado.traducao).filter(p => !ignorar.has(p) && !desconhecidas.has(p));
   const presentes = normalizarPalavras(traducao);
@@ -409,7 +432,7 @@ function validarEstrutura(traducao, montado) {
   if (faltantes.length) return { ok: false, motivo: `glossário não aplicado: ${[...new Set(faltantes)].join(', ')}` };
 
   const esperadasSet = new Set(esperadas);
-  const pecaAMais = presentes.filter(p => PALAVRAS_DE_PECA_EN.has(p) && !esperadasSet.has(p) && !desconhecidas.has(p));
+  const pecaAMais = presentes.filter(p => pecas.has(p) && !esperadasSet.has(p) && !desconhecidas.has(p));
   if (pecaAMais.length) return { ok: false, motivo: `peça a mais: ${[...new Set(pecaAMais)].join(', ')}` };
 
   let cursor = 0;
@@ -428,8 +451,8 @@ function descreverMontagem(montado) {
 
 // Decide o estado de uma tradução vinda da DeepL. Mais de uma peça ou nenhuma peça na
 // descrição sempre pede revisão humana, mesmo que a DeepL tenha respondido bem.
-function avaliarDeepL(traducao, montado) {
-  const validacao = validarEstrutura(traducao, montado);
+function avaliarDeepL(traducao, montado, idioma) {
+  const validacao = validarEstrutura(traducao, montado, idioma);
   if (!validacao.ok) return { estado: 'revisar', motivo: validacao.motivo };
   if (montado.estado === 'varias-pecas' || montado.estado === 'sem-peca') return { estado: 'revisar', motivo: descreverMontagem(montado) };
   if (traducao.length > LIMITE_SAP) return { estado: 'acima-de-40', motivo: descreverMontagem(montado) };
@@ -456,7 +479,7 @@ function criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote, motorPri
     const contexto = montarContextoGlossario([textoPT], idioma);
     try {
       const [traducao] = await limitador(() => traduzirRemoto([textoPT], idioma, contexto), { prioritaria: true });
-      const { estado, motivo } = avaliarDeepL(traducao, montado);
+      const { estado, motivo } = avaliarDeepL(traducao, montado, idioma);
       return { traducao, origem: 'deepl', estado, motivo, termos, desconhecidas: montado.desconhecidas, sugestaoTabela: montado.traducao };
     } catch (erro) {
       if (!(erro instanceof ErroDeepL)) throw erro;
@@ -503,7 +526,7 @@ function criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote, motorPri
         const posicao = posicoesDeepL[sub];
         const montado = montados[posicao];
         if (origem === 'deepl') {
-          const { estado, motivo } = avaliarDeepL(resultado[i], montado);
+          const { estado, motivo } = avaliarDeepL(resultado[i], montado, idioma);
           traducoes[posicao] = resultado[i];
           estados[posicao] = estado;
           motivos[posicao] = motivo;
@@ -564,24 +587,8 @@ function criarServicoTraducao({ traduzirRemoto, limitador, tamanhoLote, motorPri
 
 /* ==================== Glossário (somente leitura) ==================== */
 
-// Espanhol da lista do setor (PT<TAB>EN<TAB>ES). A tabela mestra ainda não tem ES;
-// a aba Glossário mostra o ES do setor quando o PT coincide. Primeira ocorrência vence.
-function carregarEspanholDoSetor() {
-  const caminho = path.join(__dirname, 'docs', 'glossario-setor-pt-en-es.tsv');
-  const espanhol = new Map();
-  try {
-    for (const linha of fs.readFileSync(caminho, 'utf8').split(/\r?\n/)) {
-      const [pt, , es] = linha.split('\t');
-      if (pt && es && !espanhol.has(pt.trim())) espanhol.set(pt.trim(), es.trim());
-    }
-  } catch (erro) {
-    registrarPadrao('aviso', 'glossario.es-ausente', { mensagem: erro.message });
-  }
-  return espanhol;
-}
-
-const espanholDoSetor = carregarEspanholDoSetor();
-
+// O espanhol vem da própria tabela mestra (campo es, validado em 29/10/2026); a lista antiga
+// do setor (docs/glossario-setor-pt-en-es.tsv) ficou só como registro.
 function montarGlossario() {
   return indices.map(indice => ({
     id: indice.id,
@@ -589,7 +596,7 @@ function montarGlossario() {
     termos: indice.termos.map(termo => ({
       pt: termo.pt,
       en: termo.en,
-      es: espanholDoSetor.get(termo.pt) || '',
+      es: termo.es ? termo.es.texto : '',
       tipo: termo.tipo,
       contexto: termo.contexto || '',
       status: termo.status

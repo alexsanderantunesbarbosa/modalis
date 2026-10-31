@@ -384,7 +384,7 @@ test('sugerir-correcoes aceita descrições vazias na lista e valida o tipo', as
   }
 });
 
-test('GET /api/glossario devolve os índices da tabela com o espanhol do setor quando existe', async () => {
+test('GET /api/glossario devolve os índices da tabela com o espanhol da própria tabela', async () => {
   const servidor = await subir();
   try {
     const resposta = await fetch(`${servidor.base}/api/glossario`);
@@ -393,6 +393,10 @@ test('GET /api/glossario devolve os índices da tabela com o espanhol do setor q
     assert.equal(indices.length, 16);
     const blusa = indices[0].termos.find(termo => termo.pt === 'BLUSA');
     assert.deepEqual(blusa, { pt: 'BLUSA', en: 'BLOUSE', es: 'BLUSA', tipo: 'termo', contexto: '', status: 'FECHADO' });
+    // JUSTO: a lista antiga do setor dizia ENJUTO (sentido errado); a tabela diz AJUSTADO.
+    const justo = indices.flatMap(indice => indice.termos).find(termo => termo.pt === 'JUSTO');
+    assert.equal(justo.es, 'AJUSTADO');
+    assert.ok(indices.every(indice => indice.termos.every(termo => termo.es)), 'todo termo tem espanhol');
   } finally {
     await servidor.fechar();
   }
@@ -612,6 +616,73 @@ test('no motor "tabela", se a DeepL falhar numa desconhecida a linha sai pela ta
     assert.equal(dados.traducoes[0], 'SHIRT AZUL PETRÓLEO');
     assert.match(dados.motivos[0], /DeepL falhou; palavras fora da tabela: AZUL, PETRÓLEO/);
     assert.deepEqual(dados.erros, ['DeepL respondeu 500 (erro no serviço)']);
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+/* ==================== Espanhol ==================== */
+
+test('ES: descrição coberta pela tabela sai montada em espanhol, sem chamar a DeepL', async () => {
+  const { fetchImpl, chamadas } = fetchFalso(corpo => respostaDeepL(corpo.text));
+  const servidor = await subir({ fetchImpl, config: { motorPrincipal: 'tabela' } });
+  try {
+    const { status, dados } = await post(servidor.base, '/api/traduzir', { textoPT: 'calça pijama listrada', targetLang: 'ES' });
+    assert.equal(status, 200);
+    assert.equal(chamadas.length, 0);
+    assert.deepEqual([dados.traducao, dados.origem, dados.estado], ['PANTALÓN PIJAMA RAYADO', 'tabela', 'tabela']);
+    assert.deepEqual(dados.termos, [{ pt: 'CALÇA PIJAMA', es: 'PANTALÓN PIJAMA' }, { pt: 'LISTRADA', es: 'RAYADO' }]);
+
+    const massa = await post(servidor.base, '/api/traduzir-massa', { textos: ['SAIA JEANS MINI CINTURA BAIXA COM BRILHO', 'TRENCH COAT SLIM COM GOLA DE PU COM FAIXA'], targetLang: 'ES' });
+    assert.deepEqual(massa.dados.traducoes, ['FALDA DENIM MINI TIRO BAJO CON BRILLO', 'TRENCH COAT SLIM CON CUELLO DE PU CON FAJÍN']);
+    assert.deepEqual(massa.dados.estados, ['tabela', 'acima-de-40']);
+    assert.equal(chamadas.length, 0);
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('ES: palavra desconhecida vai à DeepL em espanhol, com o contexto em espanhol, e o validador confere', async () => {
+  const respostas = {
+    'SAIA AZUL PETRÓLEO': 'falda azul petróleo',        // ok
+    'BLUSA AZUL PETRÓLEO': 'camiseta azul petróleo',    // BLUSA não aplicada
+    'CALÇA ACETINADA XYZ': 'pantalón satinado xyz falda', // peça a mais
+    'SAIA JEANS XYZ': 'denim falda xyz'                  // ordem trocada
+  };
+  const { fetchImpl, chamadas } = fetchFalso(corpo => new Response(JSON.stringify({ translations: corpo.text.map(t => ({ text: respostas[t] })) }), { status: 200 }));
+  const servidor = await subir({ fetchImpl, config: { motorPrincipal: 'tabela' } });
+  try {
+    const ok = await post(servidor.base, '/api/traduzir', { textoPT: 'SAIA AZUL PETRÓLEO', targetLang: 'ES' });
+    assert.equal(chamadas[0].target_lang, 'ES');
+    assert.equal(chamadas[0].source_lang, 'PT');
+    assert.match(chamadas[0].context, /SAIA = FALDA/);
+    assert.deepEqual([ok.dados.traducao, ok.dados.origem, ok.dados.estado], ['FALDA AZUL PETRÓLEO', 'deepl', 'deepl']);
+
+    const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos: Object.keys(respostas).slice(1), targetLang: 'ES' });
+    assert.deepEqual(dados.estados, ['revisar', 'revisar', 'revisar']);
+    assert.match(dados.motivos[0], /glossário não aplicado: BLUSA/);
+    assert.match(dados.motivos[1], /peça a mais: FALDA/);
+    assert.match(dados.motivos[2], /ordem diferente/);
+    // O contexto leva a forma concordada (SATINADO na calça), não a da tabela solta.
+    assert.ok(chamadas.some(corpo => /ACETINADA = SATINADO/.test(corpo.context)));
+  } finally {
+    await servidor.fechar();
+  }
+});
+
+test('ES: o validador pega peça a mais no plural e inversão de SIN/CON; TIRANTES sozinho não é peça', async () => {
+  const respostas = {
+    'CALÇA JEANS XYZ': 'pantalones jeans xyz',           // tabela: JEANS XYZ → PANTALONES a mais
+    'VESTIDO TOMARA QUE CAIA XYZ': 'vestido con tirantes xyz', // tabela: SIN TIRANTES → sentido invertido
+    'BLUSA DE ALÇA XYZ': 'blusa de tirantes xyz'          // ok: TIRANTES aqui é alça, não peça
+  };
+  const { fetchImpl } = fetchFalso(corpo => new Response(JSON.stringify({ translations: corpo.text.map(t => ({ text: respostas[t] })) }), { status: 200 }));
+  const servidor = await subir({ fetchImpl, config: { motorPrincipal: 'tabela' } });
+  try {
+    const { dados } = await post(servidor.base, '/api/traduzir-massa', { textos: Object.keys(respostas), targetLang: 'ES' });
+    assert.deepEqual(dados.estados, ['revisar', 'revisar', 'deepl']);
+    assert.match(dados.motivos[0], /peça a mais: PANTALONES/);
+    assert.match(dados.motivos[1], /glossário não aplicado: SIN/);
   } finally {
     await servidor.fechar();
   }
