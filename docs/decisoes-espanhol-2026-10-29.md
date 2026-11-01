@@ -106,7 +106,6 @@ O dono revisou a planilha do ChatGPT (31 apontamentos sobre os 806 termos) e ped
 | COM CORTE A LASER (nova) | CON CORTADO A LÁSER (montado) | CON CORTE LÁSER | Mesmo motivo. EN igual ao montado antes (WITH LASER-CUT) até o dono validar. |
 | COM BOJO (nova) | BOJO ficava fora da tabela | CON RELLENO (EN PADDED) | Como CORTININHA COM BOJO; Women'secret usa "con relleno". |
 | LOOSE LOW SLIM (nova, índice 3) | JEANS LOOSE TIRO BAJO SLIM TIRO BAJO (montado) | LOOSE LOW SLIM (EN igual, nome de modelo) | Nome do modelo, explicado pela estilista em 30/10: mais baixo e mais justo que a cintura baixa normal, por isso a descrição traz também CINTURA BAIXA. O LOW do nome NÃO repete o LOW-RISE: o EN "LOW-RISE LOOSE LOW SLIM JEANS" está certo (o antigo, "LOW-RISE LOOSE SLIM JEANS", apagava parte do nome). Única peça das coleções (501CF009776, AI27); fica pronta caso o modelo volte. |
-
 | RISE, HIGH e LOW sozinhos (removidos) | RISE / TIRO ALTO / TIRO BAJO | — (saíram da tabela) | Palavras em inglês que a tabela convertia sozinha, gerando erro silencioso ("CALÇA HIGH RISE" saía "HIGH-RISE RISE PANTS" como montada sem pendência). Nenhuma descrição PT das coleções as usa (o único LOW era o da LOOSE LOW SLIM). Sem elas, a palavra fica "desconhecida" e a linha vai para revisão. Decisão do dono; substitui a decisão RISE = TIRO do Claude Desktop. |
 
 Ficam como estão, também aprovados: MACACÃO = ENTERIZO, ESVOAÇANTE = VAPOROSO, FECHO(S) = CORCHETE(S).
@@ -116,6 +115,30 @@ Medição no corpus (2.464 descrições distintas): nenhuma saída em EN mudou; 
 Correção do corpus (30/10): na AI27 (sem cabeçalho) a descrição PT é a 4ª coluna, e a 5ª e a 6ª são o EN e o ES antigos. A extração usada nas medições de 29/10 pegava "a primeira célula com duas palavras em maiúsculas" e, em 15 linhas, caiu na coluna do EN antigo (ex.: "SHORT PU MID RISE", cujo PT é "SHORT PU CINTURA MÉDIA"). Os números de 29/10 acima (2.457 descrições) têm esse desvio de menos de 1%. Nenhuma descrição PT da IN27 ou da AI27 traz RISE.
 
 A partir de 30/10 a tabela é editada direto. O script do scratchpad que gravou o ES em 29/10 (`gravar-es-na-tabela.js`) não deve rodar de novo: desfaria estas decisões.
+
+## Decisões do dono de 31/10/2026: família A FIO
+
+A FIO estava como DISTRESSED / DESGASTADO (lista do setor de 22/10), mas nas descrições quer dizer borda crua, cortada e sem bainha. Isso foi confirmado pelas descrições antigas que o dono mostrou ("REGATA CORTE A FIO", "SAIA COM RECORTES A FIO", "BARRA A FIO", "ACABAMENTO A FIO", em malha e neoprene). O "corte a fio" do material de cadastro é outra coisa: a instrução de cortar no fio do tecido, que não aparece em títulos. A palavra no PT vem quase sempre depois de CORTE ou RECORTE, e por isso a família entrou em expressões (a mais longa vence).
+
+| PT | EN | ES | Índice |
+|---|---|---|---|
+| A FIO (trocado) | RAW-EDGE (antes DISTRESSED) | SIN REMATAR, invariável (antes DESGASTADO, flexível) | 9 |
+| CORTE A FIO, COM CORTE A FIO | RAW-EDGE | SIN REMATAR | 9 |
+| ACABAMENTO A FIO | RAW-EDGE FINISH | ACABADO SIN REMATAR | 9 |
+| RECORTE A FIO, RECORTES A FIO | RAW-EDGE CUTOUT(S) | RECORTE(S) SIN REMATAR | 12 |
+| CORTES A FIO | RAW-EDGE CUTS | CORTES SIN REMATAR | 12 |
+| BARRA A FIO | RAW HEM | BAJO SIN REMATAR | 12 |
+
+- COM CORTE A FIO é adjetivo, como COM BOJO = PADDED. Sem a expressão, o EN saía "TANK TOP WITH RAW-EDGE".
+- No ES, o CON antes de SIN REMATAR cai pela R9: REGATA COM CORTE A FIO sai "CAMISETA SIN MANGAS SIN REMATAR".
+- CRUDO ficou de fora porque em espanhol é cor (cru).
+- CORTE e CORTES sozinhos continuam fora da tabela.
+
+Medição no corpus (2.464 descrições): nada muda, porque nenhuma descrição da IN27 ou da AI27 traz A FIO. A tabela passou a ter 814 entradas.
+
+Pendências:
+- COM X E CORTE A FIO repete o papel de detalhe pelo E e sai "BLOUSE WITH EMBROIDERY AND RAW-EDGE" / "BLUSA CON BORDADO Y SIN REMATAR". É uma limitação da regra do E com termo adjetivo, sem uso no corpus.
+- RECORTE = CUTOUT pode ser PANEL em cerca de 58 descrições (recorte de costura e não vazado). É uma pergunta para a estilista.
 
 ## Revisão adversarial (29/10/2026)
 

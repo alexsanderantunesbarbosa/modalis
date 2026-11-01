@@ -40,7 +40,7 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
   `comparacao-contexto.json` e `curva-tamanho-lote.json` (scratchpad da sessão; refazer se
   precisar, custa ~20 mil caracteres).
 - A tabela foi sincronizada com a planilha v2 em 22/10/2026 (`tabelaMestra.js` = 806
-  entradas, 16 índices; DE ALÇA = STRAPPY entrou em 24/10/2026; 807 desde 30/10/2026). Ao receber arquivos do Desktop, conferir se o JS acompanha a planilha.
+  entradas, 16 índices; DE ALÇA = STRAPPY entrou em 24/10/2026; 807 desde 30/10/2026; 814 desde 31/10/2026, com a família A FIO). Ao receber arquivos do Desktop, conferir se o JS acompanha a planilha.
 - `.env` com `DEEPL_API_KEY` (chave `:fx` = plano Free). Nunca versionar chaves.
 - Validação TLS ligada (23/10/2026): na rede da empresa iniciar com `npm start`
   (`node --use-system-ca server.js`). Pendências de segurança conhecidas (ver README):
@@ -71,7 +71,7 @@ não é usado; a decisão é usá-lo depois, sincronizado a partir da tabela.
 
 Cada termo: `{ pt, en, status, tipo, contexto?, es }`, com `es = { texto, classe, genero?, numero?, formas?, adjetivo? }` (classe peca/substantivo/flexivel/invariavel/nome_proprio; `formas` ms/fs/mp/fp só no flexível; `adjetivo` = COM/DE antes dele cai). O ES veio da planilha `glossario-espanhol-modalis-2026-10-29.xlsx` (Área de Trabalho do dono). Desde 30/10/2026 a tabela é editada direto: o script de 29/10 desfaria as decisões de 30/10 (ver `docs/decisoes-espanhol-2026-10-29.md`). `tipo` é `termo` (uma palavra) ou
 `expressao` (tem espaço, hífen ou barra). `status` FECHADO é aplicado; VALIDAR é ignorado.
-Hoje: **807 entradas, todas FECHADO**, 16 índices (30/10: + COM FLORES, COM CORTE A LASER, COM BOJO, LOOSE LOW SLIM; − RISE, HIGH e LOW sozinhos: inglês de cintura no PT vai para revisão em vez de virar erro silencioso).
+Hoje: **814 entradas, todas FECHADO**, 16 índices (30/10: + COM FLORES, COM CORTE A LASER, COM BOJO, LOOSE LOW SLIM; − RISE, HIGH e LOW sozinhos: inglês de cintura no PT vai para revisão em vez de virar erro silencioso. 31/10: A FIO = RAW-EDGE / SIN REMATAR, borda crua, não DISTRESSED, + CORTE/COM CORTE/CORTES/RECORTE(S)/BARRA/ACABAMENTO A FIO).
 
 | Índice | Nome | Posição na frase EN (ordem aprovada em 24/10/2026) |
 |---|---|---|
@@ -213,7 +213,7 @@ Escopo de dezembro (ordem "valor entregue se o tempo acabar"):
 2. Composição PT → EN/ES por regras, testada contra o gabarito da IN27.
 3. Qualidade do EN: itens 1 a 4 da fila abaixo (conjunto de referência aprovado pelo líder).
 4. Memória de traduções (item 7) e rascunho salvo no navegador (beforeunload + localStorage).
-5. ~~Espanhol das descrições~~ **feito em 29/10/2026** (sem commit até a revisão do dono; ver `docs/decisoes-espanhol-2026-10-29.md`). Faltam os termos novos da planilha e SLEEP/SLIP. Plano original: campo `es` na tabela (proposta minha + validação do dono),
+5. ~~Espanhol das descrições~~ **feito em 29/10/2026** (commit `fee012b` em 31/10, depois da revisão do dono; ver `docs/decisoes-espanhol-2026-10-29.md`). Faltam os termos novos da planilha e SLEEP/SLIP. Plano original: campo `es` na tabela (proposta minha + validação do dono),
    motor parametrizado por idioma (a ordem do ES segue a do PT), limite de 40 para ES.
 6. Ensaio geral com a AI27 e piloto na coleção real.
 

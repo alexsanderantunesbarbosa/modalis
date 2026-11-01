@@ -3261,11 +3261,25 @@ const indices = [
         "es": { "texto": "TRICOLOR", "classe": "flexivel", "formas": { "ms": "TRICOLOR", "fs": "TRICOLOR", "mp": "TRICOLORES", "fp": "TRICOLORES" } }
       },
       {
-        "pt": "A FIO",
-        "en": "DISTRESSED",
+        "pt": "COM CORTE A FIO",
+        "en": "RAW-EDGE",
         "status": "FECHADO",
         "tipo": "expressao",
-        "es": { "texto": "DESGASTADO", "classe": "flexivel", "formas": { "ms": "DESGASTADO", "fs": "DESGASTADA", "mp": "DESGASTADOS", "fp": "DESGASTADAS" } }
+        "es": { "texto": "SIN REMATAR", "classe": "invariavel" }
+      },
+      {
+        "pt": "CORTE A FIO",
+        "en": "RAW-EDGE",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "SIN REMATAR", "classe": "invariavel" }
+      },
+      {
+        "pt": "A FIO",
+        "en": "RAW-EDGE",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "SIN REMATAR", "classe": "invariavel" }
       },
       {
         "pt": "CUSTOMIZADO",
@@ -3357,6 +3371,13 @@ const indices = [
         "status": "FECHADO",
         "tipo": "termo",
         "es": { "texto": "BLACK", "classe": "invariavel" }
+      },
+      {
+        "pt": "ACABAMENTO A FIO",
+        "en": "RAW-EDGE FINISH",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "ACABADO SIN REMATAR", "classe": "substantivo", "genero": "m", "numero": "s" }
       },
       {
         "pt": "ACABAMENTO",
@@ -4434,6 +4455,27 @@ const indices = [
     "nome": "CONSTRUÇÃO / PARTES DA PEÇA",
     "termos": [
       {
+        "pt": "RECORTE A FIO",
+        "en": "RAW-EDGE CUTOUT",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "RECORTE SIN REMATAR", "classe": "substantivo", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "RECORTES A FIO",
+        "en": "RAW-EDGE CUTOUTS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "RECORTES SIN REMATAR", "classe": "substantivo", "genero": "m", "numero": "p" }
+      },
+      {
+        "pt": "CORTES A FIO",
+        "en": "RAW-EDGE CUTS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "CORTES SIN REMATAR", "classe": "substantivo", "genero": "m", "numero": "p" }
+      },
+      {
         "pt": "RECORTE",
         "en": "CUTOUT",
         "status": "FECHADO",
@@ -4509,6 +4551,13 @@ const indices = [
         "status": "FECHADO",
         "tipo": "expressao",
         "es": { "texto": "COSTURA APARENTE", "classe": "substantivo", "genero": "f", "numero": "s" }
+      },
+      {
+        "pt": "BARRA A FIO",
+        "en": "RAW HEM",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "BAJO SIN REMATAR", "classe": "substantivo", "genero": "m", "numero": "s" }
       },
       {
         "pt": "BARRA",

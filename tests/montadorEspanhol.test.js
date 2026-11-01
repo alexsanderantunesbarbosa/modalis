@@ -305,6 +305,29 @@ test('30/10: COM BOJO = PADDED / CON RELLENO; CORTININHA COM BOJO continua a pe�
   assert.equal(montarTraducaoES('CORTININHA COM BOJO').traducao, 'TOP TRIANGULAR CON RELLENO');
 });
 
+/* ==================== Decisões do dono de 31/10/2026 ==================== */
+
+test('31/10: A FIO é borda crua, sem bainha (RAW-EDGE / SIN REMATAR), não DISTRESSED; a família vem em expressões', () => {
+  // Descrições antigas mostradas pelo dono: REGATA CORTE A FIO, SAIA COM RECORTES A FIO, BARRA A FIO.
+  const casos = [
+    ['REGATA CORTE A FIO COM BORDADO', 'RAW-EDGE TANK TOP WITH EMBROIDERY', 'CAMISETA SIN MANGAS SIN REMATAR CON BORDADO'],
+    // COM CORTE A FIO é adjetivo, como COM BOJO = PADDED (sem a expressão saía "TANK TOP WITH RAW-EDGE")
+    ['REGATA COM CORTE A FIO', 'RAW-EDGE TANK TOP', 'CAMISETA SIN MANGAS SIN REMATAR'],
+    ['REGATA ESTAMPADA COM CORTES A FIO', 'PRINTED TANK TOP WITH RAW-EDGE CUTS', 'CAMISETA SIN MANGAS ESTAMPADA CON CORTES SIN REMATAR'],
+    ['SAIA COM RECORTES E BARRA A FIO', 'SKIRT WITH CUTOUTS AND RAW HEM', 'FALDA CON RECORTES Y BAJO SIN REMATAR'],
+    ['T-SHIRT COM RECORTE A FIO', 'T-SHIRT WITH RAW-EDGE CUTOUT', 'T-SHIRT CON RECORTE SIN REMATAR'],
+    ['SHORTS COM ACABAMENTO A FIO E ESTAMPA', 'SHORTS WITH RAW-EDGE FINISH AND PRINT', 'SHORTS CON ACABADO SIN REMATAR Y ESTAMPADO'],
+    ['CALÇA JEANS BARRA A FIO', 'RAW HEM JEANS', 'JEANS BAJO SIN REMATAR'],
+    ['SHORT JEANS A FIO', 'RAW-EDGE JORTS', 'SHORT DENIM SIN REMATAR'],
+    // SIN REMATAR não concorda (antes: FALDA DESGASTADA)
+    ['SAIA A FIO', 'RAW-EDGE SKIRT', 'FALDA SIN REMATAR'],
+  ];
+  for (const [pt, en, es] of casos) {
+    assert.equal(montarTraducao(pt, 'EN').traducao, en, pt);
+    assert.equal(montarTraducaoES(pt).traducao, es, pt);
+  }
+});
+
 /* ==================== Contexto e lotes para a DeepL em espanhol ==================== */
 
 test('o contexto da DeepL em espanhol leva a forma concordada, e os lotes não misturam sentidos', () => {
