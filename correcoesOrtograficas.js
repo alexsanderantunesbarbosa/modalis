@@ -29,7 +29,37 @@ const sugestoesGrafia = [
   { de: 'CORROT', para: 'CARROT' },
   { de: 'AVIO', para: 'AVIÔ' },
   { de: 'CINNTURA', para: 'CINTURA' },
-  { de: 'SHHORT', para: 'SHORT' }
+  { de: 'SHHORT', para: 'SHORT' },
+  // Lote 03/11/2026: erros que ainda escapavam no corpus IN27+AI27 (1 ocorrência cada).
+  { de: 'OVERIZED', para: 'OVERSIZED' },
+  { de: 'OVERZISED', para: 'OVERSIZED' },
+  { de: 'OVERSISED', para: 'OVERSIZED' },
+  { de: 'T-SHIIRT', para: 'T-SHIRT' },
+  { de: 'VEESTIDO', para: 'VESTIDO' },
+  { de: 'BALZER', para: 'BLAZER' },
+  { de: 'LOMGO', para: 'LONGO' },
+  { de: 'MANHA LONGA', para: 'MANGA LONGA' },
+  { de: 'MANHA CURTA', para: 'MANGA CURTA' },
+  { de: 'FRNTE', para: 'FRENTE' },
+  { de: 'TUELE', para: 'TULE' },
+  { de: 'ALFAITARIA', para: 'ALFAIATARIA' },
+  { de: 'ULTILITARIA', para: 'UTILITÁRIA' },
+  { de: 'XADREX', para: 'XADREZ' },
+  { de: 'MALHA PESASA', para: 'MALHA PESADA' },
+  { de: 'CONSTRASTANTE', para: 'CONTRASTANTE' },
+  { de: 'SAMLESS', para: 'SEAMLESS' },
+  { de: 'BOTCUT', para: 'BOOTCUT' },
+  { de: 'BALOON', para: 'BALLOON' },
+  { de: 'MIDE LEG', para: 'WIDE LEG' },
+  { de: 'DEGADÊ', para: 'DEGAGÊ' },
+  { de: 'DEGADE', para: 'DEGAGÊ' },
+  { de: 'JAQUARD', para: 'JACQUARD' },
+  { de: 'METALASSE', para: 'MATELASSÊ' },
+  { de: 'CACHECOUER', para: 'CACHEQUER' },
+  { de: 'HOTPANT', para: 'HOTPANTS' },
+  { de: 'HOT PANT', para: 'HOT PANTS' },
+  { de: 'SLIPDRESS', para: 'SLIP DRESS' },
+  { de: 'STRAIGTH', para: 'STRAIGHT' }
 ];
 
 function escaparRegex(texto) {

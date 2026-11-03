@@ -81,6 +81,7 @@ const AGASALHO = /\b(JACKET|COAT|VEST|PARKA|WINDBREAKER|BOMBER|PUFFER)\b/;
 // Comprimentos colados à palavra da peça (DENIM MINI SKIRT, RIBBED SHORT DRESS); os
   // descritivos (MID-LENGTH, CROPPED, LONGLINE) ficam na posição 2.
 const COMPRIMENTO_COLADO_EN = new Set(['MINI', 'MIDI', 'MAXI', 'SUPER MIDI', 'SHORT', 'LONG']);
+const COMPRIMENTO_ANTES_DA_PECA_EN = new Set(['SHORT', 'LONG']); // decisão do dono de 03/11/2026
 const LIMITE_SAP = 40;
 
 // Cache de chave normalizada e regex por texto de termo (vocabulário finito).
@@ -458,8 +459,12 @@ function montarTraducaoEN(textoPT) {
   const vistos = new Set();
   const antesUnicos = antes.filter(a => !vistos.has(a.en) && vistos.add(a.en));
   const palavrasNucleo = nucleoEn ? nucleoEn.split(' ') : [];
+  // SHORT e LONG são adjetivos comuns: em peça de mais de uma palavra vão antes dela inteira
+  // (SHORT TANK TOP, não TANK SHORT TOP); MINI/MIDI/MAXI ficam colados à palavra da peça (POLO MINI DRESS).
+  const antesDaPeca = palavrasNucleo.length > 1 ? colados.filter(c => COMPRIMENTO_ANTES_DA_PECA_EN.has(c)) : [];
+  const coladosNaPeca = colados.filter(c => !antesDaPeca.includes(c));
   const pecaMontada = palavrasNucleo.length
-    ? [...palavrasNucleo.slice(0, -1), ...colados, palavrasNucleo.at(-1)].join(' ')
+    ? [...antesDaPeca, ...palavrasNucleo.slice(0, -1), ...coladosNaPeca, palavrasNucleo.at(-1)].join(' ')
     : colados.join(' ');
   const montarDetalhe = d => [...d.modificadores, d.en].join(' ');
   const positivos = detalhes.filter(d => !d.negado).map(montarDetalhe);

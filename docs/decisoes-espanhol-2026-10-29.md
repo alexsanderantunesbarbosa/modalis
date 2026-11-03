@@ -140,6 +140,43 @@ Pendências:
 - COM X E CORTE A FIO repete o papel de detalhe pelo E e sai "BLOUSE WITH EMBROIDERY AND RAW-EDGE" / "BLUSA CON BORDADO Y SIN REMATAR". É uma limitação da regra do E com termo adjetivo, sem uso no corpus.
 - RECORTE = CUTOUT pode ser PANEL em cerca de 58 descrições (recorte de costura e não vazado). É uma pergunta para a estilista.
 
+## Decisões do dono de 03/11/2026 (revisão do ChatGPT + pesquisa com revisores)
+
+A revisão do ChatGPT (`modalis_revisao_glossario_2026-10-30.xlsx`) partiu do arquivo de 30/10. Ela não sabia do A FIO de 31/10 e aprovou HIGH/MID/LOW RISE, contra a decisão de 30/10; esses dois pontos não foram aplicados.
+
+Os termos de espanhol e as dúvidas passaram por pesquisa no varejo, com um revisor cético (Opus) para cada frente. **O EN e o ES antigos das planilhas do setor não são referência.**
+
+| PT | EN | ES | Índice | Motivo |
+|---|---|---|---|---|
+| VESTIDO REGATA (nova) | TANK DRESS | VESTIDO SIN MANGAS | 1 | Antes saía "várias peças" (DRESS WITH TANK TOP). |
+| VESTIDO POLO (nova) | POLO DRESS | VESTIDO POLO | 1 | Antes saía "…SHORT DRESS WITH POLO". |
+| CAMISA PIJAMA (nova) | PAJAMA SHIRT | CAMISA PIJAMA | 1 | Sem o DE, igual a CALÇA PIJAMA = PANTALÓN PIJAMA e ao caso de referência ES. |
+| SAIA PAREÔ (nova) | PAREO SKIRT | FALDA PAREO | 16 | Forma da Zara ("DRAPED STRIPED PAREO SKIRT"), mais perto do PT que SARONG SKIRT. |
+| MEIA CALÇA (nova) | TIGHTS | PANTIMEDIAS | 15 | MEDIAS é a meia curta na Colômbia, no Peru e na Argentina, e PANTY é a calcinha na Colômbia e na Venezuela. PANTIMEDIAS (RAE; México, Colômbia, Argentina, Peru, Chile) não se confunde com nenhuma das duas. Nenhuma forma é pan-hispânica: na Espanha se diz MEDIAS ou PANTIS. Ela também evita a colisão de MEDIAS com o adjetivo MEDIAS no validador. |
+| MEIA FINA (nova) | SHEER TIGHTS | PANTIMEDIAS FINAS | 15 | O dono: "são coisas diferentes" (a meia fina, tipo Trifil). Não há meia opaca nas descrições. |
+| ESTAMPA LISTRADA (nova) | STRIPED PRINT | ESTAMPADO DE RAYAS (substantivo) | 9 | O dono recusou DE RAYAS, que apaga ESTAMPA. Como substantivo, ESTAMPADO não concorda com a peça; antes saía "ESTAMPADO RAYADA" e, no EN, "PRINT STRIPED BLOUSE". |
+| DE FLORES (nova) | FLORAL | DE FLORES | 9 | Também conserta COM APLICAÇÃO DE FLORES no ES ("CON APLIQUE DE FLORES", antes "DE FLORAL"). |
+| COM DRAPEADO (nova) | WITH DRAPING | CON DRAPEADO | 12 | Antes "WITH DRAPED" (adjetivo depois de WITH). |
+| COM FRANZIDO, COM FRANZIDOS (novas) | GATHERED (adjetivo, antes da peça) | CON FRUNCIDO(S) | 12 | Antes "WITH GATHERED". |
+| MILITAR (novo) | MILITARY | MILITAR (flexível) | 2 | Junto de UTILITÁRIA = UTILITY. |
+| COM CINTURA ALTA/MÉDIA/BAIXA (novas) | HIGH-/MID-/LOW-RISE (adjetivo) | CON TIRO ALTO/MEDIO/BAJO | 5 | Antes "CARROT PANTS WITH MID-RISE". A cintura entrou como expressão da tabela, e não como regra no código, porque o CÓS (mesmo índice) é substantivo e continua detalhe: "WITH ELASTIC WAISTBAND". |
+| COM ESTAMPA (removida) | — | — | 9 | A regra do COM já dá WITH PRINT / CON ESTAMPADO. A expressão engolia a palavra ESTAMPA de ESTAMPA FLORAL/LOCAL/DE FLORES/LISTRADA ("BLOUSE WITH PRINT FLORAL"). Hoje sai BLOUSE WITH FLORAL PRINT e WITH PLACEMENT PRINT ("local print" não existe em inglês). |
+
+Grafia: 30 regras novas em `correcoesOrtograficas.js` (OVERIZED, BALZER, XADREX, SAMLESS, MANHA LONGA…). São erros que ainda escapavam no corpus, 1 ocorrência cada. Continuam só sugestão. Ficaram de fora os incertos: BOLLON, FULL e LENGTH sozinhos.
+
+Medição no corpus (2.464 descrições), antes × depois:
+- EN: 29 mudaram, todas para melhor (24 dos termos e 5 do comprimento antes da peça). Em "tabela", passaram de 2.212 para 2.218; "várias peças", de 26 para 21; "acima de 40" ficou em 62.
+- ES: 3 mudaram (COLETE JEANS MILITAR, MEIA CALÇA FUSÔ DE RENDA, BLUSA SEM MANGA ESTAMPA LISTRADA). Em "tabela", passaram de 2.048 para 2.050; "várias peças", de 10 para 9.
+- Grafia: 27 descrições ganham sugestão nova.
+- A tabela tem 828 entradas.
+
+Pendências deste lote:
+- ~~Comprimento colado (SHORT/LONG)~~ **decidido e feito em 03/11**. SHORT e LONG vão antes da peça inteira quando ela tem mais de uma palavra (SHORT TANK TOP, SHORT DENIM SKIRT, SHORT POLO DRESS). MINI/MIDI/MAXI continuam colados (POLO MINI DRESS, DENIM MINI SKIRT), e peça de uma palavra não muda (TWILL SHORT JUMPSUIT). Mais 5 descrições do corpus mudaram, e o total do lote no EN ficou em 29. Antes saía TANK SHORT TOP e DENIM SHORT SKIRT.
+- **Hífen no EN e forma de detalhe.** A regra do Chicago (hífen antes da peça, aberto depois de WITH) pede um campo de forma de detalhe na tabela. Sem ele, o hífen pioraria "DRESS WITH LONG-SLEEVE". São 57 termos, e 19 descrições do corpus já saem "WITH … SLEEVE" no singular. Lote separado, com a lista para o dono aprovar.
+- **COM X E CINTURA ALTA.** O E repete o papel de detalhe ("CALÇA COM BOLSOS E CINTURA ALTA" → "…WITH POCKETS AND HIGH-RISE"). Não há caso no corpus.
+- **XADREZ sozinho.** Sai CUADROS ("BLUSA CUADROS"); no espanhol se diz DE CUADROS. Pesquisar junto com ESTAMPA XADREZ.
+- **MEIA CALÇA FUSÔ.** No ES sai PANTIMEDIAS FUSEAU, porque FUSÔ = FUSEAU já está na tabela. No varejo, para meia-calça, aparece "sin pie" ou "con estribo"; revisar se aparecer de novo.
+
 ## Revisão adversarial (29/10/2026)
 
 A revisão teve 3 revisores e 3 verificadores, todos em Opus. Ela confirmou 18 achados: 1 alto, 4 médios e 13 baixos.

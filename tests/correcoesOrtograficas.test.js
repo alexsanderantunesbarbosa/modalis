@@ -63,6 +63,20 @@ test('corrige os erros recorrentes do lote de 22/10/2026', () => {
   assert.equal(sugerirCorrecaoGrafia('SUPER MIDI').ocorrencias.length, 0);
 });
 
+test('corrige os erros que ainda escapavam no corpus (lote de 03/11/2026)', () => {
+  assert.equal(sugerirCorrecaoGrafia('BLAZER OVERIZED DE CREPE PATOU').textoSugerido, 'BLAZER OVERSIZED DE CREPE PATOU');
+  assert.equal(sugerirCorrecaoGrafia('T-SHIIRT OVERSIZED COM ARTE').textoSugerido, 'T-SHIRT OVERSIZED COM ARTE');
+  assert.equal(sugerirCorrecaoGrafia('BLUSA COM DRAPEADO MANHA LONGA DE MALHA').textoSugerido, 'BLUSA COM DRAPEADO MANGA LONGA DE MALHA');
+  assert.equal(sugerirCorrecaoGrafia('CALÇA JEANS MIDE LEG CINTURA BAIXA').textoSugerido, 'CALÇA JEANS WIDE LEG CINTURA BAIXA');
+  assert.equal(sugerirCorrecaoGrafia('VESTIDO LONGO DECOTE DEGADÊ COM RENDA').textoSugerido, 'VESTIDO LONGO DECOTE DEGAGÊ COM RENDA');
+  assert.equal(sugerirCorrecaoGrafia('SHORT TRICÔ HOT PANT').textoSugerido, 'SHORT TRICÔ HOT PANTS');
+  // A forma certa não é tocada: HOT PANT não casa dentro de HOT PANTS, nem HOTPANT dentro de HOTPANTS.
+  assert.equal(sugerirCorrecaoGrafia('SHORT HOT PANTS').ocorrencias.length, 0);
+  assert.equal(sugerirCorrecaoGrafia('SHORT HOTPANTS').ocorrencias.length, 0);
+  // MANHA só é corrigida antes de LONGA/CURTA.
+  assert.equal(sugerirCorrecaoGrafia('BLUSA MANHA').ocorrencias.length, 0);
+});
+
 test('colapsa palavra repetida em sequência, inclusive a que sobra de outra correção', () => {
   const resultado = sugerirCorrecaoGrafia('CALÇA JCALÇA JEANS BOOTCUT COM RESINA');
   assert.equal(resultado.textoSugerido, 'CALÇA JEANS BOOTCUT COM RESINA');

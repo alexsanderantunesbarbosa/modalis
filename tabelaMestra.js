@@ -29,6 +29,13 @@ const indices = [
         "es": { "texto": "BLUSA", "classe": "peca", "genero": "f", "numero": "s" }
       },
       {
+        "pt": "CAMISA PIJAMA",
+        "en": "PAJAMA SHIRT",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "CAMISA PIJAMA", "classe": "peca", "genero": "f", "numero": "s" }
+      },
+      {
         "pt": "CAMISA",
         "en": "SHIRT",
         "status": "FECHADO",
@@ -97,6 +104,20 @@ const indices = [
         "status": "FECHADO",
         "tipo": "termo",
         "es": { "texto": "CHALECO", "classe": "peca", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "VESTIDO REGATA",
+        "en": "TANK DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "VESTIDO SIN MANGAS", "classe": "peca", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "VESTIDO POLO",
+        "en": "POLO DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "VESTIDO POLO", "classe": "peca", "genero": "m", "numero": "s" }
       },
       {
         "pt": "VESTIDO",
@@ -685,6 +706,13 @@ const indices = [
         "status": "FECHADO",
         "tipo": "termo",
         "es": { "texto": "UTILITY", "classe": "invariavel" }
+      },
+      {
+        "pt": "MILITAR",
+        "en": "MILITARY",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "es": { "texto": "MILITAR", "classe": "flexivel", "formas": { "ms": "MILITAR", "fs": "MILITAR", "mp": "MILITARES", "fp": "MILITARES" } }
       },
       {
         "pt": "UTILITÁRIA",
@@ -1524,6 +1552,27 @@ const indices = [
         "status": "FECHADO",
         "tipo": "termo",
         "es": { "texto": "CINTURA", "classe": "substantivo", "genero": "f", "numero": "s" }
+      },
+      {
+        "pt": "COM CINTURA ALTA",
+        "en": "HIGH-RISE",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "CON TIRO ALTO", "classe": "invariavel", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "COM CINTURA MÉDIA",
+        "en": "MID-RISE",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "CON TIRO MEDIO", "classe": "invariavel", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "COM CINTURA BAIXA",
+        "en": "LOW-RISE",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "CON TIRO BAJO", "classe": "invariavel", "genero": "m", "numero": "s" }
       },
       {
         "pt": "CINTURA ALTA",
@@ -2818,13 +2867,6 @@ const indices = [
         "es": { "texto": "ESTAMPADO", "classe": "substantivo", "genero": "m", "numero": "s" }
       },
       {
-        "pt": "COM ESTAMPA",
-        "en": "WITH PRINT",
-        "status": "FECHADO",
-        "tipo": "expressao",
-        "es": { "texto": "CON ESTAMPADO", "classe": "invariavel", "genero": "m", "numero": "s" }
-      },
-      {
         "pt": "COM ESTAMPA E BRILHO",
         "en": "WITH PRINT AND SHIMMER",
         "status": "FECHADO",
@@ -3156,6 +3198,13 @@ const indices = [
         "es": { "texto": "JASPEADO", "classe": "flexivel", "formas": { "ms": "JASPEADO", "fs": "JASPEADA", "mp": "JASPEADOS", "fp": "JASPEADAS" } }
       },
       {
+        "pt": "ESTAMPA LISTRADA",
+        "en": "STRIPED PRINT",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "ESTAMPADO DE RAYAS", "classe": "substantivo", "genero": "m", "numero": "s" }
+      },
+      {
         "pt": "ESTAMPA LOCAL",
         "en": "PLACEMENT PRINT",
         "status": "FECHADO",
@@ -3315,6 +3364,13 @@ const indices = [
         "status": "FECHADO",
         "tipo": "expressao",
         "es": { "texto": "CON FLORES", "classe": "invariavel", "genero": "f", "numero": "p" }
+      },
+      {
+        "pt": "DE FLORES",
+        "en": "FLORAL",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "DE FLORES", "classe": "invariavel" }
       },
       {
         "pt": "FLORES",
@@ -4665,6 +4721,13 @@ const indices = [
         "es": { "texto": "PLIEGUES", "classe": "substantivo", "genero": "m", "numero": "p" }
       },
       {
+        "pt": "COM DRAPEADO",
+        "en": "WITH DRAPING",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "CON DRAPEADO", "classe": "invariavel", "genero": "m", "numero": "s" }
+      },
+      {
         "pt": "DRAPEADO",
         "en": "DRAPED",
         "status": "FECHADO",
@@ -4691,6 +4754,20 @@ const indices = [
         "status": "FECHADO",
         "tipo": "termo",
         "es": { "texto": "DRAPEADO", "classe": "flexivel", "formas": { "ms": "DRAPEADO", "fs": "DRAPEADA", "mp": "DRAPEADOS", "fp": "DRAPEADAS" } }
+      },
+      {
+        "pt": "COM FRANZIDO",
+        "en": "GATHERED",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "CON FRUNCIDO", "classe": "invariavel", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "COM FRANZIDOS",
+        "en": "GATHERED",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "CON FRUNCIDOS", "classe": "invariavel", "genero": "m", "numero": "p" }
       },
       {
         "pt": "FRANZIDO",
@@ -5596,6 +5673,20 @@ const indices = [
         "es": { "texto": "GUANTES", "classe": "peca", "genero": "m", "numero": "p" }
       },
       {
+        "pt": "MEIA CALÇA",
+        "en": "TIGHTS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "PANTIMEDIAS", "classe": "peca", "genero": "f", "numero": "p" }
+      },
+      {
+        "pt": "MEIA FINA",
+        "en": "SHEER TIGHTS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "PANTIMEDIAS FINAS", "classe": "peca", "genero": "f", "numero": "p" }
+      },
+      {
         "pt": "MEIA",
         "en": "SOCKS",
         "status": "FECHADO",
@@ -5838,6 +5929,13 @@ const indices = [
         "status": "FECHADO",
         "tipo": "expressao",
         "es": { "texto": "MEDIA COPA TORCIDA", "classe": "peca", "genero": "f", "numero": "s" }
+      },
+      {
+        "pt": "SAIA PAREÔ",
+        "en": "PAREO SKIRT",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "FALDA PAREO", "classe": "peca", "genero": "f", "numero": "s" }
       },
       {
         "pt": "PAREÔ",

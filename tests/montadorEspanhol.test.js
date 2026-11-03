@@ -86,7 +86,8 @@ const REFERENCIA = [
   ['KIT BODY CANELADO E BLUSA MANGA LONGA', 'KIT BODY CANALÉ Y BLUSA MANGA LARGA'],
   ['KIT BLUSA MANGA LONGA + BLUSA SEM MANGA', 'KIT BLUSA MANGA LARGA Y BLUSA SIN MANGAS'],
   ['MACACÃO CURTO SLEEP DE ALÇA COM RENDA', 'ENTERIZO CORTO SLEEP DE TIRANTES CON ENCAJE', { estado: 'varias-pecas' }],
-  ['MEIA CALÇA FUSÔ DE RENDA', 'MEDIAS FUSEAU DE ENCAJE', { termoNovo: 'MEIA CALÇA' }],
+  // 03/11/2026: MEIA CALÇA = PANTIMEDIAS (MEDIAS é a meia curta na Colômbia, no Peru e na Argentina)
+  ['MEIA CALÇA FUSÔ DE RENDA', 'PANTIMEDIAS FUSEAU DE ENCAJE'],
   ['MOLETOM RAGLAN COM TOUCA', 'SUDADERA RAGLÁN CON CAPUCHA', { termoNovo: 'COM TOUCA' }],
   ['SAIA CURTA ANÁGUA', 'FALDA CORTA ENAGUA'],
   ['SHORT HOT PANTS ANÁGUA', 'SHORT HOT PANTS ENAGUA'],
@@ -235,7 +236,6 @@ test('sem fusões do EN: JEANS, MOLETOM e CAPUZ ficam termo a termo', () => {
 test('peças: segunda peça decidida segue o PT; outra peça ou peças ligadas por conectivo pedem revisão', () => {
   assert.equal(montarTraducaoES('VESTIDO BLAZER DE CETIM COM FAIXA').estado, 'tabela');
   assert.equal(montarTraducaoES('SAIA CURTA ANÁGUA').estado, 'tabela');
-  assert.equal(montarTraducaoES('MEIA CALÇA FUSÔ DE RENDA').estado, 'varias-pecas');
   assert.equal(montarTraducaoES('BLUSA E SAIA').estado, 'varias-pecas');
   // REGATA: depois de outra peça é a manga dela; num KIT é a própria peça.
   assert.equal(montar('BLUSA REGATA DE TRICÔ'), 'BLUSA SIN MANGAS DE TRICOT');
@@ -326,6 +326,102 @@ test('31/10: A FIO é borda crua, sem bainha (RAW-EDGE / SIN REMATAR), não DIST
     assert.equal(montarTraducao(pt, 'EN').traducao, en, pt);
     assert.equal(montarTraducaoES(pt).traducao, es, pt);
   }
+});
+
+/* ==================== Decisões do dono de 03/11/2026 ==================== */
+
+// [PT, EN, ES]: cada caso confere os dois idiomas.
+function conferir(casos) {
+  for (const [pt, en, es] of casos) {
+    assert.equal(montarTraducao(pt, 'EN').traducao, en, pt);
+    assert.equal(montarTraducaoES(pt).traducao, es, pt);
+  }
+}
+
+test('03/11: peças compostas (VESTIDO REGATA, VESTIDO POLO, CAMISA PIJAMA, SAIA PAREÔ) deixam de ser "várias peças"', () => {
+  conferir([
+    ['VESTIDO REGATA COM PREGAS FRONTAIS', 'TANK DRESS WITH FRONT PLEATS', 'VESTIDO SIN MANGAS CON PLIEGUES FRONTALES'],
+    ['VESTIDO POLO CURTO MANGA LONGA CANELADO', 'LONG SLEEVE RIBBED SHORT POLO DRESS', 'VESTIDO POLO CORTO MANGA LARGA CANALÉ'],
+    ['CAMISA PIJAMA ACETINADA DE VISCOSE', 'SATIN VISCOSE PAJAMA SHIRT', 'CAMISA PIJAMA SATINADA DE VISCOSA'],
+    ['SAIA PAREO ESTAMPADA COM CINTO', 'PRINTED PAREO SKIRT WITH BELT', 'FALDA PAREO ESTAMPADA CON CINTURÓN'],
+    ['SAIA-PAREÔ', 'PAREO SKIRT', 'FALDA PAREO'],
+  ]);
+  for (const pt of ['VESTIDO REGATA COM PREGAS FRONTAIS', 'VESTIDO POLO CURTO MANGA LONGA CANELADO', 'CAMISA PIJAMA ACETINADA DE VISCOSE', 'SAIA PAREO ESTAMPADA COM CINTO']) {
+    assert.equal(montarTraducao(pt, 'EN').estado, 'tabela', pt);
+  }
+  // REGATA sozinha e como manga de outra peça continua como antes.
+  assert.equal(montarTraducao('REGATA DECOTE U', 'EN').traducao, 'U-NECK TANK TOP');
+  assert.equal(montar('BLUSA REGATA DE TRICÔ'), 'BLUSA SIN MANGAS DE TRICOT');
+});
+
+test('03/11: meias: MEIA CALÇA = TIGHTS / PANTIMEDIAS, MEIA FINA = SHEER TIGHTS; MEIA sozinha continua SOCKS / CALCETINES', () => {
+  conferir([
+    ['MEIA CALÇA', 'TIGHTS', 'PANTIMEDIAS'],
+    ['MEIA-CALÇA', 'TIGHTS', 'PANTIMEDIAS'],
+    ['MEIA CALCA', 'TIGHTS', 'PANTIMEDIAS'],
+    ['MEIA FINA', 'SHEER TIGHTS', 'PANTIMEDIAS FINAS'],
+    ['MEIA-FINA', 'SHEER TIGHTS', 'PANTIMEDIAS FINAS'],
+    ['MEIA CALÇA FUSÔ DE RENDA', 'LACE STIRRUP TIGHTS', 'PANTIMEDIAS FUSEAU DE ENCAJE'],
+    ['MEIA', 'SOCKS', 'CALCETINES'],
+  ]);
+  // MEIA MANGA e MEIA TAÇA não são meia.
+  assert.equal(montarTraducao('BLUSA MEIA MANGA', 'EN').traducao, 'HALF SLEEVE BLOUSE');
+  assert.equal(montarTraducao('MEIA CALÇA FUSÔ DE RENDA', 'EN').estado, 'tabela');
+});
+
+test('03/11: COM DRAPEADO = WITH DRAPING; COM FRANZIDO(S) = GATHERED antes da peça; o E encadeado mantém o papel', () => {
+  conferir([
+    ['BLUSA MANGA CURTA COM DRAPEADO', 'SHORT SLEEVE BLOUSE WITH DRAPING', 'BLUSA MANGA CORTA CON DRAPEADO'],
+    ['BLUSA DE ALÇA COM DRAPEADO E RENDA', 'STRAPPY BLOUSE WITH DRAPING AND LACE', 'BLUSA DE TIRANTES CON DRAPEADO Y ENCAJE'],
+    ['BLUSA MANGA CURTA COM FRANZIDO', 'SHORT SLEEVE GATHERED BLOUSE', 'BLUSA MANGA CORTA CON FRUNCIDO'],
+    ['VESTIDO COM FRANZIDOS E BOTÕES', 'GATHERED DRESS WITH BUTTONS', 'VESTIDO CON FRUNCIDOS Y BOTONES'],
+    // solto, o particípio continua adjetivo e concorda
+    ['SAIA FRANZIDA', 'GATHERED SKIRT', 'FALDA FRUNCIDA'],
+  ]);
+});
+
+test('03/11: estampa: sem a expressão COM ESTAMPA, a estampa específica não se parte (WITH FLORAL PRINT, não WITH PRINT FLORAL)', () => {
+  conferir([
+    // COM ESTAMPA sozinho continua igual (regra do COM)
+    ['T-SHIRT COM ESTAMPA', 'T-SHIRT WITH PRINT', 'T-SHIRT CON ESTAMPADO'],
+    ['T-SHIRT OVERSIZED COM ESTAMPA E BRILHO', 'OVERSIZED T-SHIRT WITH PRINT AND SHIMMER', 'T-SHIRT OVERSIZED CON ESTAMPADO Y BRILLO'],
+    ['VESTIDO COM ESTAMPA E BOTÕES', 'DRESS WITH PRINT AND BUTTONS', 'VESTIDO CON ESTAMPADO Y BOTONES'],
+    ['BLUSA COM ESTAMPA FLORAL', 'BLOUSE WITH FLORAL PRINT', 'BLUSA CON ESTAMPADO FLORAL'],
+    ['BLUSA COM ESTAMPA DE FLORES', 'BLOUSE WITH FLORAL PRINT', 'BLUSA CON ESTAMPADO FLORAL'],
+    ['BLUSA COM ESTAMPA LOCAL', 'BLOUSE WITH PLACEMENT PRINT', 'BLUSA CON ESTAMPADO LOCALIZADO'],
+    ['VESTIDO COM ESTAMPA FLORAL E BOTÕES', 'DRESS WITH FLORAL PRINT AND BUTTONS', 'VESTIDO CON ESTAMPADO FLORAL Y BOTONES'],
+    // ESTAMPA LISTRADA: ESTAMPADO é substantivo e não concorda com a peça
+    ['BLUSA SEM MANGA ESTAMPA LISTRADA', 'SLEEVELESS STRIPED PRINT BLOUSE', 'BLUSA SIN MANGAS ESTAMPADO DE RAYAS'],
+    ['BLUSA COM ESTAMPA LISTRADA', 'BLOUSE WITH STRIPED PRINT', 'BLUSA CON ESTAMPADO DE RAYAS'],
+    ['VESTIDO COM ESTAMPA LISTRADA E BOTÕES', 'DRESS WITH STRIPED PRINT AND BUTTONS', 'VESTIDO CON ESTAMPADO DE RAYAS Y BOTONES'],
+    ['CALÇA ESTAMPA LISTRADA', 'STRIPED PRINT PANTS', 'PANTALÓN ESTAMPADO DE RAYAS'],
+    // LISTRADA sozinha continua adjetivo
+    ['SAIA LISTRADA', 'STRIPED SKIRT', 'FALDA RAYADA'],
+  ]);
+});
+
+test('03/11: DE FLORES = FLORAL / DE FLORES; MILITAR = MILITARY; COM CINTURA X é adjetivo e o CÓS continua detalhe', () => {
+  conferir([
+    ['BLUSA DE FLORES', 'FLORAL BLOUSE', 'BLUSA DE FLORES'],
+    // APLICAÇÃO DE FLORES deixa de sair "DE FLORAL" no ES
+    ['BLUSA COM APLICAÇÃO DE FLORES', 'BLOUSE WITH FLORAL APPLIQUÉ', 'BLUSA CON APLIQUE DE FLORES'],
+    ['COLETE JEANS MILITAR', 'MILITARY DENIM VEST', 'CHALECO DENIM MILITAR'],
+    ['JAQUETA MILITAR', 'MILITARY JACKET', 'CHAQUETA MILITAR'],
+    ['CALÇA CARROT COM CINTURA MÉDIA', 'MID-RISE CARROT PANTS', 'PANTALÓN CARROT CON TIRO MEDIO'],
+    ['CALÇA COM CINTURA ALTA E BOLSOS', 'HIGH-RISE PANTS WITH POCKETS', 'PANTALÓN CON TIRO ALTO Y BOLSILLOS'],
+    ['SHORT JEANS COM CINTURA BAIXA', 'LOW-RISE JORTS', 'SHORT DENIM CON TIRO BAJO'],
+    ['CALÇA RETA COM CÓS DE ELÁSTICO', 'STRAIGHT PANTS WITH ELASTIC WAISTBAND', 'PANTALÓN RECTO CON PRETINA ELÁSTICA'],
+  ]);
+});
+
+test('03/11: SHORT e LONG vão antes da peça de mais de uma palavra; MINI/MIDI/MAXI continuam colados', () => {
+  assert.equal(montarTraducao('REGATA CURTA', 'EN').traducao, 'SHORT TANK TOP');
+  assert.equal(montarTraducao('SAIA JEANS CURTA', 'EN').traducao, 'SHORT DENIM SKIRT');
+  assert.equal(montarTraducao('TOP CORTININHA CURTO', 'EN').traducao, 'SHORT TRIANGLE TOP');
+  assert.equal(montarTraducao('VESTIDO POLO MINI', 'EN').traducao, 'POLO MINI DRESS');
+  assert.equal(montarTraducao('SAIA JEANS MINI CINTURA BAIXA COM BRILHO', 'EN').traducao, 'LOW-RISE DENIM MINI SKIRT WITH SHIMMER');
+  // peça de uma palavra: nada muda
+  assert.equal(montarTraducao('MACACÃO SARJA CURTO COM ZÍPER', 'EN').traducao, 'TWILL SHORT JUMPSUIT WITH ZIPPER');
 });
 
 /* ==================== Contexto e lotes para a DeepL em espanhol ==================== */

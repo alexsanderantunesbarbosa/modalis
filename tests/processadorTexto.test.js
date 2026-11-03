@@ -9,7 +9,7 @@ const { indices, termosPendentes, expressoesCompostas, dicionarioTermos } = requ
 
 test('carrega os dezesseis índices recategorizados e deriva as expressões compostas deles', () => {
   assert.equal(indices.length, 16);
-  assert.equal(indices.flatMap(indice => indice.termos).length, 814);
+  assert.equal(indices.flatMap(indice => indice.termos).length, 828);
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'CINTURA ALTA'));
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'MINI-SAIA'));
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'BOLSO FACA' && item.target === 'SLASH POCKET'));
