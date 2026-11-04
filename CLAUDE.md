@@ -13,6 +13,9 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 - **Commit no git só com o comando "pode commitar"** (permissão separada do "pode codar";
   vale para commit, push, amend e merge). Ao fechar o lote, propor a mensagem e aguardar.
 - O dono do projeto valida terminologia; o Claude pesquisa, propõe e justifica.
+- **Padrão do projeto: o de empresa de software grande** (processo, código, documentação,
+  licença e repositório; dono, 04/11/2026). Ao propor, dizer qual é a prática de mercado; sem
+  complicar um sistema de 1 operador, explicando quando ela ainda não compensa no tamanho atual.
 - Idioma de trabalho: português; termos da tabela em CAIXA ALTA.
 - **CLAUDE.md e README.md sempre atualizados no mesmo lote da mudança** (dono, 04/11/2026). O
   `.env.example` é o manual da TI: toda variável nova entra nele com o padrão e o porquê. Nunca
@@ -61,8 +64,19 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
   aberto (fecha antes do piloto, quando o servidor passar a servir a tela; item 13 da fila),
   SheetJS 0.18.5 por CDN (cópia local 0.20.x antes do piloto) e sem autenticação (obrigatória
   na publicação; não haverá login por enquanto, dono, 04/11/2026). Só uso local por enquanto.
-- Repositório privado desde 23/10/2026; `package.json` com `private: true` e
-  `license: UNLICENSED`.
+- Repositório privado desde 23/10/2026 (GitHub `alexsanderantunesbarbosa/modalis`). **Software
+  proprietário e confidencial, de autoria de Alexsander Antunes Barbosa** (04/11/2026):
+  `package.json` com `name: modalis`, `version: 0.9.0`, `author`, `private: true` e
+  `license: UNLICENSED`; arquivo `LICENSE` (PT e EN); uma linha de autoria no topo de cada
+  arquivo de código. A La Moda usa o MODALIS conforme acordo com o autor, a formalizar por
+  escrito na publicação (um e-mail do líder do setor basta: o código é do autor, os dados das
+  coleções são da La Moda, e o uso dos dados fora da empresa e na DeepL está autorizado). O
+  `LICENSE` não afirma a titularidade até esse acordo; quando ele existir, atualizar o texto.
+- Pasta local: `modalis` (renomeada de `Projeto Tradutor` pelo dono em 04/11/2026). A memória
+  do Claude Code fica num endereço montado pelo caminho da pasta: ela foi copiada para
+  `~/.claude/projects/c--Users-alexsander-barbosa-Desktop-modalis/memory/`, e o histórico das
+  conversas anteriores ficou em `~/.claude/projects/c--Users-alexsander-barbosa-Desktop-Projeto-Tradutor/`.
+  Se uma sessão nova começar sem memória, copiar de lá.
 
 ## Arquivos principais
 
@@ -80,6 +94,7 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 | `docs/amostras/` | Planilhas das coleções IN27 e AI27 (base de teste; AI27 traz EN anterior, de qualidade desigual). Fora do git (dados da empresa). |
 | `docs/Traduções - Planilha Base.xlsx` | Modelo das 8 colunas da transação do SAP, com as instruções de cada uma (local, fora do git). Os cabeçalhos (REFERÊNCIA, DESCRIÇÃO, Descrição EN, Descrição ES, TEXTO ECOM, Z_COMPOS_PT, Z_COMPOS_EN, Z_COMPOS_ES) são iguais aos do export em `script.js` (conferido em 04/11/2026); base do teste de contrato previsto no item 13 da fila. |
 | `README.md` | Fluxo e uso da aplicação; sempre atualizado junto com o código. |
+| `LICENSE` | Aviso de software proprietário e confidencial (PT e EN): autoria de Alexsander Antunes Barbosa, uso interno pela La Moda conforme acordo, dados das coleções da La Moda. |
 | `.env.example` | Manual de configuração da TI: toda variável, com padrão e motivo; nenhuma chave real. |
 | `historico/` | Arquivos antigos e planilhas fora de uso, guardados pelo dono só para leitura (desde 04/11/2026): conversas com Gemini e ChatGPT, protótipos, base antiga de 645 termos e requisitos (ago a out/2026); a exportação v2 da tabela de 22/10 (806 entradas); as revisões do ChatGPT de 29/10 e 30/10; a planilha de validação de 30/10; e cópias das amostras. Ignorada pelo git (um dos arquivos tem uma chave antiga da DeepL, já revogada). **Nunca é referência de tradução nem de decisão**; as planilhas de revisão que estão aqui só servem de insumo para a sessão de SIM/NÃO (item 13 da fila). |
 | `referencias/` | Material de terceiros: os slides das aulas de Arquitetura de Software do dono (desde 04/11/2026). Ignorada pelo git (direito autoral do professor). O material de Backend fica no GitHub do professor (`placidodaniel/backend-aulas-satc`). |
@@ -386,6 +401,35 @@ em opus. Perguntas conceituais nunca viram workflow.
       docs de arquitetura (mapa conceito → arquivo, ADRs); hífen no EN (lote próprio).
     - **Fora:** login/autenticação por enquanto; trocar o plano da DeepL (segue Free: a
       dependência cai com a tabela e a memória de traduções).
+14. **Organização do repositório** (revisão de 04/11/2026: 2 propostas, mapa de impacto e
+    juiz; o essencial já é profissional). Feito em 04/11: nome `modalis` 0.9.0, autoria e
+    `LICENSE`. O resto, na ordem:
+    - **Quando houver uma janela curta (o dono decide):** `.gitattributes` (`* text=auto
+      eol=lf`; `*.bat` e `*.cmd` com `eol=crlf`; `*.xlsx`, `*.pdf` e `*.png` binários) e `git add
+      --renormalize .`, em commit próprio e **antes** de mover qualquer arquivo; `.editorconfig`
+      (UTF-8, LF, 2 espaços, newline final; `[*.md]` sem trim); `package.json` sem `main` e com
+      `test` = `node --test "tests/**/*.test.js"` (não usar `node --test tests/`, que quebra no
+      Node 24; sem argumento, o runner varre `historico/`); `.claude/settings.local.json` no
+      `.gitignore`; `.vscode/settings.json` (opção de Python) trocado por `.vscode/extensions.json`
+      recomendando EditorConfig; `CHANGELOG.md` no formato Keep a Changelog, começando na 0.9.0.
+    - **Antes do piloto, junto com o item 13:** a tela vai para `public/` (git mv sem editar os
+      arquivos movidos; ajustar `tests/estadoMassa.test.js`, que lê o `index.html` e os scripts
+      por nome) no mesmo lote em que o servidor passa a servi-la por lista fixa; SheetJS 0.20.3
+      em `public/vendor/sheetjs-0.20.3/` com a licença dele; teste de contrato das 8 colunas
+      (mapeamento de `baixarExcel` vira função pura em `estadoMassa.js`); CI no GitHub Actions
+      (ubuntu e windows × Node 22.15.0 e 24; `permissions: contents: read`) e Dependabot com
+      `target-branch: developer`; `docs/arquitetura.md` (serve também à N1 de 02/12).
+    - **Depois do piloto:** `src/` no mesmo lote da divisão do `server.js` (config, rotas,
+      estáticos, cliente e resiliência da DeepL, serviço, memória SQLite), com o `dotenv`
+      carregado por caminho a partir do `__dirname` e revisão Opus antes do commit;
+      `data/tabela-mestra.json` (o `tabelaMestra.js` vira carregador e validador com a mesma API);
+      `scripts/` com o primeiro script real; `@ts-check` + `npm run tipos` + ESLint + cobertura;
+      trocar os `onclick` por `addEventListener` e ligar a CSP; `docs/adr/` só para decisões
+      novas; `docs/licoes-aprendidas.md`; CLAUDE.md enxuto; guia do usuário antes de abrir ao setor.
+    - **Não fazer:** `src/` antes do piloto; renomear `script.js` ou trocar camelCase por
+      kebab-case; `.nvmrc` (o PC roda o Node 24 e o `engines` diz 22.15+; a matriz do CI cobre);
+      pastas vazias "para o futuro"; Docker, TypeScript com build, bundler, monorepo, pastas
+      MVC vazias, husky/commitlint.
 
 ## Testes
 
