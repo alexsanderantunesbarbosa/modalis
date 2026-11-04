@@ -23,7 +23,7 @@ APLICADO em 29/10/2026 ("pode codar", sem commit até a revisão do dono): campo
 - O ES segue a frase em PT **ao pé da letra**, termo a termo pelo glossário: nada muda de lugar e nenhuma preposição entra ou sai.
 - Palavra estrangeira que o EN manteve não se traduz (T-SHIRT, TRENCH COAT, OVERSIZED, SHORT HOTPANTS).
 - As fusões e trocas do EN (JORTS, SKORT, BABY TEE no lugar de BABY LOOK, TUXEDO, TWO-TONE, HOODIE, SWEATPANTS) valem **só no inglês**. No ES vale o termo que o varejo de língua espanhola usa, pesquisado; na dúvida, segue o PT.
-- Pesquisados em 29/10: BABY LOOK = BABY TEE, FUSEAU/FUSÔ = FUSEAU, SHORT SAIA = FALDA PANTALÓN, BERMUDA = BERMUDA (peça própria em espanhol), SMOKING = SMOKING, DUO COLOR = BICOLOR, SHORT DOLL = SHORT PIJAMA, ALFAIATARIA = SASTRE.
+- Pesquisados em 29/10: BABY LOOK = BABY TEE, FUSEAU/FUSÔ = FUSEAU, SHORT SAIA = FALDA PANTALÓN, BERMUDA = BERMUDA (peça própria em espanhol), SMOKING = SMOKING, DUO COLOR = BICOLOR, SHORT DOLL = SHORT PIJAMA, ALFAIATARIA = SASTRE. SMOKING, DUO COLOR e SHORT DOLL ainda NÃO entraram na tabela (04/11/2026: as 3 descrições do corpus saem "desconhecida"); vão para a sessão de SIM/NÃO como termos novos.
 - **JEANS como tecido = DENIM** em todas as peças (FALDA DENIM, SHORT DENIM, BERMUDA DENIM); JEANS fica só para a calça (CALÇA JEANS = JEANS). Pesquisa nas três regiões: DENIM é a única forma neutra que aparece em nome de produto de loja grande na Espanha, no México e na América do Sul; PEÇA + JEANS não aparece na Espanha nem no México. Confirmado pelo dono.
 - SILK = SERIGRAFÍA (estampa silk). PALHA DE SEDA = PAJA DE SEDA. TERMO/TERMOCOLANTE = TERMOADHESIVO. NAME = NAME.
 - SLEEP e SLIP ficam iguais ao PT até o dono validar (o motor marca a linha para revisão).
@@ -69,7 +69,7 @@ No validador da DeepL em espanhol, SIN e CON contam, porque o sentido de termos 
 
 ### Estados
 
-`tabela`, `acima-de-40`, `desconhecida` (a palavra fora da tabela fica no lugar, em português, e a linha vai à DeepL), `sem-peca` e `varias-pecas` (peças ligadas por conectivo fora de um KIT, ou segunda peça que não está na lista). Peça colada que não está na lista (MEIA CALÇA, CALÇA LEGGING) é sinal de expressão que falta na tabela: vai para revisão em vez de sair "CALCETINES PANTALÓN".
+`tabela`, `acima-de-40`, `desconhecida` (a palavra fora da tabela fica no lugar, em português, e a linha vai à DeepL), `sem-peca` e `varias-pecas` (peças ligadas por conectivo fora de um KIT, ou segunda peça que não está na lista). Peça colada que não está na lista (hoje CALÇA LEGGING; MEIA CALÇA entrou na tabela em 03/11) é sinal de expressão que falta na tabela: sai "PANTALÓN LEGGING…", mas marcada como várias peças (revisão) em vez de passar como tabela.
 
 ## Medição no corpus (29/10/2026, 2.457 descrições distintas da IN27 e da AI27)
 
@@ -81,21 +81,23 @@ No validador da DeepL em espanhol, SIN e CON contam, porque o sentido de termos 
 | várias peças | 26 (1,1%) | 10 (0,4%) |
 | sem peça | 2 (0,1%) | 2 (0,1%) |
 
+Números de 29/10, com o corpus ainda de 2.457 (ver "Correção do corpus", 30/10). Em 04/11/2026 (2.464 distintas): EN tabela 2.218 (90,0%), desconhecida 161, acima de 40 62, várias peças 21, sem peça 2; ES tabela 2.050 (83,2%), desconhecida 161, acima de 40 242 (9,8%), várias peças 9, sem peça 2.
+
 O espanhol ao pé da letra é mais longo (TIRO ALTO, MANGA LARGA, CAMISETA SIN MANGAS): uma em cada dez descrições precisa de edição manual para caber em 40. EN e ES juntos levam 0,7 s nas 2.457 descrições.
 
 ## Pendências
 
-- **Termos novos em validação na planilha** (98), entre eles os que fecham casos do conjunto de referência: MEIA CALÇA = MEDIAS, CALÇA LEGGING = LEGGING, COM TOUCA = CON CAPUCHA (no moletom), COM ABOTOAMENTO DUPLO = CON DOBLE BOTONADURA, GOLA CACHECOL = CUELLO BUFANDA, COM DRAPEADO = CON DRAPEADO e FAIXA (produto) = FAJÍN. Os testes desses casos rodam como TODO até as entradas entrarem.
+- **Termos novos em validação na planilha** (98). Entraram em 03/11: MEIA CALÇA (= PANTIMEDIAS, não MEDIAS) e COM DRAPEADO = CON DRAPEADO. Faltam: CALÇA LEGGING = LEGGING, COM TOUCA = CON CAPUCHA (no moletom) e COM ABOTOAMENTO DUPLO = CON DOBLE BOTONADURA, cujos 3 testes rodam como TODO; e GOLA CACHECOL = CUELLO BUFANDA e FAIXA (produto) = FAJÍN, cujos casos esperam 'varias-pecas' e 'sem-peca' até as entradas entrarem. Vão para a sessão de SIM/NÃO.
 - **SLEEP/SLIP** e o EN de ANÁGUA, por último.
-- **Correções de grafia** (27) e **perguntas** (25) da planilha.
-- DE FLORES ainda sai "DE FLORAL" no ES; a proposta DE FLORES = DE FLORES está na planilha de validação de 30/10. COM FLORES e COM CORTE A LASER entraram em 30/10 (ver abaixo).
-- VESTIDO COM APLICAÇÃO DE FLORES sai "CON APLIQUE DE FLORAL" (EN "WITH FLORAL APPLIQUÉ"): COM APLICAÇÃO casa antes de APLICAÇÃO DE FLORES. Defeito do casamento de expressões sobrepostas, anterior ao ES; sem uso no corpus.
+- **Correções de grafia** (27) e **perguntas** (25) da planilha de 29/10: sem registro de aplicação (as 29 regras de 03/11 vieram do corpus, não desta aba). Encerrada como planilha em 04/11/2026; os itens em aberto vão para a sessão única de SIM/NÃO, que congela a terminologia em 12/11.
+- ~~DE FLORES ainda sai "DE FLORAL" no ES~~ resolvido em 03/11/2026: DE FLORES = FLORAL / DE FLORES entrou na tabela. COM FLORES e COM CORTE A LASER entraram em 30/10 (ver abaixo).
+- VESTIDO COM APLICAÇÃO DE FLORES: o ES foi consertado em 03/11 pela entrada DE FLORES (hoje "CON APLIQUE DE FLORES"); o EN segue "WITH FLORAL APPLIQUÉ". De fundo, COM APLICAÇÃO ainda casa antes de APLICAÇÃO DE FLORES. Defeito do casamento de expressões sobrepostas, anterior ao ES; sem uso no corpus.
 - MAIÔ CAVADO: CAVADO hoje é SISA PROFUNDA / DEEP ARMHOLE, mas no maiô é cava alta na perna (DE CORTE ALTO / HIGH-CUT, como BODY CAVADO). Para o dono decidir.
-- Para o dono decidir: um adjetivo colado num substantivo que não é peça, como em BLUSA SEM MANGA ESTAMPA LISTRADA, hoje concorda com a peça e sai "ESTAMPADO RAYADA". O PT quer "ESTAMPADO RAYADO". Mudar a ordem resolve esse caso, mas mexe em casos ambíguos, como BLUSA GOLA ALTA ASSIMÉTRICA.
+- Para o dono decidir: um adjetivo colado num substantivo que não é peça concorda com a peça. O caso BLUSA SEM MANGA ESTAMPA LISTRADA foi resolvido em 03/11 pela entrada ESTAMPA LISTRADA (hoje "ESTAMPADO DE RAYAS"); a regra geral continua aberta. O PT quer "ESTAMPADO RAYADO". Mudar a ordem resolve esse caso, mas mexe em casos ambíguos, como BLUSA GOLA ALTA ASSIMÉTRICA.
 
 ## Decisões do dono de 30/10/2026
 
-O dono revisou a planilha do ChatGPT (31 apontamentos sobre os 806 termos) e pediu uma pesquisa geral do glossário: 148 agentes em 3 rodadas, com 803 dos 806 termos buscados na internet. O resultado está em `validacao-glossario-modalis-2026-10-30.xlsx`, aguardando as respostas dele. Entraram na tabela, com aprovação no chat:
+O dono revisou a planilha do ChatGPT (31 apontamentos sobre os 806 termos) e pediu uma pesquisa geral do glossário: 148 agentes em 3 rodadas, com 803 dos 806 termos buscados na internet. O resultado está em `historico/validacao-glossario-modalis-2026-10-30.xlsx` (movido pelo dono em 04/11/2026). Encerrada como planilha em 04/11: os itens em aberto vão para a sessão única de SIM/NÃO, que congela a terminologia em 12/11. Entraram na tabela, com aprovação no chat:
 
 | PT | ES antes | ES agora | Motivo |
 |---|---|---|---|
@@ -162,7 +164,7 @@ Os termos de espanhol e as dúvidas passaram por pesquisa no varejo, com um revi
 | COM CINTURA ALTA/MÉDIA/BAIXA (novas) | HIGH-/MID-/LOW-RISE (adjetivo) | CON TIRO ALTO/MEDIO/BAJO | 5 | Antes "CARROT PANTS WITH MID-RISE". A cintura entrou como expressão da tabela, e não como regra no código, porque o CÓS (mesmo índice) é substantivo e continua detalhe: "WITH ELASTIC WAISTBAND". |
 | COM ESTAMPA (removida) | — | — | 9 | A regra do COM já dá WITH PRINT / CON ESTAMPADO. A expressão engolia a palavra ESTAMPA de ESTAMPA FLORAL/LOCAL/DE FLORES/LISTRADA ("BLOUSE WITH PRINT FLORAL"). Hoje sai BLOUSE WITH FLORAL PRINT e WITH PLACEMENT PRINT ("local print" não existe em inglês). |
 
-Grafia: 30 regras novas em `correcoesOrtograficas.js` (OVERIZED, BALZER, XADREX, SAMLESS, MANHA LONGA…). São erros que ainda escapavam no corpus, 1 ocorrência cada. Continuam só sugestão. Ficaram de fora os incertos: BOLLON, FULL e LENGTH sozinhos.
+Grafia: 29 regras novas em `correcoesOrtograficas.js` (OVERIZED, BALZER, XADREX, SAMLESS, MANHA LONGA…). São erros que ainda escapavam no corpus, 1 ocorrência cada. Continuam só sugestão. Ficaram de fora os incertos: BOLLON, FULL e LENGTH sozinhos. Em 04/11/2026 entrou mais uma, LENGHT → LENGTH (erro de digitação puro), e o total passou a 54.
 
 Medição no corpus (2.464 descrições), antes × depois:
 - EN: 29 mudaram, todas para melhor (24 dos termos e 5 do comprimento antes da peça). Em "tabela", passaram de 2.212 para 2.218; "várias peças", de 26 para 21; "acima de 40" ficou em 62.
@@ -181,7 +183,7 @@ Pendências deste lote:
 
 A revisão teve 3 revisores e 3 verificadores, todos em Opus. Ela confirmou 18 achados: 1 alto, 4 médios e 13 baixos.
 - **Corrigidos no mesmo dia (15):** SEM abrindo detalhe, que invertia o sentido de 6 linhas do corpus; tecidos sem gênero; NO/NÓ, que também afetava o EN em 2 linhas; conectivo solto no fim; segunda peça colada como alvo; exceções de gênero do PT; MESCLA; SIN na regra R9; adjetivo logo depois de palavra desconhecida; MIX masculino; o validador ES (plural, hífen, SIN/CON e falsos "peça a mais"); a tradução em massa, que perdia o idioma que voltou quando o outro falhava; e os números dos filtros "Editadas" e "Confirmadas".
-- **Ficam para a planilha ou para o dono (3):** FLORES, CORTE A LASER e ESTAMPA LISTRADA.
+- **Ficam para a planilha ou para o dono (3):** FLORES, CORTE A LASER e ESTAMPA LISTRADA (resolvidos depois: COM FLORES e COM CORTE A LASER em 30/10; ESTAMPA LISTRADA e DE FLORES em 03/11).
 - **Regressão no EN:** nenhuma. As 2.457 saídas em EN foram comparadas com o commit anterior, e só mudaram as 2 linhas de NO PESCOÇO, onde saiu o KNOT errado.
 
 Lição: o ES ao pé da letra herda os erros do PT, como a descrição cortada no meio e o erro de concordância. Toda regra de concordância precisa de um caso com SEM, outro com tecido e outro com palavra desconhecida antes do adjetivo.

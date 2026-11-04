@@ -517,8 +517,9 @@ const PREPOSICOES_ES = new Set(['CON', 'SIN', 'DE', 'EN', 'A', 'PARA']);
 const CAEM_ANTES_DE_ADJETIVO = new Set(['COM', 'C/', 'DE', 'DA', 'DO', 'DAS', 'DOS', 'EM']);
 // Peças que, coladas depois de outra, fazem papel de modelo dela (decisões de 26 e 29/10/2026:
 // VESTIDO BLAZER, VESTIDO POLO, CAMISA PIJAMA, SAIA PAREO, BLUSA CORSET JEANS, TOP CROPPED
-// LINGERIE, SAIA CURTA ANÁGUA, VESTIDO REGATA). Outra peça colada (MEIA CALÇA, CALÇA LEGGING)
-// é sinal de expressão que falta na tabela, e SLEEP/SLIP esperam o dono: revisão.
+// LINGERIE, SAIA CURTA ANÁGUA, VESTIDO REGATA). Outra peça colada (CALÇA LEGGING; MEIA CALÇA
+// entrou na tabela em 03/11) é sinal de expressão que falta na tabela, e SLEEP/SLIP esperam o
+// dono: revisão.
 const SEGUNDAS_PECAS_ES = new Set(['BLAZER', 'POLO', 'PIJAMA', 'PAREO', 'CORSET JEANS', 'LINGERIE', 'ANAGUA', 'REGATA']);
 
 // Gênero no PT de substantivos cuja terminação engana (chave sem acento; expressão inteira

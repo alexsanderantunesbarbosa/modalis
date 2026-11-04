@@ -1,6 +1,8 @@
 # Decisões do glossário — validação IN27 + AI27 (22/10/2026)
 
-Fonte: ficha de validação (artifact "Validação de Termos IN27"). APLICADO em 22/10/2026 ("pode codar"): `tabelaMestra.js` regenerado com 792 termos (todos FECHADO, índice 13 criado para nomes de linha), `correcoesOrtograficas.js` com 14 regras novas, testes atualizados (19/19 passando). Planilha de revisão: `tabela-mestra-modalis-2026-10-22.xlsx` na pasta do projeto. Cobertura total das descrições IN27+AI27 subiu de 31% para 92%.
+Fonte: ficha de validação (artifact "Validação de Termos IN27"). APLICADO em 22/10/2026 ("pode codar"): `tabelaMestra.js` regenerado com 792 termos (todos FECHADO, índice 13 criado para nomes de linha), `correcoesOrtograficas.js` com 14 regras novas, testes atualizados (19/19 passando). Planilha de revisão: `tabela-mestra-modalis-2026-10-22.xlsx` na pasta do projeto (substituída no mesmo dia pela `-v2.xlsx`, ver o fim deste arquivo; a v2 está em `historico/` desde 04/11/2026). Cobertura total das descrições IN27+AI27 subiu de 31% para 92%.
+
+> **Nota (04/11/2026):** este arquivo é registro histórico. A coluna Índice das listas abaixo é a de ANTES da recategorização de 22/10 (seção "Recategorização", no fim; ~106 linhas mudaram de índice, como BOMBER 1→14, ANÁGUA 1→16 e COM CAPUZ 10→12). Para índice, EN e ES vigentes, vale `tabelaMestra.js`. Também mudaram depois: A FIO (31/10), HIGH/LOW/RISE (30/10) e TRICOT (ver as notas nas linhas).
 
 ## Termos existentes que passam de VALIDAR para FECHADO (54)
 
@@ -149,7 +151,7 @@ Fonte: ficha de validação (artifact "Validação de Termos IN27"). APLICADO em
 | LÃ BATIDA | BOILED WOOL | 8 |
 | MALHA LEVE | LIGHT KNIT | 8 |
 | MALHA PESADA | HEAVY KNIT | 8 |
-| MALHA TRICOT | TRICOT KNIT | 8 |
+| MALHA TRICOT | TRICOT KNIT (substituído no mesmo dia por KNIT; ver Recategorização) | 8 |
 | MANGA CAPA | CAPE SLEEVE | 6 |
 | MANGA DE CAPA | CAPE SLEEVE | 6 |
 | MANGAS | SLEEVES | 6 |
@@ -201,7 +203,7 @@ Fonte: ficha de validação (artifact "Validação de Termos IN27"). APLICADO em
 | TOCO | MICRO | 4 |
 | TOUCA | BEANIE | 1 |
 | TRICOLOR | TRICOLOR | 9 |
-| TRICOT | TRICOT | 8 |
+| TRICOT | TRICOT (substituído no mesmo dia por KNIT; ver Recategorização) | 8 |
 | TRUCKER | TRUCKER | 1 |
 | VINIL | VINYL | 8 |
 | ZÍPER FRONTAL | FRONT ZIPPER | 10 |
@@ -221,7 +223,7 @@ Nenhum: todos os termos levantados foram decididos.
 
 | Erro | Correção |
 |---|---|
-| LENGHT | LENGTH |
+| LENGHT | LENGTH (só entrou no código em 04/11/2026, como regra própria; antes existia apenas FULL LENGHT → FULL LENGTH) |
 | JEASN | JEANS |
 | MEIDIA | MÉDIA |
 | CONFORT | COMFORT |
@@ -233,7 +235,7 @@ Nenhum: todos os termos levantados foram decididos.
 | TSHIRT | T-SHIRT |
 | JCALÇA | CALÇA |
 | ILHÓSES | ILHOSES |
-| COSTA | COSTAS |
+| COSTA | COSTAS (não entrou no código: COSTA é termo da tabela = BACK / ESPALDA, e a regra não é necessária) |
 | AVIO | AVIÔ |
 
 ## Decisões de padronização
@@ -245,7 +247,7 @@ Nenhum: todos os termos levantados foram decididos.
 - Pelo: FAUX FUR (todas as peças das coleções são 100% poliéster).
 - TERMO e TERMOCOLANTE = HOTFIX; COM TERMO / COM TERMOCOLANTE = WITH HOTFIX.
 - Cavado: em body é na perna → BODY CAVADO = HIGH-CUT BODYSUIT (expressão); nas demais peças é a cava/alça → CAVADA/CAVADO = DEEP ARMHOLE.
-- SILK = SCREEN PRINT (SEDA = SILK já existe). SLEEP/SLEEP DRESS = SLIP/SLIP DRESS. ANÁGUA = SLIP. ASA DELTA = HIGH-CUT. KIT = SET.
+- SILK = SCREEN PRINT (SEDA = SILK já existe). SLEEP/SLEEP DRESS = SLIP/SLIP DRESS (não aplicado: na tabela SLEEP e SLEEP DRESS seguem iguais ao PT, e a decisão SLEEP/SLIP está com o dono, R19 em `docs/decisoes-espanhol-2026-10-29.md`). ANÁGUA = SLIP. ASA DELTA = HIGH-CUT. KIT = SET.
 
 ## Fila de código após a tabela
 
@@ -254,15 +256,17 @@ Nenhum: todos os termos levantados foram decididos.
 3. Reordenação no fallback local (modificadores antes da peça), pedido na validação de MINI.
 4. Glossário nativo DeepL: script de sincronização + teste comparativo com IN27/AI27 (AI27 traz EN anterior como referência).
 
+> **Nota (04/11/2026):** os itens 1 a 3 foram feitos em 24/10/2026 (`resolverSentido`, montador por índice, validador); falta só o 4, que ficou para depois do banco SQLite. O EN antigo da AI27 não é mais referência (dono, 03/11).
+
 ## Lista do setor (PT/EN/ES, 403 linhas) — 22/10/2026
 
-171 termos coincidem com a tabela. Lista completa com espanhol: `docs/glossario-setor-pt-en-es.tsv` (reservada para a feature ES).
+171 termos coincidem com a tabela. Lista completa com espanhol: `docs/glossario-setor-pt-en-es.tsv` (era reservada para a feature ES; a feature foi feita em 29/10/2026 com o ES da própria tabela, e a lista ficou só como histórico; o EN/ES dela nunca é referência, dono, 03/11).
 
 ### Termos do setor a incluir como FECHADO (148)
 
 | PT | EN | Índice |
 |---|---|---|
-| A FIO | DISTRESSED | 9 |
+| A FIO | DISTRESSED (substituído em 31/10/2026 por RAW-EDGE / SIN REMATAR; ver `docs/decisoes-espanhol-2026-10-29.md`) | 9 |
 | ABOTOADURA | CUFFLINK | 1 |
 | ACABAMENTO | FINISH | 12 |
 | ACESSÓRIOS | ACCESSORIES | 1 |
@@ -340,14 +344,14 @@ Nenhum: todos os termos levantados foram decididos.
 | GRAVATA | NECKTIE | 1 |
 | GUARDA-CHUVA | UMBRELLA | 1 |
 | HERA | HERA | 12 |
-| HIGH | HIGH-RISE | 5 |
+| HIGH | HIGH-RISE (removido em 30/10/2026) | 5 |
 | HÉSTIA | HÉSTIA | 12 |
 | LADY LIKE | LADYLIKE | 2 |
 | LATA | CAN | 1 |
 | LINGERIE | LINGERIE | 1 |
 | LONGLINE | LONGLINE | 2 |
 | LOOSE | LOOSE | 2 |
-| LOW | LOW-RISE | 5 |
+| LOW | LOW-RISE (removido em 30/10/2026) | 5 |
 | LUNA | LUNA | 12 |
 | LUVA | GLOVES | 1 |
 | MANGA BUFANTE | PUFF SLEEVE | 6 |
@@ -381,7 +385,7 @@ Nenhum: todos os termos levantados foram decididos.
 | RAGLÃ | RAGLAN | 6 |
 | RETO | STRAIGHT | 3 |
 | REVESTIMENTO | COATING | 9 |
-| RISE | RISE | 5 |
+| RISE | RISE (removido em 30/10/2026) | 5 |
 | ROLOTÊ | SPAGHETTI STRAP | 7 |
 | SAIA LÁPIS | PENCIL SKIRT | 1 |
 | SECOND SKIN | SECOND SKIN | 1 |
@@ -428,12 +432,16 @@ Nos demais 81 termos divergentes a tabela mestra prevalece (o inglês do setor t
 
 ### Regras de contexto para a fila de código
 
+> **Nota (04/11/2026):** feitas em 24/10/2026 em `resolverSentido`. JEANS/MOLETOM leem a peça pelos índices da tabela; a GOLA ALTA de agasalho usa o índice 14 e a regex `AGASALHO` (palavras EN), e não a lista abaixo.
+
 - JEANS → DENIM também para SHORT/BERMUDA/COLETE/MACACÃO (DENIM SHORTS etc.)
 - MOLETOM + CAPUZ → HOODIE (suprimir HOODED)
 - GOLA ALTA em JAQUETA/CASACO/PARKA/TRENCH/COLETE/BOMBER/PUFFER → HIGH COLLAR
 - Fallback local: reordenar modificadores antes da peça
 
 ## Especificação da estrutura da frase em inglês (22/10/2026)
+
+> **SUBSTITUÍDA em 24/10/2026** pela ordem do `CLAUDE.md` ("Estrutura da frase em inglês"): nome de linha na posição 0, comprimento descritivo antes do fit, modelo (3/14) colado à peça. A reordenação é feita pelo código, não pela DeepL, e o campo `posicao` não foi necessário. Exemplos atuais: BERMUDA JEANS COMFORT CINTURA MÉDIA → MID-RISE COMFORT JORTS; MOLETOM MANGA LONGA COM CAPUZ → LONG SLEEVE HOODIE. O texto abaixo fica como registro.
 
 Ordem fixa, da esquerda para a direita; o índice da tabela define a posição do termo:
 
@@ -470,11 +478,13 @@ Expressões novas no índice 1 (combinações de JEANS/MOLETOM com peça; os ter
 
 Dois significados: GOLA ALTA = TURTLENECK (padrão) + GOLA ALTA contexto AGASALHO = HIGH COLLAR (regra de código pendente); TRICOT e MALHA TRICOT = KNIT (grafia de TRICÔ nas coleções); DECOTE GOTA = KEYHOLE NECKLINE; GOLA LAÇO = TIE-NECK; FAIXA NA CINTURA = WAIST SASH; ARGOLA = RING e ABERTURA = OPENING únicos; para acessórios futuros: GOTA = DROP (pingente), ARGOLA = HOOP (brinco).
 
-Correções de tradução: ACETINADO/A/OS/AS = SATIN (era SATINATED); COM RELEVO = WITH EMBOSSING (era WITH EMBOSSED). Pendência: PALHA DE SEDA = SILK STRAW precisa de confirmação do tecido.
+Correções de tradução: ACETINADO/A/OS/AS = SATIN (era SATINATED); COM RELEVO = WITH EMBOSSING (era WITH EMBOSSED). ~~Pendência: PALHA DE SEDA = SILK STRAW precisa de confirmação do tecido.~~ Encerrada pelo dono em 04/11/2026: fica SILK STRAW / PAJA DE SEDA.
 
-Planilha: `tabela-mestra-modalis-2026-10-22-v2.xlsx` (aba "Mudanças deste lote").
+Planilha: `tabela-mestra-modalis-2026-10-22-v2.xlsx` (aba "Mudanças deste lote"; em `historico/` desde 04/11/2026).
 
 ## Próximos passos de código (ordem sugerida)
+
+> **Nota (04/11/2026):** os itens 1 a 3 foram feitos em 24/10/2026; a fila vigente está no `CLAUDE.md`.
 
 1. `processadorTexto.js`: regra geral JEANS → DENIM e MOLETOM → FLEECE quando houver outra peça (substitui as listas fixas); regra GOLA ALTA → HIGH COLLAR com peça dos índices 14/1-agasalho; MOLETOM + CAPUZ → HOODIE.
 2. Reordenação do fallback por índice (especificação da frase acima) + campo opcional `posicao` para exceções do índice 12.

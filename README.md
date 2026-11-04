@@ -50,15 +50,15 @@ O espanhol (neutro, validado com o varejo de moda em espanhol em 29/10/2026) seg
 | `Z_COMPOS_EN` | Composição em inglês importada, quando encontrada |
 | `Z_COMPOS_ES` | Composição em espanhol importada, quando encontrada |
 
-A saída contém somente essas oito colunas, que são o layout da transação de carga no SAP desenvolvida pela TI. Outras colunas da planilha de entrada não são copiadas. A interface mantém a descrição original durante a revisão, mas a saída não tem uma coluna separada para ela: após aceitar uma correção, `DESCRIÇÃO` contém a versão corrigida, e é essa que a transação grava no SAP. Por isso "Aplicar todas as correções" pede confirmação.
+A saída contém somente essas oito colunas, que são o layout da transação de carga no SAP desenvolvida pela TI. O modelo dessa planilha, com os oito cabeçalhos e a instrução de cada coluna, fica em `docs/Traduções - Planilha Base.xlsx` (local, fora do Git); os cabeçalhos exportados são iguais aos dele. Outras colunas da planilha de entrada não são copiadas. A interface mantém a descrição original durante a revisão, mas a saída não tem uma coluna separada para ela: após aceitar uma correção, `DESCRIÇÃO` contém a versão corrigida, e é essa que a transação grava no SAP. Por isso "Aplicar todas as correções" pede confirmação.
 
-O download é bloqueado se houver sugestões ortográficas pendentes, descrições EN ou ES vazias ou valores PT/EN/ES acima de 40 caracteres. Depois dos bloqueios, traduções marcadas para revisão (a revisar ou DeepL falhou) que não foram editadas nem confirmadas pedem uma confirmação antes de exportar. Acima de 40 a correção é sempre humana: o sistema nunca corta nem encurta sozinho. Na medição de 29/10/2026 (2.457 descrições distintas da IN27 e da AI27), 10% das descrições em espanhol passam de 40, contra 2,5% em inglês, porque o espanhol ao pé da letra é mais longo (TIRO ALTO, MANGA LARGA). ECOM não entra nessa validação. O usuário informa que o SAP já entrega a descrição PT dentro de 40 caracteres; o sistema também valida esse limite antes do download.
+O download é bloqueado se houver sugestões ortográficas pendentes, descrições EN ou ES vazias ou valores PT/EN/ES acima de 40 caracteres. Depois dos bloqueios, traduções marcadas para revisão (a revisar ou DeepL falhou) que não foram editadas nem confirmadas pedem uma confirmação antes de exportar. Acima de 40 a correção é sempre humana: o sistema nunca corta nem encurta sozinho. Na medição de 04/11/2026 (2.464 descrições distintas da IN27 e da AI27), 9,8% das descrições em espanhol passam de 40, contra 2,5% em inglês, porque o espanhol ao pé da letra é mais longo (TIRO ALTO, MANGA LARGA). ECOM não entra nessa validação. O usuário informa que o SAP já entrega a descrição PT dentro de 40 caracteres; o sistema também valida esse limite antes do download.
 
 ## O que ainda não está implementado ou confirmado
 
 - O `TEXTO ECOM` é uma cópia da descrição; o texto completo do START (anterior ao corte de 40 caracteres) ainda não é usado.
-- A tradução da composição têxtil não é feita. Se as colunas de composição existirem na entrada, seus valores são carregados e exportados sem tradução.
-- O glossário nativo da DeepL ainda não é usado. A decisão é usá-lo depois, sincronizado a partir da tabela mestra, que continua sendo a fonte de verdade (ver fila de código no `CLAUDE.md`).
+- A tradução da composição têxtil não é feita. Se as colunas de composição existirem na entrada, seus valores são carregados e exportados sem tradução. Ela entra antes do piloto de dezembro, porque a meta é a planilha da coleção 100% pronta.
+- O glossário nativo da DeepL ainda não é usado. A decisão é usá-lo depois do banco SQLite, sincronizado a partir da tabela mestra, que continua sendo a fonte de verdade (ver fila de código no `CLAUDE.md`).
 - Quando a DeepL falha, o servidor monta a linha pela tabela (motor local, na mesma estrutura da frase, com as palavras desconhecidas em português no fim) e informa `origem: local`; a interface marca a linha, mostra o motivo na faixa e a deixa pendente para "Traduzir pendentes", a não ser que ela seja confirmada ou editada.
 - O servidor não hospeda os arquivos da interface; `script.js` chama a API em `http://localhost:3000`.
 - A importação lê apenas a primeira aba da planilha.
@@ -73,7 +73,7 @@ O download é bloqueado se houver sugestões ortográficas pendentes, descriçõ
 | Glossário e processamento | `tabelaMestra.js` e `processadorTexto.js` |
 | Sugestões ortográficas | `correcoesOrtograficas.js` |
 | Tradução externa | DeepL API |
-| Leitura e geração de planilhas | SheetJS carregado por CDN no navegador |
+| Leitura e geração de planilhas | SheetJS 0.18.5 carregado por CDN (jsdelivr) no navegador |
 
 A interface segue a linguagem visual do sistema interno START (padrão Bootstrap 3), com CSS próprio e os mesmos tamanhos de barra, fontes e campos; a barra traz o M do logo La Moda. A tela Individual cabe sem rolar mesmo com a escala do Windows em 150%. O único recurso externo do HTML é o SheetJS por CDN; para tradução via DeepL, o servidor precisa de acesso à API.
 
@@ -86,6 +86,8 @@ git clone https://github.com/alexsanderantunesbarbosa/modalis.git
 cd modalis
 npm install
 ```
+
+A branch `main` recebe a versão estável por merge da `developer`, sempre com tag de versão; o desenvolvimento do dia corre na `developer`.
 
 Crie `.env` a partir de `.env.example` somente se ainda não houver um arquivo local. Não sobrescreva um `.env` existente:
 
@@ -101,7 +103,7 @@ Inicie o servidor:
 npm start
 ```
 
-Fora da rede da empresa, `node server.js` também funciona; `npm start` acrescenta `--use-system-ca`, necessário na rede corporativa (ver a seção de segurança). Por padrão, a API escuta só neste computador (`127.0.0.1`) na porta `3000`. Toda a configuração vem de variáveis de ambiente (ver `.env.example`): `MOTOR_PRINCIPAL` (`tabela`), `HOST`, `PORT`, `MAX_CORPO_BYTES` (1 MB), `MAX_DESCRICOES_LOTE` (10.000), `MAX_CARACTERES_DESCRICAO` (200), `DEEPL_TAMANHO_LOTE` (1, máximo 50), `DEEPL_CHAMADAS_SIMULTANEAS` (3), `DEEPL_TENTATIVAS` (3), `DEEPL_ESPERA_RETRY_MS` (1.000), `DEEPL_TIMEOUT_MS` (15.000), `DEEPL_FALHAS_SEGUIDAS` (9) e `DEEPL_CIRCUITO_ABERTO_MS` (30.000). Se a DeepL ficar inacessível (rede, proxy, serviço fora), o disjuntor suspende as chamadas por 30 s e a tradução segue pelo motor local, marcada na interface; sem ele, cada lote repetiria as esperas. Já o 429 ("muitas requisições", comum no plano Free) é tratado como pedido para ir mais devagar: o servidor pausa todas as chamadas (`DEEPL_PAUSA_429_MS`, dobrando até `DEEPL_PAUSA_MAXIMA_429_MS`, ou o `Retry-After` da DeepL) e repete; só depois de `DEEPL_PACIENCIA_429_MS` (2 min) sem sucesso o restante fica pendente para "Traduzir pendentes". Toda chamada informa `source_lang=PT`, porque descrições curtas eram lidas como outro idioma. A interface envia a coleção em partes de 100 descrições distintas e mostra o progresso. O servidor escreve uma linha JSON por requisição em stdout (rota, status, duração) e por falha da DeepL em stderr. Abra `index.html` separadamente no navegador ou sirva-o por um servidor estático local. O servidor Node deste projeto atende as rotas da API, não os arquivos HTML/CSS/JS. A interface atualmente chama `localhost:3000` diretamente.
+Fora da rede da empresa, `node server.js` também funciona; `npm start` acrescenta `--use-system-ca`, necessário na rede corporativa (ver a seção de segurança). Por padrão, a API escuta só neste computador (`127.0.0.1`) na porta `3000`. Toda a configuração vem de variáveis de ambiente (ver `.env.example`): `MOTOR_PRINCIPAL` (`tabela`), `HOST`, `PORT`, `MAX_CORPO_BYTES` (1 MB), `MAX_DESCRICOES_LOTE` (10.000), `MAX_CARACTERES_DESCRICAO` (200), `DEEPL_TAMANHO_LOTE` (1, máximo 50), `DEEPL_CHAMADAS_SIMULTANEAS` (3), `DEEPL_TENTATIVAS` (3), `DEEPL_ESPERA_RETRY_MS` (1.000), `DEEPL_TIMEOUT_MS` (15.000), `DEEPL_FALHAS_SEGUIDAS` (9) e `DEEPL_CIRCUITO_ABERTO_MS` (30.000); um valor numérico inválido (0, negativo, texto) volta ao padrão sem aviso. Se a DeepL ficar inacessível (rede, proxy, serviço fora), o disjuntor suspende as chamadas por 30 s e a tradução segue pelo motor local, marcada na interface; sem ele, cada lote repetiria as esperas. Já o 429 ("muitas requisições", comum no plano Free) é tratado como pedido para ir mais devagar: o servidor pausa todas as chamadas (`DEEPL_PAUSA_429_MS`, dobrando até `DEEPL_PAUSA_MAXIMA_429_MS`, ou o `Retry-After` da DeepL) e repete; só depois de `DEEPL_PACIENCIA_429_MS` (2 min) sem sucesso a DeepL fica suspensa por `DEEPL_CIRCUITO_ABERTO_MS` e o restante fica pendente para "Traduzir pendentes" (enquanto nenhuma chamada der certo, um novo 429 suspende de novo na hora). Toda chamada informa `source_lang=PT`, porque descrições curtas eram lidas como outro idioma. A interface envia a coleção em partes de 100 descrições distintas e mostra o progresso. O servidor escreve uma linha JSON por evento (além de uma linha de texto legível ao iniciar): as requisições (rota, status, duração) em stdout; avisos (falha e nova tentativa da DeepL, limite de taxa, disjuntor aberto, requisição recusada com 4xx) e erros internos (500, com stack) em stderr. Abra `index.html` separadamente no navegador ou sirva-o por um servidor estático local. O servidor Node deste projeto atende as rotas da API, não os arquivos HTML/CSS/JS (servir a interface pelo próprio servidor está decidido para antes do piloto). A interface atualmente chama `localhost:3000` diretamente. Rotas: `POST /api/traduzir`, `POST /api/traduzir-massa`, `POST /api/sugerir-correcoes` e `GET /api/glossario`; ainda não há rota de saúde.
 
 Para executar os testes automatizados locais:
 
@@ -109,7 +111,7 @@ Para executar os testes automatizados locais:
 npm test
 ```
 
-Esse comando usa o test runner nativo do Node.js. Os testes em `tests/` cobrem o matching do glossário, a montagem da frase em inglês pela tabela (com os exemplos de referência do `CLAUDE.md`), a montagem em espanhol (`tests/montadorEspanhol.test.js`, com os 69 casos de referência; os que dependem de termo novo ainda em validação rodam como TODO), o validador da resposta da DeepL, a montagem de lotes, as correções de grafia, as regras da tabela em massa (`estadoMassa.js`, inclusive o carregamento conjunto com o `script.js`) e a API HTTP com uma DeepL simulada injetada (sem rede e sem depender do `.env`): validação de entrada, limites, timeout, novas tentativas, disjuntor, fallback por lote, limite de chamadas simultâneas, cancelamento quando o cliente desiste e um corpo com acento partido entre dois pacotes TCP.
+Esse comando usa o test runner nativo do Node.js. Os testes em `tests/` cobrem o matching do glossário, a montagem da frase em inglês pela tabela (com os exemplos de referência do `CLAUDE.md`), a montagem em espanhol (`tests/montadorEspanhol.test.js`, com os 69 casos de referência; os que dependem de termo novo ainda em validação rodam como TODO), o validador da resposta da DeepL, a montagem de lotes, as correções de grafia, as regras da tabela em massa (`estadoMassa.js`, inclusive o carregamento conjunto com o `script.js`) e a API HTTP com uma DeepL simulada injetada (sem rede e sem depender do `.env`): validação de entrada, limites, timeout, novas tentativas, disjuntor, freio do 429 (Retry-After e paciência), motor `tabela`, validador de estrutura (EN e ES), fallback por lote, limite de chamadas simultâneas, cancelamento quando o cliente desiste e um corpo com acento partido entre dois pacotes TCP.
 
 ## Estrutura principal
 
@@ -123,24 +125,34 @@ processadorTexto.js            Correspondências do glossário e montagem da fra
 tabelaMestra.js                Tabela mestra (glossário, fonte de verdade)
 correcoesOrtograficas.js       Sugestões locais de grafia
 tests/                         Testes automatizados
-docs/                          Decisões do glossário e do espanhol, lista PT/EN/ES do setor (histórico) e planilhas de amostra
+docs/                          Decisões do glossário e do espanhol e lista PT/EN/ES do setor (histórico)
 ```
+
+Pastas e arquivos locais, fora do Git (não vêm no clone; são dados da empresa ou material de terceiros): `docs/amostras/` (planilhas das coleções IN27 e AI27, base de teste), `docs/Traduções - Planilha Base.xlsx` (modelo das oito colunas do SAP), `historico/` (arquivos antigos do projeto, só para leitura), `pesquisa/` (dados de medição) e `referencias/` (material das aulas).
 
 ## Segurança e limitações de uso
 
-- A chave é lida pelo servidor via `process.env.DEEPL_API_KEY`; `.env` está listado no `.gitignore` e `.env.example` contém somente a variável vazia.
+- A chave é lida pelo servidor via `process.env.DEEPL_API_KEY`; `.env` está listado no `.gitignore` e `.env.example` traz `DEEPL_API_KEY` vazia e as demais variáveis comentadas com os padrões; nenhuma chave real.
 - A validação de certificados TLS fica ligada. Na rede corporativa, que faz inspeção TLS, use `npm start`: o script passa `--use-system-ca` ao Node (22.15+), que então confia no repositório de certificados do Windows, onde a TI instala a CA do proxy. Se o servidor for iniciado sem essa opção na rede da empresa, a chamada à DeepL falha por certificado e a tradução cai no fallback local, com o motivo exibido na interface.
 - O servidor escuta só em `127.0.0.1` por padrão (`HOST` no `.env` muda isso), valida tipo, tamanho e quantidade de tudo que recebe antes de chamar a DeepL (400 ou 413 com mensagem em português), limita o tempo de espera da DeepL e não repassa ao navegador o corpo bruto dos erros dela, só um motivo curto; o detalhe fica no log.
-- O servidor permite CORS de qualquer origem (`Access-Control-Allow-Origin: *`) e não implementa autenticação. Os dois são pré-requisitos da publicação na rede, junto com HTTPS por proxy reverso.
+- O SheetJS (xlsx 0.18.5) vem de um CDN e tem falhas conhecidas na leitura de planilhas (CVE-2023-30533, corrigida na 0.19.3; CVE-2024-22363, corrigida na 0.20.2). Decidido em 04/11/2026: trocar por uma cópia local da 0.20.x antes do piloto.
+- O servidor permite CORS de qualquer origem (`Access-Control-Allow-Origin: *`), porque hoje a interface é aberta como arquivo, e não implementa autenticação. Decidido em 04/11/2026: antes do piloto, o servidor passa a servir a interface e o CORS aberto sai. A autenticação é pré-requisito da publicação na rede, junto com HTTPS por proxy reverso.
 - O front-end e a API estão configurados para uso local; o código não deve ser considerado pronto para hospedagem pública antes de revisar TLS, CORS, autenticação e configuração de ambiente.
 
 Não compartilhe arquivos `.env`. Se uma chave real já tiver sido exposta em um commit ou em outro local público, revogue-a no painel da DeepL e gere outra.
 
 ## Próximas etapas em avaliação
 
-- Validar o inglês com um conjunto de referência aprovado pelo negócio e incluir na tabela os termos novos encontrados nas coleções (ex.: STRAIGHT).
+Antes do piloto de dezembro (decisões de 04/11/2026; ordem no item 13 da fila do `CLAUDE.md`):
+
+- Fechar a terminologia numa sessão única de SIM/NÃO (inclui STRAIGHT e os termos novos do espanhol em validação: CALÇA LEGGING, COM TOUCA, COM ABOTOAMENTO DUPLO, GOLA CACHECOL, FAIXA como produto; MEIA CALÇA entrou em 03/11/2026) e decidir SLEEP/SLIP (hoje iguais ao PT, com a linha marcada para revisão).
+- Traduzir a composição têxtil (PT → EN/ES por regras, testada contra as composições da IN27).
+- Servir a interface pelo próprio servidor (fim do CORS aberto), com rota de saúde; SheetJS em cópia local; rascunho salvo no navegador; arquivo de métricas a cada exportação; testes de integridade da tabela e do contrato das oito colunas; CI no GitHub Actions.
+
+Depois do piloto:
+
+- Validar o inglês com um conjunto de referência aprovado pelo líder do setor.
+- Glossário como dado (JSON) e banco SQLite com memória de traduções, auditoria e histórico; cadastro de termos novos pela interface.
 - Sincronizar uma cópia da tabela mestra com o glossário nativo da DeepL.
-- Incluir na tabela os termos novos do espanhol em validação (MEIA CALÇA, CALÇA LEGGING, COM TOUCA, COM ABOTOAMENTO DUPLO, GOLA CACHECOL, FAIXA como produto) e decidir SLEEP/SLIP.
 - Implementar o preenchimento automático de ECOM e definir a preservação dos dados originais necessários no fluxo SAP.
-- Adiar a tradução de composição têxtil até a etapa de descrições estar validada.
-- Avaliar autenticação, histórico e hospedagem somente quando houver decisão de disponibilizar o sistema a outros usuários.
+- Hospedagem na rede da empresa, com autenticação e HTTPS, quando o sistema for disponibilizado a outros usuários.
