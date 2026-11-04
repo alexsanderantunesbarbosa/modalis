@@ -1,3 +1,4 @@
+// MODALIS | Autor: Alexsander Antunes Barbosa | Software proprietário e confidencial (ver LICENSE).
 /**
  * Tabela mestra MODALIS.
  * Os índices 1–12 vieram da versão revisada pelo negócio; o índice 13 guarda nomes de linha.

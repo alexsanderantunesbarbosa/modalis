@@ -1,3 +1,4 @@
+// MODALIS | Autor: Alexsander Antunes Barbosa | Software proprietário e confidencial (ver LICENSE).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');

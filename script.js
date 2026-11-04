@@ -1,3 +1,4 @@
+// MODALIS | Autor: Alexsander Antunes Barbosa | Software proprietário e confidencial (ver LICENSE).
 /**
  * script.js
  * Interface, revisão de grafia, importação SAP e exportação MODALIS.

@@ -125,6 +125,7 @@ processadorTexto.js            Correspondências do glossário e montagem da fra
 tabelaMestra.js                Tabela mestra (glossário, fonte de verdade)
 correcoesOrtograficas.js       Sugestões locais de grafia
 tests/                         Testes automatizados
+LICENSE                        Aviso de software proprietário e confidencial (autoria e uso)
 docs/                          Decisões do glossário e do espanhol e lista PT/EN/ES do setor (histórico)
 ```
 
@@ -156,3 +157,7 @@ Depois do piloto:
 - Sincronizar uma cópia da tabela mestra com o glossário nativo da DeepL.
 - Implementar o preenchimento automático de ECOM e definir a preservação dos dados originais necessários no fluxo SAP.
 - Hospedagem na rede da empresa, com autenticação e HTTPS, quando o sistema for disponibilizado a outros usuários.
+
+## Licença
+
+O MODALIS é software proprietário e confidencial, de autoria de Alexsander Antunes Barbosa, usado internamente pela La Moda conforme acordo entre o autor e a empresa. Não é código aberto: é proibido usar, copiar, modificar ou distribuir sem autorização por escrito. Os dados das coleções da La Moda processados pelo software pertencem à La Moda. Os termos completos estão no arquivo [LICENSE](LICENSE).

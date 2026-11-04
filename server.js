@@ -1,3 +1,4 @@
+// MODALIS | Autor: Alexsander Antunes Barbosa | Software proprietário e confidencial (ver LICENSE).
 /**
  * server.js
  * API HTTP do MODALIS: tradução individual e em massa, sugestões de grafia e glossário.

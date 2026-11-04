@@ -1,3 +1,4 @@
+// MODALIS | Autor: Alexsander Antunes Barbosa | Software proprietário e confidencial (ver LICENSE).
 /**
  * estadoMassa.js
  * Regras da tabela em massa que não dependem da tela: selo de cada linha, contador de

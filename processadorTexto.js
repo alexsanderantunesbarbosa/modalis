@@ -1,3 +1,4 @@
+// MODALIS | Autor: Alexsander Antunes Barbosa | Software proprietário e confidencial (ver LICENSE).
 /**
  * Motor de tradução local: matching da tabela mestra + montagem da frase em inglês e em
  * espanhol. O processamento é estático e não chama a API DeepL.

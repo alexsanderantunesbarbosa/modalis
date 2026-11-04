@@ -1,3 +1,4 @@
+// MODALIS | Autor: Alexsander Antunes Barbosa | Software proprietário e confidencial (ver LICENSE).
 /**
  * correcoesOrtograficas.js
  * Sugestões candidatas vistas na planilha da coleção; nenhuma é aplicada sem aceitação.
