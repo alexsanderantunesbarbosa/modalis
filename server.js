@@ -139,7 +139,8 @@ function lerCorpoJson(req, limiteBytes) {
       try {
         corpo = JSON.parse(Buffer.concat(partes).toString('utf8'));
       } catch (erro) {
-        reject(new ErroHttp(400, `Corpo da requisição não é JSON válido: ${erro.message}`));
+        // O detalhe do parser não vai para o cliente (não expor detalhe interno).
+        reject(new ErroHttp(400, 'Corpo da requisição não é JSON válido.'));
         return;
       }
       if (!corpo || typeof corpo !== 'object' || Array.isArray(corpo)) {
