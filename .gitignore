@@ -5,3 +5,12 @@ node_modules/
 docs/amostras/
 *.xlsx
 *.XLSX
+
+# Arquivos antigos do projeto (ago-out/2026): só para leitura, não são referência; um deles tem uma chave da DeepL (revogada)
+historico/
+
+# Material de terceiros (slides das aulas): direito autoral do professor, nunca vai para o Git
+referencias/
+
+# Dados de medição para o TCC (descrições reais da empresa): locais, com cópia de segurança fora do Git
+pesquisa/
