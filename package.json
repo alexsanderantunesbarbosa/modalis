@@ -1,6 +1,6 @@
 {
-  "name": "projeto-tradutor",
-  "version": "1.0.0",
+  "name": "modalis",
+  "version": "0.9.0",
   "description": "MODALIS: revisão e tradução de descrições de peças de vestuário (SAP) com glossário próprio e DeepL",
   "main": "server.js",
   "private": true,
@@ -9,7 +9,7 @@
     "test": "node --test"
   },
   "keywords": [],
-  "author": "",
+  "author": "Alexsander Antunes Barbosa",
   "license": "UNLICENSED",
   "type": "commonjs",
   "engines": {
