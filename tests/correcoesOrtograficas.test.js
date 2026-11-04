@@ -77,6 +77,14 @@ test('corrige os erros que ainda escapavam no corpus (lote de 03/11/2026)', () =
   assert.equal(sugerirCorrecaoGrafia('BLUSA MANHA').ocorrencias.length, 0);
 });
 
+test('LENGHT sozinho vira LENGTH, e FULL LENGHT continua uma ocorrência só (lote de 04/11/2026)', () => {
+  assert.equal(sugerirCorrecaoGrafia('CALÇA JEANS LENGHT CINTURA MÉDIA').textoSugerido, 'CALÇA JEANS LENGTH CINTURA MÉDIA');
+  assert.deepEqual(sugerirCorrecaoGrafia('CALÇA FULL LENGHT').ocorrencias, ['FULL LENGHT']);
+  assert.equal(sugerirCorrecaoGrafia('CALÇA FULL LENGHT').textoSugerido, 'CALÇA FULL LENGTH');
+  // A grafia certa não é tocada.
+  assert.equal(sugerirCorrecaoGrafia('CALÇA FULL LENGTH').ocorrencias.length, 0);
+});
+
 test('colapsa palavra repetida em sequência, inclusive a que sobra de outra correção', () => {
   const resultado = sugerirCorrecaoGrafia('CALÇA JCALÇA JEANS BOOTCUT COM RESINA');
   assert.equal(resultado.textoSugerido, 'CALÇA JEANS BOOTCUT COM RESINA');

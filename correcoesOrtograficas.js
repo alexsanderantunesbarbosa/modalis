@@ -59,7 +59,9 @@ const sugestoesGrafia = [
   { de: 'HOTPANT', para: 'HOTPANTS' },
   { de: 'HOT PANT', para: 'HOT PANTS' },
   { de: 'SLIPDRESS', para: 'SLIP DRESS' },
-  { de: 'STRAIGTH', para: 'STRAIGHT' }
+  { de: 'STRAIGTH', para: 'STRAIGHT' },
+  // Lote 04/11/2026: LENGHT sozinho (antes só existia FULL LENGHT → FULL LENGTH, que vem antes).
+  { de: 'LENGHT', para: 'LENGTH' }
 ];
 
 function escaparRegex(texto) {
