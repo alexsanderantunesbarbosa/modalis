@@ -86,6 +86,27 @@ test('LENGHT sozinho vira LENGTH, e FULL LENGHT continua uma ocorrência só (lo
   assert.equal(sugerirCorrecaoGrafia('CALÇA FULL LENGTH').ocorrencias.length, 0);
 });
 
+test('SLIPDRESS e SLIP DRESS não recebem sugestão: a DESCRIÇÃO fica como veio e a tabela traduz (05/11/2026)', () => {
+  const descricoes = [
+    // as 3 do corpus IN27+AI27
+    'VESTIDO SLIPDRESS DE CETIM COM VELUDO',
+    'VESTIDO SLIP DRESS ESTAMPADO COM ALÇAS',
+    'VESTIDO SLIP COM RENDA ACETINADO',
+    // sem VESTIDO, com VESTIDO longe, com hífen e o SLIP sozinho
+    'SLIPDRESS DE CETIM',
+    'SLIP DRESS ESTAMPADO',
+    'VESTIDO MIDI SLIP DRESS',
+    'VESTIDO LONGO SLIPDRESS',
+    'SLIP-DRESS',
+    'SLIP DE RENDA'
+  ];
+  for (const texto of descricoes) {
+    const resultado = sugerirCorrecaoGrafia(texto);
+    assert.equal(resultado.textoSugerido, texto, texto);
+    assert.deepEqual(resultado.ocorrencias, [], texto);
+  }
+});
+
 test('colapsa palavra repetida em sequência, inclusive a que sobra de outra correção', () => {
   const resultado = sugerirCorrecaoGrafia('CALÇA JCALÇA JEANS BOOTCUT COM RESINA');
   assert.equal(resultado.textoSugerido, 'CALÇA JEANS BOOTCUT COM RESINA');

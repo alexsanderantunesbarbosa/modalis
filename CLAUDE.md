@@ -50,13 +50,13 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
   74% (10), 70% (25), 68% (50). Com 50, CINTURA MÉDIA virou MEDIUM WAIST, GOLA ALTA virou
   HIGH NECK e FUSÔ ficou sem traduzir. Por isso o padrão é 1 por chamada. O glossário nativo
   da DeepL (item 5 da fila) é o que permitiria lotes grandes sem perder qualidade; desde
-  24/10 a tabela é o motor e só ~7,5% das descrições distintas chegam à DeepL (184 de 2.464
-  no EN: desconhecida, várias peças e sem peça; medido em 04/11/2026), então ele fica na fila
+  24/10 a tabela é o motor e só ~7,3% das descrições distintas chegam à DeepL (180 de 2.464
+  no EN: desconhecida, várias peças e sem peça; medido em 05/11/2026), então ele fica na fila
   depois do banco SQLite (dono, 04/11/2026). Dados brutos em `pesquisa/medicao-deepl-2026-10-23/`
   (local, fora do git, com `LEIAME.md`; são a linha de base do TCC; refazer custa ~20 mil
   caracteres).
 - A tabela foi sincronizada com a planilha v2 em 22/10/2026 (`tabelaMestra.js` = 806
-  entradas, 16 índices; DE ALÇA = STRAPPY entrou em 24/10/2026; 807 desde 30/10/2026; 814 desde 31/10/2026, com a família A FIO; 828 desde 03/11/2026). Ao receber arquivos do Desktop, conferir se o JS acompanha a planilha.
+  entradas, 16 índices; DE ALÇA = STRAPPY entrou em 24/10/2026; 807 desde 30/10/2026; 814 desde 31/10/2026, com a família A FIO; 828 desde 03/11/2026; 830 em 04/11/2026; 835 desde 05/11/2026). Ao receber arquivos do Desktop, conferir se o JS acompanha a planilha.
 - `.env` com `DEEPL_API_KEY` (chave `:fx` = plano Free). Nunca versionar chaves.
 - Validação TLS ligada (23/10/2026): na rede da empresa iniciar com `npm start`
   (`node --use-system-ca server.js`). Pendências de segurança conhecidas (ver README): CORS
@@ -82,8 +82,8 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 | Arquivo | Papel |
 |---|---|
 | `tabelaMestra.js` | Glossário: literal `indices` (16 índices) + derivados `termosGlossario`, `expressoesCompostas`, `dicionarioTermos` (EN e ES, os dois derivados dos termos). Cada termo tem `es` numa linha só (desde 29/10/2026; ver "Tabela mestra — modelo"). Função `adicionarTermos` existe para uso futuro. |
-| `processadorTexto.js` | Matching dos termos no texto (expressão mais longa vence; empate → índice menor), sentido dos termos com contexto (`resolverSentido`), montador da frase em inglês (`montarTraducaoEN`) e em espanhol (`montarTraducaoES`, desde 29/10/2026), com `montarTraducao(texto, idioma)` escolhendo um ou outro e `analisarDescricao` (termos, conectivos e palavras desconhecidas) servindo aos dois, montagem do `context` para a DeepL (no ES, com a forma já concordada) e fallback local `processarTraducaoLocal` (é o próprio `montarTraducao`). Chave normalizada e regex de cada termo são preparadas **uma vez** no carregamento (`chavesPreparadas`, com cache em `prepararTermo`; medido 23/10/2026: 2.464 descrições em 400 ms, antes 14.400 ms). `montarLotesParaTraducao` deduplica descrições, monta lotes de até `tamanhoMaximo` e nunca mistura dois sentidos do mesmo termo (MOLETOM = SWEATSHIRT vs FLEECE) no mesmo lote; com 50 por lote o corpus real dá 50 lotes, o mínimo teórico. |
-| `correcoesOrtograficas.js` | Sugestões de grafia (54 regras: 24 até 22/10, 29 em 03/11/2026 e LENGHT em 04/11/2026, + colapso de palavra repetida em sequência); nunca aplicadas sem aceite do usuário. |
+| `processadorTexto.js` | Matching dos termos no texto (expressão mais longa vence; empate → índice menor; desde 05/11/2026, a expressão que embute a peça genérica, como VESTIDO MIDI, cede a uma peça mais específica da mesma família, como SLIP DRESS, e o casamento é refeito sem ela, desde que nenhuma palavra vire desconhecida: `expressaoQueCede` e `cobreTrecho`), sentido dos termos com contexto (`resolverSentido`), peças e absorção da genérica pela específica, as mesmas para os dois idiomas (`pecasDaDescricao`: só peças soltas, sem preposição, de mesma última palavra no inglês, nunca através de E ou "+"; o EN tira a genérica, e o ES não repete o começo comum, `semRepetir`; a peça negada por SEM nunca é o núcleo), "+" como conectivo próprio nos dois idiomas (separa peças como o E, sem repetir o papel do termo anterior; desde 05/11/2026, antes o EN o apagava), montador da frase em inglês (`montarTraducaoEN`) e em espanhol (`montarTraducaoES`, desde 29/10/2026), com `montarTraducao(texto, idioma)` escolhendo um ou outro e `analisarDescricao` (termos, conectivos e palavras desconhecidas) servindo aos dois, montagem do `context` para a DeepL (no ES, com a forma já concordada) e fallback local `processarTraducaoLocal` (é o próprio `montarTraducao`). Chave normalizada e regex de cada termo são preparadas **uma vez** no carregamento (`chavesPreparadas`, com cache em `prepararTermo`; medido 23/10/2026: 2.464 descrições em 400 ms, antes 14.400 ms). `montarLotesParaTraducao` deduplica descrições, monta lotes de até `tamanhoMaximo` e nunca mistura dois sentidos do mesmo termo (MOLETOM = SWEATSHIRT vs FLEECE) no mesmo lote; com 50 por lote o corpus real dá 50 lotes, o mínimo teórico. |
+| `correcoesOrtograficas.js` | Sugestões de grafia (53 regras: 24 até 22/10, 28 de 03/11/2026 e LENGHT em 04/11/2026, + colapso de palavra repetida em sequência; SLIPDRESS → SLIP DRESS, de 03/11, saiu em 05/11/2026 porque a DESCRIÇÃO fica como o setor escreve e quem traduz é a tabela); nunca aplicadas sem aceite do usuário. |
 | `server.js` | API em camadas: `lerConfiguracao` (tudo por env; `MOTOR_PRINCIPAL` tabela/deepl), `lerCorpoJson` (Buffer único, limite de bytes → 413), validação por rota antes de qualquer chamada externa (400), `criarClienteDeepL` (timeout, resposta validada, erros `fatal` para 401/403/456 e `repetivel` para 429/5xx/rede), `comNovasTentativas` (1 s, 2 s… com **disjuntor** para rede/timeout/5xx: 9 falhas seguidas suspendem a DeepL por 30 s; e **freio global** para 429: pausa compartilhada que dobra de 2 s a 30 s ou segue o Retry-After, repetindo até 2 min sem sucesso; o 429 nunca conta para as 9 falhas do disjuntor, mas depois de 2 min de 429 sem nenhum sucesso o circuito abre por 30 s, com mensagem própria; enquanto nenhuma chamada der certo, um novo 429 depois disso reabre o circuito na hora, porque o início da sequência de 429 só zera com um sucesso), `source_lang=PT` em toda chamada, `criarLimitador` (chamadas simultâneas, **um limite por servidor**, não por requisição; a tradução individual tem prioridade na fila), cancelamento cooperativo quando o cliente desiste (`AbortController` no `close` da resposta), `criarServicoTraducao` (motor principal `tabela`: só o que ela não cobre vai à DeepL, em lotes de `DEEPL_TAMANHO_LOTE` descrições, padrão 1, processados em paralelo; fallback local **por lote**; após erro fatal os lotes seguintes vão direto ao motor local; resposta traz `estatisticas`) e `avaliarDeepL`/`validarEstrutura` na volta (palavra da montagem ausente, peça a mais como PANTS, ou ordem diferente da estrutura → `revisar`; várias peças ou nenhuma peça sempre `revisar`), tabela de rotas e `criarServidor({ config, fetchImpl, silencioso })` exportado para testes. Idiomas aceitos: EN, EN-US, EN-GB e ES; o validador tem conectivos e palavras de peça por idioma (no ES a peça é a 1ª palavra). Resposta por linha: `origem` (tabela/deepl/local), `estado` (tabela/deepl/revisar/acima-de-40), `motivo`. Rotas: `/api/traduzir` (devolve `termos` aplicados: `{ pt, en }` ou `{ pt, es }`), `/api/traduzir-massa`, `/api/sugerir-correcoes`, `GET /api/glossario`. Cada resposta traz `origem` (`tabela`/`deepl`/`local`) e um motivo curto; o detalhe vai para o log JSON. Escuta em `127.0.0.1` por padrão. |
 | `index.html`, `styles.css`, `script.js` | Interface com a linguagem visual do START (barra preta, painéis cinza, botões azul/verde, tabelas com borda) e, desde 29/10/2026, nos mesmos tamanhos do START (Bootstrap 3: barra 50 px, nome 18, menu 14, título 24, texto 14, campos 34; medidos nos prints do dono), com espaços verticais enxutos para a tela Individual caber sem rolar até com o Windows em 150% (desde 30/10, com EN e ES: o painel do resultado não tem título, a ajuda do campo foi para o placeholder e os termos aplicados ficam recolhidos num `details` com a contagem; medido no Edge sem janela em 1920×940, 1280×627 e 390×760). Na barra, o M do logo La Moda (SVG redesenhado a partir do logo, com sombra dupla para o relevo), branco, e o nome no cinza do menu (`#9d9d9d`), como o START. Desde 29/10/2026 (padrões de UX): nenhum `alert`/`confirm` do navegador; tudo passa por janelas próprias no estilo do modal do START (`abrirJanela`/`avisar`/`confirmar`: promessa, Esc, clique fora, foco preso e devolvido); "Download bloqueado" lista as linhas com "Ir para a linha" e "Exportar com linhas marcadas?" pede confirmação (`verificarExportacao`); "Aplicar todas as correções" mostra antes/depois com a palavra trocada em destaque; copiar mostra o retorno no próprio botão. Em massa: barra de filtros rápidos "Mostrar:" (contagens iguais às da faixa, somada aos filtros por coluna) e lista "Referências que precisam de revisão" (item 9 da fila). Glossário: cabeçalho cinza como os relatórios do START (a marca "M LA MODA" saiu em 30/10/2026, a pedido do dono), colunas técnicas recolhidas em "Mostrar detalhes técnicos", trecho buscado marcado, ES vazio = "—", títulos das colunas presos no topo. Elemento com atributo `hidden` e `display` no CSS precisa da regra `[hidden] { display: none }` (a caixa "Termos do glossário aplicados" aparecia vazia por isso). Três abas sempre visíveis: Individual, Em massa e Glossário (estilo relatório, com busca, filtro por índice/tipo e exportação). CSS próprio, sem Bootstrap. "Aplicar todas as correções" pede confirmação (a DESCRIÇÃO corrigida vai para o SAP). `TEXTO ECOM` exportado = descrição. O botão "Traduzir" (sem idioma no nome: traduz EN e ES) envia só as linhas pendentes e vira "Traduzir pendentes (N)"; edição manual marca `origemEN = 'manual'` ("Editado à mão") e a linha não é reenviada; importar fica bloqueado durante a tradução e uma resposta de planilha antiga é descartada. Desde 24/10/2026: contador "38/40" no canto das células EN/ES (CSS `::after` com `data-contador`, fora do texto da célula); a edição grava a linha ao sair da célula (`focusout`), Enter desce de linha (Shift+Enter sobe), colar vira texto simples e soltar arrastado é bloqueado; botão "Confirmar" nas linhas a revisar/DeepL falhou até 40; a faixa de status é recalculada a partir de todas as linhas a cada mudança (bege com pendências, verde quando o download passa, presa no topo) e o progresso tem prioridade durante a tradução; no download, os bloqueios vêm antes da pergunta. |
 | `estadoMassa.js` | Regras da tabela em massa sem DOM, num único global `EstadoMassa` (no Node, `module.exports`), carregado antes do `script.js`: normalização e contador, selo de cada linha (inclui "Editado à mão · tinha 43, agora tem 38", com o "tinha" vindo de `enAutomatico`, o texto da máquina), edição manual, confirmação (`confirmadaEN`), `problemaDaLinha` (uma pendência por linha, nesta ordem: grafia, sem tradução, falha da DeepL, acima de 40, a revisar, PT acima de 40; as parcelas da faixa somam o total), o texto da faixa (`resumirMassa`, `textoFaixaMassa`), os filtros rápidos (`FILTROS_RAPIDOS`, `passaNoFiltro`, `contarFiltros`) e o que bloqueia ou pede confirmação no download (`verificarExportacao`; um teste garante que "faixa verde" = nenhum bloqueio e nenhuma marcada). Desde 29/10/2026 cada linha tem EN e ES com os mesmos controles (`origemES`, `estadoES`, `motivoES`, `esAutomatico`, `confirmadaES`; as funções recebem o idioma, padrão EN); sem idioma, `precisaTraduzir` e `linhaMarcada` respondem pela linha (algum dos dois), e a faixa, os filtros e o download olham os dois. A tradução de um idioma não apaga o outro. "Acima de 40" vem do tamanho do texto gravado, não do `estadoEN` do servidor, e todo selo de linha acima de 40 diz o excesso (o filtro "ACIMA" acha tudo que o download bloqueia). |
@@ -106,7 +106,7 @@ não é usado; a decisão é usá-lo depois, sincronizado a partir da tabela.
 
 Cada termo: `{ pt, en, status, tipo, contexto?, es }`, com `es = { texto, classe, genero?, numero?, formas?, adjetivo? }` (classe peca/substantivo/flexivel/invariavel/nome_proprio; `formas` ms/fs/mp/fp só no flexível; `adjetivo` = COM/DE antes dele cai). O ES veio da planilha `glossario-espanhol-modalis-2026-10-29.xlsx` (Área de Trabalho do dono). Desde 30/10/2026 a tabela é editada direto: o script de 29/10 desfaria as decisões de 30/10 (ver `docs/decisoes-espanhol-2026-10-29.md`). `tipo` é `termo` (uma palavra) ou
 `expressao` (tem espaço, hífen ou barra). `status` FECHADO é aplicado; VALIDAR é ignorado.
-Hoje: **828 entradas, todas FECHADO**, 16 índices (30/10: + COM FLORES, COM CORTE A LASER, COM BOJO, LOOSE LOW SLIM; − RISE, HIGH e LOW sozinhos: inglês de cintura no PT vai para revisão em vez de virar erro silencioso. 31/10: A FIO = RAW-EDGE / SIN REMATAR, borda crua, não DISTRESSED, + CORTE/COM CORTE/CORTES/RECORTE(S)/BARRA/ACABAMENTO A FIO. 03/11: + VESTIDO REGATA, VESTIDO POLO, CAMISA PIJAMA, SAIA PAREÔ, MEIA CALÇA = TIGHTS / PANTIMEDIAS, MEIA FINA = SHEER TIGHTS, ESTAMPA LISTRADA, DE FLORES, COM DRAPEADO, COM FRANZIDO(S), MILITAR, COM CINTURA ALTA/MÉDIA/BAIXA; − COM ESTAMPA, que partia ESTAMPA FLORAL/LOCAL; ver `docs/decisoes-espanhol-2026-10-29.md`). **O EN/ES antigo das planilhas do setor nunca é referência de tradução** (dono, 03/11).
+Hoje: **835 entradas, todas FECHADO**, 16 índices (30/10: + COM FLORES, COM CORTE A LASER, COM BOJO, LOOSE LOW SLIM; − RISE, HIGH e LOW sozinhos: inglês de cintura no PT vai para revisão em vez de virar erro silencioso. 31/10: A FIO = RAW-EDGE / SIN REMATAR, borda crua, não DISTRESSED, + CORTE/COM CORTE/CORTES/RECORTE(S)/BARRA/ACABAMENTO A FIO. 03/11: + VESTIDO REGATA, VESTIDO POLO, CAMISA PIJAMA, SAIA PAREÔ, MEIA CALÇA = TIGHTS / PANTIMEDIAS, MEIA FINA = SHEER TIGHTS, ESTAMPA LISTRADA, DE FLORES, COM DRAPEADO, COM FRANZIDO(S), MILITAR, COM CINTURA ALTA/MÉDIA/BAIXA; − COM ESTAMPA, que partia ESTAMPA FLORAL/LOCAL. 04/11: COM CINTURA X sem gênero no ES, + COM DRAPEADOS, VESTIDO SLIP = SLIP DRESS / VESTIDO LENCERO. 05/11: + SLIPDRESS, SLIP DRESS, VESTIDO SLIP DRESS, SLIP depois de vestido (`contexto` VESTIDO) e FIRENZE (tecido); ver `docs/decisoes-espanhol-2026-10-29.md`). **O EN/ES antigo das planilhas do setor nunca é referência de tradução** (dono, 03/11).
 
 | Índice | Nome | Posição na frase EN (ordem aprovada em 24/10/2026) |
 |---|---|---|
@@ -130,7 +130,7 @@ Hoje: **828 entradas, todas FECHADO**, 16 índices (30/10: + COM FLORES, COM COR
 Critério de classificação: "como veste?" → 2; "qual modelo?" → 3 ou 14; "que parte ou
 construção?" → 12; material → 8; acabamento/estampa/cor → 9; aviamento → 10.
 **Não** existem termos duplicados entre índices (um PT = um índice), exceto entradas com
-`contexto` (JEANS, MOLETOM, GOLA ALTA).
+`contexto` (JEANS, MOLETOM, GOLA ALTA, SLIP).
 
 Princípios do glossário:
 - Termos atômicos sempre existem sozinhos (CALÇA, SAIA, JEANS, MOLETOM…).
@@ -150,7 +150,10 @@ Princípios do glossário:
   24/10/2026 o motor resolve esses sentidos olhando as outras peças da própria descrição
   (`resolverSentido` em `processadorTexto.js`). JEANS e MOLETOM leem a peça pelos índices da
   tabela; o agasalho da GOLA ALTA usa o índice 14 e também a regex `AGASALHO` do código
-  (JACKET, COAT, VEST, PARKA, WINDBREAKER, BOMBER, PUFFER).
+  (JACKET, COAT, VEST, PARKA, WINDBREAKER, BOMBER, PUFFER). SLIP = SLIP (anágua, R19) | SLIP
+  DRESS / VESTIDO LENCERO (`contexto` VESTIDO: a peça mais próxima antes dele tem VESTIDO e a
+  palavra logo antes do SLIP não é conectivo; desde 05/11/2026). SLIPDRESS e SLIP DRESS ficam
+  assim na DESCRIÇÃO (o setor escreve assim) e a tabela os traduz.
 - A preposição muda o papel, não a palavra: BLUSA DE ALÇA = STRAPPY BLOUSE (adjetivo),
   VESTIDO COM ALÇAS = DRESS WITH STRAPS (detalhe). Derivar palavra (STRAP → STRAPPY) é
   vocabulário e mora na tabela; mover palavra é regra do montador.
@@ -173,15 +176,21 @@ As preposições do português dão o papel do termo: **COM X** = detalhe no fim
 WITH EMBROIDERED YOKE; COM BOTÕES EM METAL → WITH METAL BUTTONS); "E" repete o papel do
 termo anterior. Expressões da tabela prevalecem sobre a regra (COM CAPUZ = HOODED é adjetivo).
 Fusões em calça e short: tecido JEANS → JEANS/JORTS, tecido MOLETOM → SWEATPANTS/SWEAT
-SHORTS; MOLETOM (peça) + CAPUZ → HOODIE; peça específica absorve a genérica (TOP CORTININHA
-→ TRIANGLE TOP). Acima de 40 caracteres: marcado, nunca cortado.
+SHORTS, mas não com COM ou SEM (CALÇA SEM MOLETOM → PANTS WITHOUT FLEECE); MOLETOM (peça) +
+CAPUZ → HOODIE; peça específica absorve a genérica da mesma família, a de mesma última palavra no
+inglês (TOP CORTININHA → TRIANGLE TOP; VESTIDO MIDI SLIP DRESS → SLIP MIDI DRESS, com a expressão
+VESTIDO MIDI desfeita em VESTIDO + MIDI), só entre peças soltas: nunca através de um E ou "+"
+(VESTIDO E VESTIDO REGATA são duas peças, e a linha vai para revisão), nem com peça negada
+(VESTIDO SEM SLIP DRESS = DRESS WITHOUT SLIP DRESS, revisão) ou depois de DE. A peça negada nunca
+é o núcleo: SEM VESTIDO sozinho fica "sem peça". Acima de 40 caracteres: marcado, nunca cortado.
 
 Estados de `montarTraducao`: `tabela` (montada, uma peça, ≤ 40), `acima-de-40`,
 `desconhecida` (palavra fora da tabela, fica no fim em PT), `varias-pecas`, `sem-peca`.
-No corpus IN27+AI27 (2.464 distintas, EN, medido em 04/11/2026): 90,0% `tabela` (2.218), 6,5%
-desconhecida (161), 2,5% acima de 40 (62), 0,9% várias peças (21: KIT 5, SLEEP/SLIP 5, ANÁGUA 3,
+No corpus IN27+AI27 (2.464 distintas, EN, medido em 05/11/2026): 90,2% `tabela` (2.222), 6,4%
+desconhecida (158), 2,5% acima de 40 (62), 0,8% várias peças (20: KIT 5, SLEEP 4, ANÁGUA 3,
 VESTIDO/MACACÃO BLAZER 2, CORSET JEANS, BLUSA REGATA, CALÇA LEGGING, GOLA CACHECOL, LINGERIE e
-BODY BODY, palavra repetida; CAMISA PIJAMA entrou na tabela em 03/11) e 0,1% sem peça (2). Esse corpus é o mesmo que ensinou a tabela: a medida
+BODY BODY, palavra repetida; CAMISA PIJAMA entrou na tabela em 03/11, e as 4 com SLIP saem pela
+tabela desde 05/11) e 0,1% sem peça (2). Esse corpus é o mesmo que ensinou a tabela: a medida
 honesta é numa coleção fora dele (a de dezembro).
 
 Exemplos de referência (todos são testes em `tests/montador.test.js`):
@@ -216,7 +225,7 @@ Exemplos de referência (todos são testes em `tests/montador.test.js`):
   exemplos na próxima sessão e levar para o conjunto de referência (item 4 da fila).
 - Tela "Em massa": aprovada, mas o dono quer uma segunda rodada de refino no visual.
 - Glossário: a coluna ES vinha da lista do setor (395 de 806 termos); desde 29/10/2026 vem da
-  própria tabela (hoje 828 de 828). A pendência original (feature de espanhol) foi resolvida em
+  própria tabela (hoje 835 de 835). A pendência original (feature de espanhol) foi resolvida em
   29/10 (commit `fee012b`).
 
 ## Contexto de uso e roteiro até o piloto (dezembro de 2026)
@@ -266,7 +275,7 @@ Escopo de dezembro (ordem "valor entregue se o tempo acabar"):
    pendentes, edição manual preservada; lote de 50 disponível mas desligado pela medição
    acima) **feitos em 23/10/2026**.
    O glossário nativo DeepL (item 5 da fila) chegou a ser antecipado para logo após a
-   composição; desde que a tabela virou o motor (24/10), só ~7,5% das descrições distintas vão
+   composição; desde que a tabela virou o motor (24/10), só ~7,3% das descrições distintas vão
    à DeepL, e ele fica na fila depois do banco SQLite (dono, 04/11/2026).
 2. Composição PT → EN/ES por regras, testada contra o gabarito da IN27.
 3. Qualidade do EN: itens 1 a 4 da fila abaixo. O conjunto de referência aprovado pelo líder às
@@ -302,9 +311,9 @@ em opus. Perguntas conceituais nunca viram workflow.
 
 1. ~~Regras de contexto~~, 2. ~~montador por índice~~ e 3. ~~validador~~: **feitos em
    24/10/2026** (commits `5429d35` e o seguinte). Ficam abaixo como histórico da decisão.
-   Pendências que sobraram (medido em 04/11/2026): "várias peças" (KIT, SLEEP/SLIP, ANÁGUA,
+   Pendências que sobraram (medido em 05/11/2026): "várias peças" (KIT, SLEEP, ANÁGUA,
    VESTIDO/MACACÃO BLAZER, CORSET JEANS, BLUSA REGATA, CALÇA LEGGING, GOLA CACHECOL, LINGERIE e
-   BODY BODY; CAMISA PIJAMA entrou em 03/11) precisam de expressões na tabela ou de decisão; as 161 descrições com palavra fora da tabela
+   BODY BODY; CAMISA PIJAMA entrou em 03/11 e o SLIP saiu da lista em 05/11) precisam de expressões na tabela ou de decisão; as 158 descrições com palavra fora da tabela
    geram a lista de termos novos para validação (TSHIRT, LENGHT etc. são erros de grafia
    já cobertos pelas correções; STRAIGHT, LEG, BASE, ASSIMETRIA, PESCOÇO são termos novos).
 1. **Regras de contexto em `processadorTexto.js`** (histórico):
@@ -360,7 +369,7 @@ em opus. Perguntas conceituais nunca viram workflow.
     coleção real. Combina com o item 7 (memória em SQLite: só traduções aprovadas, chave =
     PT normalizada, invalidar pela versão da tabela) e com o 5 (lotes maiores, menos 429).
     (04/11/2026: ficou fora da ordem proposta para antes do piloto no item 13, porque a tabela
-    monta a IN27 inteira em ~5 s e só ~7,5% vai à DeepL; volta se o ensaio medir uma coleção
+    monta a IN27 inteira em ~5 s e só ~7,3% vai à DeepL; volta se o ensaio medir uma coleção
     lenta demais. O dono confirma.)
 11. **Ordenar o Glossário por PT, EN ou ES** (pedido do dono em 30/10/2026): clicar no título
     da coluna PT, EN ou ES ordena a tabela por ela (A→Z, de novo Z→A), com a seta de
@@ -382,10 +391,12 @@ em opus. Perguntas conceituais nunca viram workflow.
     podem depender da coluna escondida. Mesma fase do item 11.
 13. **Decisões de 04/11/2026** (revisões de organização, das aulas da faculdade e do painel
     profissional/TCC; ordem proposta, a confirmar com o dono a cada lote):
-    - **Antes do piloto:** as 4 correções da revisão de 03/11 (concordância de COM CINTURA X,
-      regra SLIPDRESS, COM DRAPEADOS, teste de MEIA TAÇA) → sessão única de SIM/NÃO (as 26
-      decisões do Claude Desktop, os casos de borda com ocorrência no corpus, STRAIGHT, os
-      itens abertos das planilhas de 29/10 e 30/10) e congelamento da terminologia em
+    - **Antes do piloto:** ~~as 4 correções da revisão de 03/11~~ (feitas em 04 e 05/11/2026:
+      COM CINTURA X sem gênero no ES, COM DRAPEADOS, teste de MEIA TAÇA e SLIPDRESS, que virou
+      SLIP DRESS pela tabela com a DESCRIÇÃO intacta, mais SLIP depois de vestido e FIRENZE) →
+      sessão única de SIM/NÃO (as 26 decisões do Claude Desktop, os casos de borda com
+      ocorrência no corpus, STRAIGHT, os itens abertos das planilhas de 29/10 e 30/10, MEIA TAÇA
+      e as pendências de 04 e 05/11 em `docs/decisoes-espanhol-2026-10-29.md`) e congelamento da terminologia em
       12/11/2026 → composição PT → EN/ES (esqueleto guiado pelo gabarito das 506 composições da
       IN27) → tela servida pelo próprio servidor por lista fixa de arquivos (sai o CORS `*` e a
       URL fixa `localhost:3000`; o servidor passa a exigir JSON e a conferir o Host) com rota
@@ -474,5 +485,14 @@ em opus. Perguntas conceituais nunca viram workflow.
   contração NO). Lição: o ES ao pé da letra herda os defeitos do PT (descrição cortada no meio,
   concordância errada); toda regra de concordância pede casos com SEM, com tecido e com palavra
   desconhecida antes do adjetivo.
+- Revisões adversariais do lote SLIP DRESS (05/11/2026), em 2 rodadas: 4 revisores Sonnet + 4
+  verificadores Opus, depois 3 + 3.
+  - Confirmaram 16 e 10 achados, todos fora do corpus e corrigidos no mesmo dia. Os graves: SEM
+    perdendo a negação, cessão por cima de COM, "+" herdando o papel do E e peça negada virando o
+    núcleo.
+  - Uma varredura de todos os pares de peças da tabela, comparada com o último commit, achou mais
+    4: SAIA LÁPIS, TOP TRIANGULAR TRIANGULAR, BLAZER colado e REGATA-manga.
+  - Lição: regra que junta peças pede essa varredura de pares, com cada conectivo (E, +, COM, SEM,
+    DE) entre as peças. O corpus não tem esses casos, e cada correção abriu um caso novo.
 - Qualquer mudança na tabela ou nas regras deve manter os testes verdes e, quando
   existir, passar pelo conjunto de referência.

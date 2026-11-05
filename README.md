@@ -39,7 +39,7 @@ flowchart LR
    adjetivos vêm antes da peça e os detalhes com `COM` viram `WITH …` no fim. O espanhol segue a
    ordem do português e faz a concordância de gênero e número.
 2. **A DeepL entra só no que sobra:** descrições com palavra fora da tabela, com mais de uma
-   peça ou sem peça. Na base de teste (2.464 descrições reais), isso é 7,5% do total.
+   peça ou sem peça. Na base de teste (2.464 descrições reais), isso é 7,3% do total.
 3. **O validador confere a DeepL.** Se a resposta perder um termo da tabela, trouxer uma peça
    que não estava na descrição ou mudar a ordem da frase, a linha fica marcada **a revisar**.
 4. **Nada é cortado.** Texto acima de 40 caracteres é marcado e corrigido por uma pessoa.
@@ -67,7 +67,7 @@ as chamadas por alguns segundos se ela parecer fora do ar, para não travar a co
 |---|---|
 | **Individual** | Traduz uma descrição para inglês e espanhol, mostra a origem de cada tradução, o contador de 40 caracteres e os termos do glossário usados. |
 | **Em massa** | Importa a planilha da coleção, sugere correções de grafia, traduz só o que está pendente, permite editar e confirmar cada linha, filtra por situação e exporta a planilha final. |
-| **Glossário** | Consulta da tabela mestra (828 termos em 16 categorias), com busca, filtros e exportação para Excel. Somente leitura. |
+| **Glossário** | Consulta da tabela mestra (835 termos em 16 categorias), com busca, filtros e exportação para Excel. Somente leitura. |
 
 ## Início rápido
 

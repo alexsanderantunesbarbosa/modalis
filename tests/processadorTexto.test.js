@@ -10,7 +10,7 @@ const { indices, termosPendentes, expressoesCompostas, dicionarioTermos } = requ
 
 test('carrega os dezesseis índices recategorizados e deriva as expressões compostas deles', () => {
   assert.equal(indices.length, 16);
-  assert.equal(indices.flatMap(indice => indice.termos).length, 828);
+  assert.equal(indices.flatMap(indice => indice.termos).length, 835);
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'CINTURA ALTA'));
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'MINI-SAIA'));
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'BOLSO FACA' && item.target === 'SLASH POCKET'));
@@ -20,6 +20,9 @@ test('carrega os dezesseis índices recategorizados e deriva as expressões comp
   assert.equal(dicionarioTermos.EN.ACETINADA, 'SATIN');
   assert.equal(dicionarioTermos.EN.TRICOT, 'KNIT');
   assert.ok(expressoesCompostas.EN.some(item => item.pt === 'GOLA ALTA' && item.contexto === 'AGASALHO' && item.target === 'HIGH COLLAR'));
+  // O sentido com contexto (SLIP depois de vestido = SLIP DRESS) fica fora do dicionário de termos.
+  assert.equal(dicionarioTermos.EN.SLIP, 'SLIP');
+  assert.equal(dicionarioTermos.ES.SLIP, 'SLIP');
 });
 
 test('prioriza expressões compostas e respeita o índice revisado', () => {

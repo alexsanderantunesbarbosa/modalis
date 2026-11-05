@@ -26,7 +26,7 @@ APLICADO em 29/10/2026 ("pode codar", sem commit até a revisão do dono): campo
 - Pesquisados em 29/10: BABY LOOK = BABY TEE, FUSEAU/FUSÔ = FUSEAU, SHORT SAIA = FALDA PANTALÓN, BERMUDA = BERMUDA (peça própria em espanhol), SMOKING = SMOKING, DUO COLOR = BICOLOR, SHORT DOLL = SHORT PIJAMA, ALFAIATARIA = SASTRE. SMOKING, DUO COLOR e SHORT DOLL ainda NÃO entraram na tabela (04/11/2026: as 3 descrições do corpus saem "desconhecida"); vão para a sessão de SIM/NÃO como termos novos.
 - **JEANS como tecido = DENIM** em todas as peças (FALDA DENIM, SHORT DENIM, BERMUDA DENIM); JEANS fica só para a calça (CALÇA JEANS = JEANS). Pesquisa nas três regiões: DENIM é a única forma neutra que aparece em nome de produto de loja grande na Espanha, no México e na América do Sul; PEÇA + JEANS não aparece na Espanha nem no México. Confirmado pelo dono.
 - SILK = SERIGRAFÍA (estampa silk). PALHA DE SEDA = PAJA DE SEDA. TERMO/TERMOCOLANTE = TERMOADHESIVO. NAME = NAME.
-- SLEEP e SLIP ficam iguais ao PT até o dono validar (o motor marca a linha para revisão).
+- SLEEP fica igual ao PT até o dono validar: com outra peça, a linha vai para revisão; sozinho (SLEEP DE RENDA), sai como "tabela". SLIP também, fora de um vestido (SLIP DE RENDA = LACE SLIP / SLIP DE ENCAJE, "tabela"); logo depois de um vestido é o slip dress, VESTIDO LENCERO (desde 05/11/2026, ver abaixo).
 - Acima de 40 caracteres: edição humana; nunca forma curta automática.
 
 ## Regras da frase (R1–R20) e como o montador as aplica
@@ -50,7 +50,7 @@ APLICADO em 29/10/2026 ("pode codar", sem commit até a revisão do dono): campo
 | R16 | ANÁGUA é a própria peça no formato da 1ª (FALDA CORTA ENAGUA) | Segunda peça decidida |
 | R17 | KIT = KIT, peças ligadas por Y | KIT não pede revisão |
 | R18 | FAIXA sem outra peça = FAJÍN, estado tabela | Texto já sai FAJÍN; o estado espera a entrada FAIXA (produto) |
-| R19 | SLEEP/SLIP iguais ao PT até o dono validar | Linha marcada "várias peças" (revisão) |
+| R19 | SLEEP/SLIP iguais ao PT até o dono validar | Com outra peça, linha marcada "várias peças" (revisão); sozinho, sai "tabela" (SLIP DE ENCAJE). Desde 05/11/2026, SLIP logo depois de um vestido é o slip dress (`contexto` VESTIDO) |
 | R20 | Acima de 40 = edição manual | Estado `acima-de-40`; download bloqueia |
 
 ### Concordância (R3)
@@ -58,12 +58,17 @@ APLICADO em 29/10/2026 ("pode codar", sem commit até a revisão do dono): campo
 1. O gênero e o número do adjetivo no PT vêm da terminação (ESTAMPADA = f/s). Adjetivo que não muda no gênero (FRONTAL, LEVE, MESCLA) concorda só em número.
 2. O substantivo com que ele concorda é, nesta ordem: o substantivo de um `COM X` logo antes (COM GOLA BORDADA), se o gênero e o número do PT batem; a peça mais próxima que bate (SAIA PAREO ESTAMPADA = FALDA); outro substantivo que bate, inclusive o tecido (DECOTE V BORDADO; DE TULE ESTAMPADO = DE TUL ESTAMPADO); e, se nada bate, a peça principal (erro de concordância do PT, como ETIQUETA BORDADO, sai certo no ES). Logo depois de uma palavra fora da tabela, fica a forma do próprio PT (o adjetivo é dela).
 3. A forma do ES é a do gênero e número **do substantivo em espanhol**: GOLA (f) = CUELLO (m) → BORDADO; CALÇA (f) = PANTALÓN (m) → RAYADO; CÓS (m) = PRETINA (f) → ASIMÉTRICA.
-4. O modelo de jaqueta (PUFFER, BOMBER) e a segunda peça colada (CAMISA POLO, VESTIDO BLAZER) cedem o gênero à peça. Depois de COM, o particípio é substantivo (COM DRAPEADO = CON DRAPEADO).
-5. Só COM abre detalhe. Em SEM MANGA ALONGADA o adjetivo é da peça (BLUSA SIN MANGAS ALARGADA), e não de SIN MANGAS, que ainda o faria plural.
+4. O modelo de jaqueta (PUFFER, BOMBER), a segunda peça colada (CAMISA POLO, VESTIDO BLAZER) e a peça específica sem o núcleo repetido (o LENCERO de VESTIDO MIDI LENCERO) cedem o gênero à peça. Depois de COM, o particípio é substantivo (COM DRAPEADO = CON DRAPEADO).
+5. Só COM abre detalhe. Em SEM MANGA ALONGADA o adjetivo é da peça (BLUSA SIN MANGAS ALARGADA), e não de SIN MANGAS, que ainda o faria plural. COM X sem gênero no ES (COM CINTURA ALTA = CON TIRO ALTO) não é alvo e fecha o detalhe anterior: em CALÇA COM FIVELA COM CINTURA ALTA LISTRADA, LISTRADA é da calça (PANTALÓN CON HEBILLA CON TIRO ALTO RAYADO), não da FIVELA (04/11/2026).
 6. O gênero do substantivo no PT segue a terminação, com uma lista curta de exceções em `GENERO_PT`. São femininos LEGGING, VISCOSE e T-SHIRT; são masculinos PIJAMA, CÓS, MACACÃO e CARDIGÃ. A expressão inteira é procurada antes da palavra (T SHIRT, MINI SAIA).
 7. Os tecidos (índice 8) têm gênero no ES (TUL m, SARGA f, PANA f…), para servirem de substantivo na concordância.
 
 Outras regras do montador: o conectivo solto no fim de uma descrição cortada pelo SAP cai, como no EN ("COM DETALHE DE ZÍPER E" não vira "… Y"). A preposição do PT antes de uma expressão que traz a sua cai (R9), mas SIN nunca cai. NÓ e NÓS só casam com acento, porque sem acento são a contração NO/NOS (vale também para o EN).
+
+Peças da mesma família que o EN junta numa só (05/11/2026): o inglês da específica tem mais palavras e termina na mesma palavra de peça. No ES, nada muda de lugar e o começo comum não se repete:
+- **Genérica antes:** a específica perde o que repete. VESTIDO MIDI SLIP DRESS = VESTIDO MIDI LENCERO (forma da Zara: "VESTIDO MIDI LENCERO SATINADO"); TOP CORTININHA = TOP TRIANGULAR (antes TOP TOP TRIANGULAR); CORTININHA CORTININHA COM BOJO = TOP TRIANGULAR CON RELLENO.
+- **Genérica depois, só com o núcleo:** ela cai. BLAZER DE MOLETOM BLAZER JEANS = BLAZER DE FELPA DENIM, e no EN DENIM FLEECE BLAZER. Antes do lote, as duas iam para "várias peças". Sem esta regra, o ES sairia BLAZER DE FELPA BLAZER DENIM como "tabela", porque BLAZER é segunda peça colada na R14.
+- **Fora disso:** duas peças, e a linha vai para revisão. Ligadas por E, também: VESTIDO Y VESTIDO LENCERO. A REGATA que vira manga continua manga (R15).
 
 No validador da DeepL em espanhol, SIN e CON contam, porque o sentido de termos fechados mora neles (SIN MANGAS, CON CAPUCHA). A peça a mais conta também no plural (PANTALONES) e na parte depois do hífen (T-SHIRT → SHIRT). TIRANTES, COPA, MEDIA e BABY não contam como peça.
 
@@ -81,14 +86,14 @@ No validador da DeepL em espanhol, SIN e CON contam, porque o sentido de termos 
 | várias peças | 26 (1,1%) | 10 (0,4%) |
 | sem peça | 2 (0,1%) | 2 (0,1%) |
 
-Números de 29/10, com o corpus ainda de 2.457 (ver "Correção do corpus", 30/10). Em 04/11/2026 (2.464 distintas): EN tabela 2.218 (90,0%), desconhecida 161, acima de 40 62, várias peças 21, sem peça 2; ES tabela 2.050 (83,2%), desconhecida 161, acima de 40 242 (9,8%), várias peças 9, sem peça 2.
+Números de 29/10, com o corpus ainda de 2.457 (ver "Correção do corpus", 30/10). Em 05/11/2026 (2.464 distintas): EN tabela 2.222 (90,2%), desconhecida 158, acima de 40 62, várias peças 20, sem peça 2; ES tabela 2.054 (83,4%), desconhecida 158, acima de 40 242 (9,8%), várias peças 8, sem peça 2.
 
 O espanhol ao pé da letra é mais longo (TIRO ALTO, MANGA LARGA, CAMISETA SIN MANGAS): uma em cada dez descrições precisa de edição manual para caber em 40. EN e ES juntos levam 0,7 s nas 2.457 descrições.
 
 ## Pendências
 
 - **Termos novos em validação na planilha** (98). Entraram em 03/11: MEIA CALÇA (= PANTIMEDIAS, não MEDIAS) e COM DRAPEADO = CON DRAPEADO. Faltam: CALÇA LEGGING = LEGGING, COM TOUCA = CON CAPUCHA (no moletom) e COM ABOTOAMENTO DUPLO = CON DOBLE BOTONADURA, cujos 3 testes rodam como TODO; e GOLA CACHECOL = CUELLO BUFANDA e FAIXA (produto) = FAJÍN, cujos casos esperam 'varias-pecas' e 'sem-peca' até as entradas entrarem. Vão para a sessão de SIM/NÃO.
-- **SLEEP/SLIP** e o EN de ANÁGUA, por último.
+- **SLEEP**, o SLIP fora de um vestido e o EN de ANÁGUA, por último (o SLIP depois de vestido foi resolvido em 05/11).
 - **Correções de grafia** (27) e **perguntas** (25) da planilha de 29/10: sem registro de aplicação (as 29 regras de 03/11 vieram do corpus, não desta aba). Encerrada como planilha em 04/11/2026; os itens em aberto vão para a sessão única de SIM/NÃO, que congela a terminologia em 12/11.
 - ~~DE FLORES ainda sai "DE FLORAL" no ES~~ resolvido em 03/11/2026: DE FLORES = FLORAL / DE FLORES entrou na tabela. COM FLORES e COM CORTE A LASER entraram em 30/10 (ver abaixo).
 - VESTIDO COM APLICAÇÃO DE FLORES: o ES foi consertado em 03/11 pela entrada DE FLORES (hoje "CON APLIQUE DE FLORES"); o EN segue "WITH FLORAL APPLIQUÉ". De fundo, COM APLICAÇÃO ainda casa antes de APLICAÇÃO DE FLORES. Defeito do casamento de expressões sobrepostas, anterior ao ES; sem uso no corpus.
@@ -164,7 +169,7 @@ Os termos de espanhol e as dúvidas passaram por pesquisa no varejo, com um revi
 | COM CINTURA ALTA/MÉDIA/BAIXA (novas) | HIGH-/MID-/LOW-RISE (adjetivo) | CON TIRO ALTO/MEDIO/BAJO | 5 | Antes "CARROT PANTS WITH MID-RISE". A cintura entrou como expressão da tabela, e não como regra no código, porque o CÓS (mesmo índice) é substantivo e continua detalhe: "WITH ELASTIC WAISTBAND". |
 | COM ESTAMPA (removida) | — | — | 9 | A regra do COM já dá WITH PRINT / CON ESTAMPADO. A expressão engolia a palavra ESTAMPA de ESTAMPA FLORAL/LOCAL/DE FLORES/LISTRADA ("BLOUSE WITH PRINT FLORAL"). Hoje sai BLOUSE WITH FLORAL PRINT e WITH PLACEMENT PRINT ("local print" não existe em inglês). |
 
-Grafia: 29 regras novas em `correcoesOrtograficas.js` (OVERIZED, BALZER, XADREX, SAMLESS, MANHA LONGA…). São erros que ainda escapavam no corpus, 1 ocorrência cada. Continuam só sugestão. Ficaram de fora os incertos: BOLLON, FULL e LENGTH sozinhos. Em 04/11/2026 entrou mais uma, LENGHT → LENGTH (erro de digitação puro), e o total passou a 54.
+Grafia: 29 regras novas em `correcoesOrtograficas.js` (OVERIZED, BALZER, XADREX, SAMLESS, MANHA LONGA…). São erros que ainda escapavam no corpus, 1 ocorrência cada. Continuam só sugestão. Ficaram de fora os incertos: BOLLON, FULL e LENGTH sozinhos. Em 04/11/2026 entrou mais uma, LENGHT → LENGTH (erro de digitação puro), e o total passou a 54. Em 05/11/2026 saiu SLIPDRESS → SLIP DRESS: a DESCRIÇÃO fica como o setor escreve, e quem traduz é a tabela. O total é 53.
 
 Medição no corpus (2.464 descrições), antes × depois:
 - EN: 29 mudaram, todas para melhor (24 dos termos e 5 do comprimento antes da peça). Em "tabela", passaram de 2.212 para 2.218; "várias peças", de 26 para 21; "acima de 40" ficou em 62.
@@ -178,6 +183,54 @@ Pendências deste lote:
 - **COM X E CINTURA ALTA.** O E repete o papel de detalhe ("CALÇA COM BOLSOS E CINTURA ALTA" → "…WITH POCKETS AND HIGH-RISE"). Não há caso no corpus.
 - **XADREZ sozinho.** Sai CUADROS ("BLUSA CUADROS"); no espanhol se diz DE CUADROS. Pesquisar junto com ESTAMPA XADREZ.
 - **MEIA CALÇA FUSÔ.** No ES sai PANTIMEDIAS FUSEAU, porque FUSÔ = FUSEAU já está na tabela. No varejo, para meia-calça, aparece "sin pie" ou "con estribo"; revisar se aparecer de novo.
+
+## Decisões do dono de 04/11/2026: correções da revisão de 03/11
+
+A revisão adversarial do lote de 03/11 (3 revisores Opus, depois do commit `2b3dd5b`) achou 4 pontos. O dono decidiu:
+
+| PT | EN | ES | O que mudou |
+|---|---|---|---|
+| COM CINTURA ALTA/MÉDIA/BAIXA | HIGH-/MID-/LOW-RISE | CON TIRO ALTO/MEDIO/BAJO, sem gênero e número | Com gênero, o TIRO virava alvo da concordância: SAIA COM CINTURA ALTA ESTAMPADA saía FALDA CON TIRO ALTO ESTAMPADO. Hoje sai ESTAMPADA. |
+| COM DRAPEADOS (nova, índice 12) | WITH DRAPING | CON DRAPEADOS | O plural caía no DRAPEADOS solto: "BLOUSE WITH DRAPED". |
+| VESTIDO SLIP (nova, índice 1) | SLIP DRESS | VESTIDO LENCERO | Antes saía "DRESS WITH SLIP…", "várias peças". |
+| MEIA TAÇA | HALF CUP | MEDIA COPA | Só o teste: confere que a expressão vence a peça MEIA. HALF CUP ou DEMI CUP, e SUTIÃ (fora da tabela), vão para a sessão de SIM/NÃO; nenhum dos dois aparece no corpus. |
+
+A tabela passou a 830 entradas.
+
+## Decisões do dono de 05/11/2026: SLIP DRESS e FIRENZE
+
+O dono pediu que todo slip dress saia certo em inglês, sem DRESS repetido: junto ou separado, com ou sem VESTIDO na frente, com MIDI, LONGO etc. Pediu também que a DESCRIÇÃO em PT fique como o setor escreve. Por isso saíram as regras de grafia de SLIP: a de 03/11 (SLIPDRESS → SLIP DRESS) e as de 04/11, que trocavam por VESTIDO SLIP. Quem traduz é a tabela.
+
+| PT | EN | ES | Índice | Motivo |
+|---|---|---|---|---|
+| SLIPDRESS, SLIP DRESS, VESTIDO SLIP DRESS (novas) | SLIP DRESS | VESTIDO LENCERO | 1 | São as formas do setor. VESTIDO SLIPDRESS não precisou de entrada: a regra abaixo junta VESTIDO e SLIPDRESS. |
+| SLIP depois de vestido (novo sentido, `contexto` VESTIDO) | SLIP DRESS | VESTIDO LENCERO | 1 | Vale quando a peça mais próxima antes do SLIP tem VESTIDO e a palavra logo antes dele não é conectivo (VESTIDO MIDI SLIP, VESTIDO DE CETIM SLIP). Um detalhe no meio não separa: VESTIDO COM ALÇAS SLIP = SLIP DRESS WITH STRAPS. Sozinho, depois de outra peça ou logo depois de COM, SEM, E, DE, EM, NO, PARA, segue a anágua (R19): VESTIDO COM SLIP = DRESS WITH SLIP; VESTIDO DE SLIP vai para revisão. |
+| FIRENZE (novo) | FIRENZE | FIRENZE (m) | 8 | Tecido, nome comercial: não se traduz. O dono aceita o ES com ou sem DE; sai sem, seguindo o PT. |
+
+Regras do montador:
+- A expressão que embute a peça genérica com um modificador (VESTIDO MIDI, VESTIDO LONGO, VESTIDO CURTO, VESTIDO JEANS) cede a uma peça mais específica da mesma família. Em VESTIDO MIDI SLIP DRESS, o casamento é refeito como VESTIDO + MIDI + SLIP DRESS. No EN, SLIP DRESS absorve VESTIDO, e o MIDI fica no papel dele: SLIP MIDI DRESS, LONG SLIP DRESS, DENIM SLIP DRESS. No ES, a ordem segue o PT, sem repetir o núcleo: VESTIDO MIDI LENCERO, VESTIDO LARGO LENCERO, VESTIDO DENIM LENCERO. A expressão só cede se nenhuma palavra dela vira desconhecida: SAIA LÁPIS fica inteira, porque LÁPIS sozinho não está na tabela. A regra vale para qualquer família, não só para o vestido: VESTIDO MIDI VESTIDO REGATA vira TANK MIDI DRESS, e SAIA CURTA SAIA PAREÔ vira SHORT PAREO SKIRT. Antes, essas linhas iam para revisão; cada linha do SAP é um produto, e duas peças de verdade vêm com KIT ou E.
+- A absorção compara a última palavra do inglês, que é a peça. TRIANGLE TOP absorve TOP, mas SLIP DRESS não absorve SLIP (a anágua, que em inglês também é SLIP).
+- Só peças soltas, sem preposição, se juntam:
+  - **E ou "+":** nada é absorvido através deles. VESTIDO E VESTIDO REGATA, MEIA CALÇA E MEIA FINA e VESTIDO E SLIP DRESS são duas peças e vão para revisão; antes, uma sumia sem aviso (pendência da revisão de 03/11).
+  - **O "+"** é um conectivo próprio nos dois idiomas. Ele separa peças como o E, mas não repete o papel do termo anterior: BLUSA COM BOLSO + SAIA são duas peças, e a SAIA não vira detalhe. Antes, o EN apagava o "+", e VESTIDO + SLIP virava um slip dress. No ES, ele sai Y, como já saía.
+  - **Peça negada** não absorve nem é absorvida (VESTIDO SEM SLIP DRESS = DRESS WITHOUT SLIP DRESS, revisão). Ela também nunca é o núcleo: sozinha (SEM SLIP DRESS), a linha fica "sem peça". Antes do lote, BLUSA SEM BLUSA JEANS saía DENIM BLOUSE e RETA SEM CORTININHA COM BOJO saía STRAIGHT PADDED TRIANGLE TOP, as duas com a negação perdida e em "tabela".
+  - **Peça depois de DE/EM/NO:** fica separada. VESTIDO MIDI DE VESTIDO são duas peças; antes, o ES saía VESTIDO MIDI DE.
+- A fusão JEANS/MOLETOM da calça e do short não vale com COM ou SEM: CALÇA SEM MOLETOM = PANTS WITHOUT FLEECE (antes SWEATPANTS, com a negação perdida; achado da revisão, já existia).
+- A expressão não cede por cima de COM, SEM ou E: VESTIDO POLO COM VESTIDO JEANS continua POLO DRESS WITH DENIM DRESS.
+
+Medição no corpus (2.464 descrições): mudaram só as 4 descrições com SLIP, todas para "tabela" (antes, 3 "desconhecida" e 1 "várias peças"). EN tabela 2.218 → 2.222, desconhecida 161 → 158, várias peças 21 → 20; ES tabela 2.050 → 2.054, várias peças 9 → 8. Vão à DeepL 180 descrições (7,3%; eram 184). A trava do E e o núcleo não repetido no ES não têm caso no corpus. A tabela tem 835 entradas, e a grafia 53 regras.
+
+Pendências, para a sessão de SIM/NÃO:
+- **MIDI SLIP DRESS.** A regra de 03/11 cola MINI/MIDI/MAXI na palavra da peça, e por isso sai SLIP MIDI DRESS. O varejo em inglês escreve MIDI SLIP DRESS: a Zara chama de "SATIN MIDI SLIP DRESS" o mesmo produto que em espanhol é "VESTIDO MIDI LENCERO SATINADO", e a Ralph Lauren e a Old Navy escrevem igual. Mudar vale para todas as peças de duas palavras (POLO MINI DRESS, TANK MIDI DRESS).
+- **SHORT/LONG depois do tecido.** Sai SATIN SHORT SLIP DRESS, e o inglês natural é SHORT SATIN SLIP DRESS. A regra também vale para as outras peças.
+- **Plurais.** VESTIDOS (plural) e SLIP DRESSES não estão na tabela e vão à DeepL. Sem caso no corpus.
+- **MOLETOM e JEANS ligados por E ou + a outra peça** continuam lidos como tecido, como antes do lote: VESTIDO E MOLETOM = FLEECE DRESS / VESTIDO Y FELPA, como "tabela". Pode ser lista de tecidos (BLUSA DE LINHO E MOLETOM) ou duas peças sem KIT. Sem caso no corpus; os KIT do corpus vão para revisão de qualquer jeito.
+- **Vírgula e &** não separam peças: "VESTIDO, SLIP" e "VESTIDO & SLIP" viram um slip dress. Sem caso no corpus (o único & é o de P&B).
+- **O E repete o papel do termo anterior, mesmo quando isso não faz sentido** (já era assim antes do lote):
+  - BLUSA COM RENDA E SAIA sai BLOUSE WITH LACE AND SKIRT, como "tabela" (a SAIA vira detalhe);
+  - VESTIDO SEM MANGA E CINTO sai SLEEVELESS DRESS WITHOUT BELT.
+  O "+" já não faz isso. Para o E, a decisão é do dono: "COM X E peça" é detalhe ou segunda peça?
+- **KIT COM peça repetida, no ES:** KIT COM TOP CORTININHA sai KIT CON TOP TOP TRIANGULAR. Já era assim, sem caso no corpus. O EN marca a linha como "várias peças", então ela vai para revisão.
 
 ## Revisão adversarial (29/10/2026)
 

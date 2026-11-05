@@ -59,7 +59,8 @@ const sugestoesGrafia = [
   { de: 'CACHECOUER', para: 'CACHEQUER' },
   { de: 'HOTPANT', para: 'HOTPANTS' },
   { de: 'HOT PANT', para: 'HOT PANTS' },
-  { de: 'SLIPDRESS', para: 'SLIP DRESS' },
+  // SLIPDRESS e SLIP DRESS não têm regra: o setor escreve assim e a DESCRIÇÃO fica como veio
+  // (decisão do dono de 05/11/2026). Quem traduz certo é a tabela (SLIP DRESS / VESTIDO LENCERO).
   { de: 'STRAIGTH', para: 'STRAIGHT' },
   // Lote 04/11/2026: LENGHT sozinho (antes só existia FULL LENGHT → FULL LENGTH, que vem antes).
   { de: 'LENGHT', para: 'LENGTH' }

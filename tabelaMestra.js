@@ -114,6 +114,42 @@ const indices = [
         "es": { "texto": "VESTIDO SIN MANGAS", "classe": "peca", "genero": "m", "numero": "s" }
       },
       {
+        "pt": "VESTIDO SLIP",
+        "en": "SLIP DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "VESTIDO LENCERO", "classe": "peca", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "VESTIDO SLIP DRESS",
+        "en": "SLIP DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "VESTIDO LENCERO", "classe": "peca", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "SLIP DRESS",
+        "en": "SLIP DRESS",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "VESTIDO LENCERO", "classe": "peca", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "SLIPDRESS",
+        "en": "SLIP DRESS",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "es": { "texto": "VESTIDO LENCERO", "classe": "peca", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "SLIP",
+        "en": "SLIP DRESS",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "contexto": "VESTIDO",
+        "es": { "texto": "VESTIDO LENCERO", "classe": "peca", "genero": "m", "numero": "s" }
+      },
+      {
         "pt": "VESTIDO POLO",
         "en": "POLO DRESS",
         "status": "FECHADO",
@@ -1559,21 +1595,21 @@ const indices = [
         "en": "HIGH-RISE",
         "status": "FECHADO",
         "tipo": "expressao",
-        "es": { "texto": "CON TIRO ALTO", "classe": "invariavel", "genero": "m", "numero": "s" }
+        "es": { "texto": "CON TIRO ALTO", "classe": "invariavel" }
       },
       {
         "pt": "COM CINTURA MÉDIA",
         "en": "MID-RISE",
         "status": "FECHADO",
         "tipo": "expressao",
-        "es": { "texto": "CON TIRO MEDIO", "classe": "invariavel", "genero": "m", "numero": "s" }
+        "es": { "texto": "CON TIRO MEDIO", "classe": "invariavel" }
       },
       {
         "pt": "COM CINTURA BAIXA",
         "en": "LOW-RISE",
         "status": "FECHADO",
         "tipo": "expressao",
-        "es": { "texto": "CON TIRO BAJO", "classe": "invariavel", "genero": "m", "numero": "s" }
+        "es": { "texto": "CON TIRO BAJO", "classe": "invariavel" }
       },
       {
         "pt": "CINTURA ALTA",
@@ -2734,6 +2770,13 @@ const indices = [
         "status": "FECHADO",
         "tipo": "expressao",
         "es": { "texto": "PROTECCIÓN UV", "classe": "substantivo", "genero": "f", "numero": "s" }
+      },
+      {
+        "pt": "FIRENZE",
+        "en": "FIRENZE",
+        "status": "FECHADO",
+        "tipo": "termo",
+        "es": { "texto": "FIRENZE", "classe": "substantivo", "genero": "m", "numero": "s" }
       }
     ]
   },
@@ -4727,6 +4770,13 @@ const indices = [
         "status": "FECHADO",
         "tipo": "expressao",
         "es": { "texto": "CON DRAPEADO", "classe": "invariavel", "genero": "m", "numero": "s" }
+      },
+      {
+        "pt": "COM DRAPEADOS",
+        "en": "WITH DRAPING",
+        "status": "FECHADO",
+        "tipo": "expressao",
+        "es": { "texto": "CON DRAPEADOS", "classe": "invariavel", "genero": "m", "numero": "p" }
       },
       {
         "pt": "DRAPEADO",

@@ -37,7 +37,7 @@ test('as visões derivadas em espanhol saem do campo es (não mais de uma lista 
 
 // Casos reais da IN27 e da AI27, montados pelas regras do dono (docs/decisoes-espanhol-2026-10-29.md)
 // e em revisão por ele na planilha. Estado padrão: 'tabela' (ou 'acima-de-40' se passar de 40).
-// SLEEP/SLIP ficam marcados até o dono decidir; `termoNovo` = depende de uma entrada que está na
+// SLEEP (e SLIP fora de um vestido) fica marcado até o dono decidir; `termoNovo` = depende de uma entrada que está na
 // planilha para aprovação e ainda não entrou na tabela (o teste roda como TODO).
 const REFERENCIA = [
   ['BERMUDA JEANS COMFORT CINTURA MÉDIA', 'BERMUDA DENIM COMFORT TIRO MEDIO'],
@@ -111,7 +111,8 @@ const REFERENCIA = [
   ['TOP CROPPED LINGERIE COM RENDA', 'TOP CROPPED LINGERIE CON ENCAJE'],
   ['VESTIDO LONGO SLEEP COM VELUDO', 'VESTIDO LARGO SLEEP CON TERCIOPELO', { estado: 'varias-pecas' }],
   ['VESTIDO SLEEP SUPER MIDI COM RENDA', 'VESTIDO SLEEP SUPER MIDI CON ENCAJE', { estado: 'varias-pecas' }],
-  ['VESTIDO SLIP COM RENDA ACETINADO', 'VESTIDO SLIP CON ENCAJE SATINADO', { estado: 'varias-pecas' }]
+  // VESTIDO SLIP é uma peça só desde 04/11/2026 (decisão do dono): SLIP DRESS / VESTIDO LENCERO.
+  ['VESTIDO SLIP COM RENDA ACETINADO', 'VESTIDO LENCERO CON ENCAJE SATINADO']
 ];
 
 for (const [pt, esperado, { estado, termoNovo } = {}] of REFERENCIA) {
@@ -365,8 +366,12 @@ test('03/11: meias: MEIA CALÇA = TIGHTS / PANTIMEDIAS, MEIA FINA = SHEER TIGHTS
     ['MEIA CALÇA FUSÔ DE RENDA', 'LACE STIRRUP TIGHTS', 'PANTIMEDIAS FUSEAU DE ENCAJE'],
     ['MEIA', 'SOCKS', 'CALCETINES'],
   ]);
-  // MEIA MANGA e MEIA TAÇA não são meia.
+  // MEIA MANGA e MEIA TAÇA não são meia: a expressão mais longa vence a peça MEIA.
   assert.equal(montarTraducao('BLUSA MEIA MANGA', 'EN').traducao, 'HALF SLEEVE BLOUSE');
+  const meiaTaca = montarTraducao('MEIA TAÇA', 'EN');
+  assert.equal(meiaTaca.traducao, 'HALF CUP');
+  assert.deepEqual(meiaTaca.termos.map(t => t.pt), ['MEIA TAÇA']);
+  assert.equal(montarTraducao('MEIA TAÇA', 'ES').traducao, 'MEDIA COPA');
   assert.equal(montarTraducao('MEIA CALÇA FUSÔ DE RENDA', 'EN').estado, 'tabela');
 });
 
@@ -413,6 +418,186 @@ test('03/11: DE FLORES = FLORAL / DE FLORES; MILITAR = MILITARY; COM CINTURA X �
     ['SHORT JEANS COM CINTURA BAIXA', 'LOW-RISE JORTS', 'SHORT DENIM CON TIRO BAJO'],
     ['CALÇA RETA COM CÓS DE ELÁSTICO', 'STRAIGHT PANTS WITH ELASTIC WAISTBAND', 'PANTALÓN RECTO CON PRETINA ELÁSTICA'],
   ]);
+});
+
+test('04/11: COM CINTURA X não dá gênero ao adjetivo seguinte; COM DRAPEADOS = WITH DRAPING; VESTIDO SLIP é uma peça', () => {
+  conferir([
+    // Antes: FALDA CON TIRO ALTO ESTAMPADO (o adjetivo concordava com TIRO, não com a peça).
+    ['SAIA COM CINTURA ALTA ESTAMPADA', 'HIGH-RISE PRINTED SKIRT', 'FALDA CON TIRO ALTO ESTAMPADA'],
+    ['SAIA COM CINTURA BAIXA LISTRADA', 'LOW-RISE STRIPED SKIRT', 'FALDA CON TIRO BAJO RAYADA'],
+    ['CALÇA COM CINTURA MÉDIA ESTAMPADA', 'MID-RISE PRINTED PANTS', 'PANTALÓN CON TIRO MEDIO ESTAMPADO'],
+    // COM CINTURA X fecha o detalhe anterior: o adjetivo é da peça, não da FIVELA nem da PALA.
+    // Antes: PANTALÓN CON HEBILLA CON TIRO ALTO RAYADA.
+    ['CALÇA COM FIVELA COM CINTURA ALTA LISTRADA', 'HIGH-RISE STRIPED PANTS WITH BUCKLE', 'PANTALÓN CON HEBILLA CON TIRO ALTO RAYADO'],
+    ['SAIA COM PALA COM CINTURA ALTA ESTAMPADA', 'HIGH-RISE PRINTED SKIRT WITH YOKE', 'FALDA CON CANESÚ CON TIRO ALTO ESTAMPADA'],
+    // Antes: BLOUSE WITH DRAPED (o plural caía no DRAPEADOS solto).
+    ['BLUSA COM DRAPEADOS', 'BLOUSE WITH DRAPING', 'BLUSA CON DRAPEADOS'],
+    ['VESTIDO MIDI COM DRAPEADOS E RENDA', 'MIDI DRESS WITH DRAPING AND LACE', 'VESTIDO MIDI CON DRAPEADOS Y ENCAJE'],
+    // Antes: DRESS WITH SLIP AND SATIN LACE, "várias peças".
+    ['VESTIDO SLIP COM RENDA ACETINADO', 'SLIP DRESS WITH SATIN LACE', 'VESTIDO LENCERO CON ENCAJE SATINADO'],
+    ['VESTIDO SLIP MIDI DE CETIM', 'SATIN SLIP MIDI DRESS', 'VESTIDO LENCERO MIDI DE SATÉN'],
+  ]);
+  assert.equal(montarTraducao('VESTIDO SLIP COM RENDA ACETINADO', 'EN').estado, 'tabela');
+  // SLIP sozinho segue a R19 (igual ao PT, decisão pendente) e continua outra peça ao lado de SAIA.
+  assert.equal(montarTraducao('SAIA SLIP', 'EN').estado, 'varias-pecas');
+});
+
+/* ==================== Decisões do dono de 05/11/2026 ==================== */
+
+test('05/11: SLIP DRESS em todas as formas (junto, separado, com hífen, com ou sem VESTIDO, com o comprimento antes ou depois) sai sem DRESS repetido', () => {
+  const casos = [
+    // sozinho, junto, separado e com hífen
+    ['SLIPDRESS', 'SLIP DRESS', 'VESTIDO LENCERO'],
+    ['SLIP DRESS', 'SLIP DRESS', 'VESTIDO LENCERO'],
+    ['SLIP-DRESS', 'SLIP DRESS', 'VESTIDO LENCERO'],
+    ['SLIPDRESS DE CETIM', 'SATIN SLIP DRESS', 'VESTIDO LENCERO DE SATÉN'],
+    ['SLIP DRESS ESTAMPADO', 'PRINTED SLIP DRESS', 'VESTIDO LENCERO ESTAMPADO'],
+    // VESTIDO colado
+    ['VESTIDO SLIP', 'SLIP DRESS', 'VESTIDO LENCERO'],
+    ['VESTIDO SLIPDRESS', 'SLIP DRESS', 'VESTIDO LENCERO'],
+    ['VESTIDO SLIP DRESS', 'SLIP DRESS', 'VESTIDO LENCERO'],
+    ['VESTIDO SLIP-DRESS', 'SLIP DRESS', 'VESTIDO LENCERO'],
+    // as 3 do corpus com VESTIDO colado (antes: DRESS WITH SLIP …, "várias peças")
+    ['VESTIDO SLIP DRESS ESTAMPADO COM ALÇAS', 'PRINTED SLIP DRESS WITH STRAPS', 'VESTIDO LENCERO ESTAMPADO CON TIRANTES'],
+    ['VESTIDO SLIPDRESS DE CETIM COM VELUDO', 'SATIN SLIP DRESS WITH VELVET', 'VESTIDO LENCERO DE SATÉN CON TERCIOPELO'],
+    ['VESTIDO SLIP COM RENDA ACETINADO', 'SLIP DRESS WITH SATIN LACE', 'VESTIDO LENCERO CON ENCAJE SATINADO'],
+    // comprimento depois: MINI/MIDI/MAXI colados à palavra da peça, SHORT/LONG antes dela inteira
+    ['SLIP DRESS MIDI', 'SLIP MIDI DRESS', 'VESTIDO LENCERO MIDI'],
+    ['VESTIDO SLIP MIDI', 'SLIP MIDI DRESS', 'VESTIDO LENCERO MIDI'],
+    ['VESTIDO SLIP-DRESS MIDI', 'SLIP MIDI DRESS', 'VESTIDO LENCERO MIDI'],
+    ['SLIPDRESS LONGO', 'LONG SLIP DRESS', 'VESTIDO LENCERO LARGO'],
+    ['VESTIDO SLIP LONGO', 'LONG SLIP DRESS', 'VESTIDO LENCERO LARGO'],
+    ['SLIP DRESS CURTO DE CETIM', 'SATIN SHORT SLIP DRESS', 'VESTIDO LENCERO CORTO DE SATÉN'],
+    // VESTIDO longe: o EN junta numa peça só; o ES segue o PT sem repetir VESTIDO (antes: "várias peças")
+    ['VESTIDO MIDI SLIP DRESS', 'SLIP MIDI DRESS', 'VESTIDO MIDI LENCERO'],
+    ['VESTIDO MINI SLIP DRESS', 'SLIP MINI DRESS', 'VESTIDO MINI LENCERO'],
+    ['VESTIDO MAXI SLIPDRESS', 'SLIP MAXI DRESS', 'VESTIDO MAXI LENCERO'],
+    ['VESTIDO LONGO SLIPDRESS', 'LONG SLIP DRESS', 'VESTIDO LARGO LENCERO'],
+    ['VESTIDO CURTO SLIP DRESS DE CETIM', 'SATIN SHORT SLIP DRESS', 'VESTIDO CORTO LENCERO DE SATÉN'],
+    ['VESTIDO JEANS SLIP DRESS', 'DENIM SLIP DRESS', 'VESTIDO DENIM LENCERO'],
+    ['VESTIDO SUPER MIDI SLIP DRESS COM CAPA', 'SLIP SUPER MIDI DRESS WITH CAPE', 'VESTIDO SUPER MIDI LENCERO CON CAPA'],
+    // SLIP sozinho logo depois de um vestido é o slip dress
+    ['VESTIDO MIDI SLIP', 'SLIP MIDI DRESS', 'VESTIDO MIDI LENCERO'],
+    ['VESTIDO LONGO SLIP DE CETIM', 'SATIN LONG SLIP DRESS', 'VESTIDO LARGO LENCERO DE SATÉN'],
+    ['VESTIDO DE CETIM SLIP', 'SATIN SLIP DRESS', 'VESTIDO DE SATÉN LENCERO'],
+    // FIRENZE é tecido (05/11/2026): a 4ª descrição do corpus com SLIP deixa de ir à DeepL
+    ['VESTIDO FIRENZE SLIP MIDI COM RENDA', 'FIRENZE SLIP MIDI DRESS WITH LACE', 'VESTIDO FIRENZE LENCERO MIDI CON ENCAJE'],
+  ];
+  conferir(casos);
+  for (const [pt] of casos) {
+    assert.equal(montarTraducao(pt, 'EN').estado, 'tabela', pt);
+    assert.equal(montarTraducaoES(pt).estado, 'tabela', pt);
+  }
+  // Os termos aplicados mostram as peças que viraram uma: VESTIDO, MIDI e SLIP DRESS.
+  assert.deepEqual(montarTraducao('VESTIDO MIDI SLIP DRESS', 'EN').termos.map(t => t.pt), ['VESTIDO', 'MIDI', 'SLIP DRESS']);
+  assert.deepEqual(montarTraducaoES('VESTIDO MIDI SLIP').termos.map(t => [t.pt, t.es]), [['VESTIDO', 'VESTIDO'], ['MIDI', 'MIDI'], ['SLIP', 'LENCERO']]);
+});
+
+test('05/11: SLIP fora de um vestido continua a anágua (R19), e peças ligadas por E nunca viram uma', () => {
+  // Detalhe, negação, outra peça ou sem peça: o SLIP não é o modelo do vestido.
+  assert.equal(montarTraducao('VESTIDO COM SLIP', 'EN').traducao, 'DRESS WITH SLIP');
+  assert.equal(montarTraducao('VESTIDO COM SLIP', 'EN').estado, 'tabela');
+  assert.equal(montarTraducaoES('VESTIDO COM SLIP').traducao, 'VESTIDO CON SLIP');
+  assert.equal(montarTraducao('SLIP DE RENDA', 'EN').traducao, 'LACE SLIP');
+  assert.equal(montarTraducao('SLIP DE MOLETOM', 'EN').traducao, 'FLEECE SLIP');
+  assert.equal(montarTraducao('VESTIDO MIDI E SAIA SLIP', 'EN').estado, 'varias-pecas');
+  // Logo depois de uma preposição o SLIP também não é o modelo (antes: VESTIDO DE LENCERO, "tabela").
+  for (const pt of ['VESTIDO DE SLIP', 'VESTIDO NO SLIP', 'VESTIDO PARA SLIP']) {
+    assert.equal(montarTraducao(pt, 'EN').estado, 'varias-pecas', pt);
+    assert.doesNotMatch(montarTraducaoES(pt).traducao, /LENCERO/, pt);
+  }
+  // Um detalhe no meio não separa: VESTIDO COM ALÇAS SLIP é o slip dress com alças.
+  assert.equal(montarTraducao('VESTIDO COM ALÇAS SLIP', 'EN').traducao, 'SLIP DRESS WITH STRAPS');
+  // Ligadas por E ou +, ou com a específica negada (SEM, S/), são duas peças: vão para revisão,
+  // nunca uma some sem aviso nem a negação se perde (antes: VESTIDO SEM SLIP DRESS = SLIP DRESS).
+  for (const pt of ['VESTIDO E SLIP', 'VESTIDO E SLIP DRESS', 'VESTIDO MIDI E SLIP', 'VESTIDO SLIP E ANÁGUA',
+    'VESTIDO E VESTIDO REGATA', 'MEIA CALÇA E MEIA FINA', 'TOP E CORTININHA',
+    'VESTIDO + SLIP', 'VESTIDO MIDI + SLIP DRESS', 'TOP + CORTININHA',
+    'VESTIDO SEM SLIP DRESS', 'VESTIDO S/ SLIPDRESS', 'VESTIDO MIDI SEM SLIP DRESS', 'TOP SEM CORTININHA',
+    'VESTIDO SEM VESTIDO CURTO', 'VESTIDO JEANS SEM VESTIDO REGATA']) {
+    assert.equal(montarTraducao(pt, 'EN').estado, 'varias-pecas', pt);
+    assert.equal(montarTraducaoES(pt).estado, 'varias-pecas', pt);
+  }
+  assert.equal(montarTraducao('VESTIDO SEM SLIP DRESS', 'EN').traducao, 'DRESS WITHOUT SLIP DRESS');
+  // O "+" separa as peças, mas não repete o papel do termo anterior como o E: a SAIA de BLUSA COM
+  // BOLSO + SAIA é outra peça (não um detalhe), e o CINTO não herda o SEM de SEM MANGA.
+  for (const pt of ['BLUSA COM BOLSO + SAIA', 'VESTIDO+SLIP']) {
+    assert.equal(montarTraducao(pt, 'EN').estado, 'varias-pecas', pt);
+    assert.equal(montarTraducaoES(pt).estado, 'varias-pecas', pt);
+  }
+  assert.equal(montarTraducao('VESTIDO SEM MANGA + CINTO', 'EN').traducao, 'SLEEVELESS BELT DRESS');
+  assert.equal(montarTraducao('XYZ + ABC', 'EN').traducao, 'XYZ + ABC');
+  // Peça negada nunca é o núcleo: sem outra peça, a linha fica "sem peça" (antes: SLIP DRESS em "tabela").
+  for (const pt of ['SEM SLIP DRESS', 'MOLETOM SEM SLIP DRESS', 'PARKA SEM VESTIDO SLIP', 'SEM VESTIDO']) {
+    assert.equal(montarTraducao(pt, 'EN').estado, 'sem-peca', pt);
+    assert.equal(montarTraducaoES(pt).estado, 'sem-peca', pt);
+  }
+  assert.equal(montarTraducao('SEM SLIP DRESS', 'EN').traducao, 'WITHOUT SLIP DRESS');
+  // A mesma peça dos dois lados de um DE são duas peças (antes, no ES: VESTIDO MIDI DE, "tabela").
+  for (const pt of ['VESTIDO MIDI DE VESTIDO', 'SAIA CURTA DE SAIA', 'VESTIDO DE VESTIDO MIDI']) {
+    assert.equal(montarTraducao(pt, 'EN').estado, 'varias-pecas', pt);
+    assert.equal(montarTraducaoES(pt).estado, 'varias-pecas', pt);
+  }
+  // Com COM no meio, a expressão não cede: o detalhe continua inteiro (antes da trava: DENIM POLO
+  // DRESS WITH DRESS, "tabela").
+  assert.equal(montarTraducao('VESTIDO POLO COM VESTIDO JEANS', 'EN').traducao, 'POLO DRESS WITH DENIM DRESS');
+  assert.equal(montarTraducao('CAMISA PIJAMA COM CAMISA JEANS', 'EN').traducao, 'PAJAMA SHIRT WITH DENIM SHIRT');
+  // A anágua também é SLIP no EN: SLIP DRESS não a absorve (a última palavra é a peça).
+  assert.equal(montarTraducao('VESTIDO SLIP E ANÁGUA', 'EN').traducao, 'SLIP DRESS WITH SLIP');
+  // Peça específica com outra específica da mesma família: as duas ficam, e a linha vai para revisão.
+  assert.equal(montarTraducao('VESTIDO REGATA SLIP', 'EN').estado, 'varias-pecas');
+  // A expressão só cede se nada dela vira palavra desconhecida: SAIA LÁPIS fica inteira, porque
+  // LÁPIS sozinho não está na tabela (sem a trava saía "PAREO SKIRT LÁPIS", desconhecida).
+  for (const pt of ['SAIA LÁPIS SAIA PAREÔ', 'SAIA PAREÔ SAIA LÁPIS']) {
+    const en = montarTraducao(pt, 'EN');
+    assert.equal(en.estado, 'varias-pecas', pt);
+    assert.match(en.traducao, /PENCIL SKIRT/, pt);
+    assert.doesNotMatch(montarTraducaoES(pt).traducao, /LÁPIS/, pt);
+  }
+  // VESTIDOS (plural) não existe na tabela: a descrição vai à DeepL com o validador.
+  assert.equal(montarTraducao('VESTIDOS SLIP DRESS', 'EN').estado, 'desconhecida');
+});
+
+test('05/11: no ES a peça específica depois da genérica não repete o núcleo (TOP CORTININHA = TOP TRIANGULAR)', () => {
+  // Antes: TOP TOP TRIANGULAR, "várias peças". No EN a específica já absorvia a genérica.
+  conferir([
+    ['TOP CORTININHA', 'TRIANGLE TOP', 'TOP TRIANGULAR'],
+    ['TOP CORTININHA ESTAMPADO', 'PRINTED TRIANGLE TOP', 'TOP TRIANGULAR ESTAMPADO'],
+  ]);
+  assert.equal(montarTraducaoES('TOP CORTININHA').estado, 'tabela');
+  // A ordem de antes continua: CORTININHA sozinha já era a peça inteira.
+  assert.equal(montarTraducaoES('CORTININHA COM BOJO').traducao, 'TOP TRIANGULAR CON RELLENO');
+  // Sai todo o começo repetido, não só a 1ª palavra (antes: TOP TRIANGULAR TRIANGULAR CON RELLENO).
+  assert.equal(montarTraducaoES('CORTININHA CORTININHA COM BOJO').traducao, 'TOP TRIANGULAR CON RELLENO');
+  assert.equal(montarTraducaoES('MEIA TAÇA MEIA TAÇA TORCIDA').traducao, 'MEDIA COPA TORCIDA');
+  // Genérica depois da específica, só com o núcleo: ela cai. Antes do lote, as duas iam para
+  // "várias peças"; sem esta regra, o ES sairia BLAZER DE FELPA BLAZER DENIM como "tabela", porque
+  // BLAZER é segunda peça colada no VESTIDO BLAZER…
+  const blazer = montarTraducaoES('BLAZER DE MOLETOM BLAZER JEANS');
+  assert.equal(blazer.traducao, 'BLAZER DE FELPA DENIM');
+  assert.equal(montarTraducao('BLAZER DE MOLETOM BLAZER JEANS', 'EN').traducao, 'DENIM FLEECE BLAZER');
+  // …e o contexto da DeepL não leva par sem tradução.
+  assert.doesNotMatch(montarContextoGlossario(['BLAZER DE MOLETOM BLAZER JEANS XYZ'], 'ES'), /= ;|= \.$/);
+  // A segunda peça colada de outra família continua valendo (R14), e a REGATA que vira manga
+  // continua manga, mesmo que o EN a absorva no TRIANGLE TOP (R15).
+  assert.equal(montarTraducaoES('VESTIDO BLAZER DE CETIM COM FAIXA').estado, 'tabela');
+  const regata = montarTraducaoES('CORTININHA COM BOJO REGATA');
+  assert.equal(regata.traducao, 'TOP TRIANGULAR CON RELLENO SIN MANGAS');
+  assert.equal(regata.estado, 'tabela');
+  // A peça sem o começo repetido fecha o detalhe aberto: o adjetivo é da saia, não do CANESÚ.
+  assert.equal(montarTraducaoES('SAIA COM PALA SAIA CURTA ESTAMPADA').traducao, 'FALDA CON CANESÚ CORTA ESTAMPADA');
+  assert.equal(montarTraducaoES('SAIA JEANS COM PALA SAIA ESTAMPADA').traducao, 'FALDA DENIM CON CANESÚ ESTAMPADA');
+});
+
+test('05/11: a fusão JEANS/MOLETOM na calça e no short não engole COM nem SEM (já existia; achado da revisão)', () => {
+  // Antes: CALÇA SEM MOLETOM = SWEATPANTS e CALÇA SEM JEANS = JEANS, com a negação perdida.
+  assert.equal(montarTraducao('CALÇA SEM MOLETOM', 'EN').traducao, 'PANTS WITHOUT FLEECE');
+  assert.equal(montarTraducao('CALÇA SEM JEANS', 'EN').traducao, 'PANTS WITHOUT DENIM');
+  assert.equal(montarTraducao('CALÇA COM MOLETOM', 'EN').traducao, 'PANTS WITH FLEECE');
+  // As fusões de sempre continuam.
+  assert.equal(montarTraducao('CALÇA DE MOLETOM', 'EN').traducao, 'SWEATPANTS');
+  assert.equal(montarTraducao('SHORT JEANS', 'EN').traducao, 'JORTS');
+  assert.equal(montarTraducao('CALÇA RETA CINTURA MÉDIA DE MOLETOM', 'EN').traducao, 'MID-RISE STRAIGHT SWEATPANTS');
 });
 
 test('03/11: SHORT e LONG vão antes da peça de mais de uma palavra; MINI/MIDI/MAXI continuam colados', () => {

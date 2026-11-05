@@ -7,7 +7,9 @@
  *   1. normalização do texto (acentos, caixa, pontuação);
  *   2. preparação dos termos, uma vez por processo (chave normalizada + regex);
  *   3. matching: expressão mais longa vence; termos com mais de um sentido (JEANS,
- *      MOLETOM, GOLA ALTA) são resolvidos olhando as outras peças da própria descrição;
+ *      MOLETOM, GOLA ALTA, SLIP) são resolvidos olhando as outras peças da própria descrição;
+ *      expressão que embute a peça genérica (VESTIDO MIDI) cede a uma peça mais específica
+ *      da mesma família (SLIP DRESS), para as duas virarem uma peça só;
  *   4. montador: a frase em inglês segue a estrutura combinada com o negócio, e as
  *      preposições do português dizem o papel de cada termo (COM = detalhe, DE/EM +
  *      tecido = material, termo solto = adjetivo pela posição do índice);
@@ -35,7 +37,8 @@ function prepararTextoParaBusca(texto) {
     const semAcento = caractereOriginal.normalize('NFD').replace(/[̀-ͯ]/g, '');
 
     for (const caractere of semAcento) {
-      const normalizado = /[A-Z0-9/]/.test(caractere) ? caractere : ' ';
+      // O "+" fica: ele liga peças (KIT BLUSA + SAIA), e nenhuma expressão pode casar por cima dele.
+      const normalizado = /[A-Z0-9/+]/.test(caractere) ? caractere : ' ';
       const ultimo = caracteres.length - 1;
       if (normalizado === ' ' && ultimo >= 0 && caracteres[ultimo] === ' ') {
         mapaFim[ultimo] = fim;
@@ -102,7 +105,7 @@ function prepararTermo(texto) {
 }
 
 // Uma entrada por chave normalizada (PT). Chaves com mais de um sentido (JEANS, MOLETOM,
-// GOLA ALTA) guardam todas as alternativas; a escolha é feita por descrição, no matching.
+// GOLA ALTA, SLIP) guardam todas as alternativas; a escolha é feita por descrição, no matching.
 // A ordem da tabela é preservada: os empates do matching dependem dela.
 const chavesPreparadas = (() => {
   const porChave = new Map();
@@ -123,6 +126,15 @@ const PALAVRAS_DE_PECA = new Set(
     .filter(termo => termo.status === 'FECHADO' && NUCLEO.has(termo.indice) && termo.tipo === 'termo')
     .map(termo => prepararTermo(termo.pt).chave)
 );
+
+// Peça de uma palavra por chave (VESTIDO → DRESS): a peça genérica que uma expressão pode
+// embutir (VESTIDO MIDI). Só o sentido sem contexto; com chave repetida, vale o primeiro.
+const PECA_POR_PALAVRA = new Map();
+for (const termo of termosGlossario) {
+  if (termo.status !== 'FECHADO' || !NUCLEO.has(termo.indice) || termo.tipo !== 'termo' || termo.contexto) continue;
+  const { chave } = prepararTermo(termo.pt);
+  if (!PECA_POR_PALAVRA.has(chave)) PECA_POR_PALAVRA.set(chave, termo);
+}
 
 function acharOcorrencias(textoNormalizado, regex) {
   if (!regex) return [];
@@ -152,8 +164,9 @@ function ehPecaPorModelo(termo) {
 }
 
 // Escolhe o sentido de um termo com várias entradas, olhando as outras peças da descrição.
-// Devolve uma cópia (nunca altera a tabela).
-function resolverSentido(alternativas, { outraPeca, pecaAgasalho }) {
+// `pecaAntes` é a chave da peça mais próxima antes do termo (null se a palavra logo antes dele
+// é um conectivo: COM, SEM, E, DE, EM, NO…). Devolve uma cópia (nunca altera a tabela).
+function resolverSentido(alternativas, { outraPeca, pecaAgasalho, pecaAntes }) {
   if (alternativas.length === 1) return { ...alternativas[0] };
   const chave = prepararTermo(alternativas[0].pt).chave;
   const porContexto = contexto => alternativas.find(t => prepararTermo(t.contexto || '').chave === contexto);
@@ -173,7 +186,102 @@ function resolverSentido(alternativas, { outraPeca, pecaAgasalho }) {
   if (chave === 'GOLA ALTA') {
     return { ...(pecaAgasalho ? porContexto('AGASALHO') : semContexto) };
   }
+  if (chave === 'SLIP') {
+    // Depois de um vestido (VESTIDO MIDI SLIP, VESTIDO DE CETIM SLIP, VESTIDO COM ALÇAS SLIP), SLIP
+    // é o modelo dele: o slip dress (decisão do dono de 05/11/2026). Sozinho, depois de outra peça
+    // ou logo depois de um conectivo (VESTIDO COM SLIP, VESTIDO E SLIP, VESTIDO DE SLIP), segue a
+    // anágua da R19.
+    const depoisDeVestido = Boolean(pecaAntes) && pecaAntes.split(' ').includes('VESTIDO');
+    return { ...((depoisDeVestido && porContexto('VESTIDO')) || semContexto) };
+  }
   return { ...(semContexto || alternativas[0]) };
+}
+
+// Seleção gulosa, da esquerda para a direita: a candidata que começa antes fica, e a mais longa
+// vence as que começam no mesmo lugar (a lista chega ordenada assim). As que cederam não entram.
+function selecionarCandidatas(candidatas, cederam) {
+  const selecionadas = [];
+  let limite = -1;
+  for (const candidata of candidatas) {
+    if (cederam.has(candidata) || candidata.inicio < limite) continue;
+    selecionadas.push(candidata);
+    limite = candidata.fim;
+  }
+  return selecionadas;
+}
+
+// Conectivos que separam duas peças: COM X é detalhe, SEM X é negação, e X E Y e X + Y são duas
+// peças. Entre uma expressão e a peça mais específica, eles impedem a cessão (VESTIDO POLO COM
+// VESTIDO JEANS continua POLO DRESS WITH DENIM DRESS).
+const SEPARAM_DA_PECA = new Set(['COM', 'C/', 'SEM', 'S/', 'E', '+']);
+const ehConectivo = palavra => Object.prototype.hasOwnProperty.call(CONECTIVOS, palavra);
+// Palavras do texto normalizado, com o "+" como palavra própria (VESTIDO+SLIP = VESTIDO, +, SLIP).
+const PALAVRA_OU_MAIS = /\+|[A-Z0-9/]+/g;
+const palavrasDe = texto => texto.match(PALAVRA_OU_MAIS) || [];
+
+// Resolve os sentidos olhando as outras peças da descrição. Peça "certa" é a candidata com todos
+// os sentidos de peça (SLIP é anágua ou slip dress, peça de qualquer jeito); JEANS e MOLETOM,
+// que também podem ser tecido, dependem da resolução e não contam.
+function resolverSentidos(selecionadas, textoNormalizado) {
+  const pecasCertas = selecionadas.filter(c => c.alternativas.every(t => ehPeca(t) || ehPecaPorModelo(t)));
+  const pecaAgasalho = pecasCertas.some(p => p.alternativas[0].indice === 14 || AGASALHO.test(p.alternativas[0].en));
+  return selecionadas.map(candidata => {
+    const outraPeca = pecasCertas.some(p => p !== candidata);
+    // A peça mais próxima antes do termo, se ele não vem logo depois de um conectivo (VESTIDO DE
+    // SLIP, VESTIDO COM SLIP e VESTIDO E SLIP não fazem do SLIP o modelo do vestido).
+    const palavraAntes = palavrasDe(textoNormalizado.slice(0, candidata.inicio)).at(-1);
+    const anterior = ehConectivo(palavraAntes) ? null : ultimoQue(pecasCertas, p => p.fim <= candidata.inicio);
+    const termo = resolverSentido(candidata.alternativas, { outraPeca, pecaAgasalho, pecaAntes: anterior ? anterior.textoEncontrado : null });
+    return { candidata, inicio: candidata.inicio, fim: candidata.fim, termo, textoEncontrado: candidata.textoEncontrado };
+  });
+}
+
+// Expressão que é a peça genérica com um modificador (VESTIDO MIDI = MIDI DRESS, VESTIDO JEANS =
+// DENIM DRESS, SAIA CURTA = SHORT SKIRT): devolve a peça genérica que ela embute (VESTIDO), ou
+// null. Expressão com duas peças (VESTIDO REGATA, VESTIDO SLIP) já é uma peça específica, e a
+// fusão (CALÇA JEANS = JEANS, cujo inglês não termina na peça) não se desfaz.
+function pecaGenericaDentro(termo) {
+  if (termo.tipo !== 'expressao' || !ehPeca(termo)) return null;
+  const dentro = prepararTermo(termo.pt).chave.split(' ').filter(palavra => PECA_POR_PALAVRA.has(palavra));
+  if (dentro.length !== 1) return null;
+  const generica = PECA_POR_PALAVRA.get(dentro[0]);
+  return termo.en.split(' ').at(-1) === generica.en.split(' ').at(-1) ? generica : null;
+}
+
+// A expressão que embute a peça genérica e cede a uma peça mais específica da mesma família:
+// em VESTIDO MIDI SLIP DRESS, VESTIDO MIDI sai, VESTIDO e MIDI casam separados, e o montador
+// junta VESTIDO e SLIP DRESS numa peça só, com o MIDI no papel dele (SLIP MIDI DRESS; no ES,
+// VESTIDO MIDI LENCERO). Mais específica = o inglês tem mais palavras e termina na mesma peça.
+// Com COM, SEM, E ou + entre as duas, não cede: são detalhe, negação ou outra peça. As
+// candidatas em `naoCedem` já foram testadas e não podem ceder (ver listarCorrespondencias).
+function expressaoQueCede(resolvidas, naoCedem, textoNormalizado) {
+  const palavrasEN = termo => termo.en.split(' ');
+  const separadas = (a, b) => palavrasDe(textoNormalizado.slice(Math.min(a.fim, b.fim), Math.max(a.inicio, b.inicio)))
+    .some(palavra => SEPARAM_DA_PECA.has(palavra));
+  return resolvidas.find(x => {
+    if (naoCedem.has(x.candidata)) return false;
+    const generica = pecaGenericaDentro(x.termo);
+    return Boolean(generica) && resolvidas.some(y => y !== x && ehPeca(y.termo) && !pecaGenericaDentro(y.termo)
+      && palavrasEN(y.termo).length > palavrasEN(generica).length
+      && palavrasEN(y.termo).at(-1) === palavrasEN(generica).at(-1)
+      && !separadas(x, y));
+  });
+}
+
+// Toda palavra do trecho continua coberta por um termo selecionado (ou é conectivo)? Uma
+// expressão só cede se nada dela vira palavra desconhecida: SAIA LÁPIS não cede, porque LÁPIS
+// sozinho não está na tabela.
+function cobreTrecho(selecionadas, inicio, fim, textoNormalizado) {
+  const regexPalavra = /[A-Z0-9/]+/g;
+  regexPalavra.lastIndex = inicio;
+  let palavra;
+  while ((palavra = regexPalavra.exec(textoNormalizado)) !== null && palavra.index < fim) {
+    const de = palavra.index;
+    const ate = de + palavra[0].length;
+    if (Object.prototype.hasOwnProperty.call(CONECTIVOS, palavra[0])) continue;
+    if (!selecionadas.some(c => c.inicio <= de && ate <= c.fim)) return false;
+  }
+  return true;
 }
 
 // O casamento é feito no português, então vale para os dois idiomas de destino.
@@ -203,22 +311,19 @@ function listarCorrespondencias(textoPT) {
     || (b.fim - b.inicio) - (a.fim - a.inicio)
     || a.indicePrimario - b.indicePrimario);
 
-  const selecionadas = [];
-  let limite = -1;
-  for (const candidata of candidatas) {
-    if (candidata.inicio < limite) continue;
-    selecionadas.push(candidata);
-    limite = candidata.fim;
+  // Passo 2: seleção e sentidos. Passo 3: se uma expressão cede a uma peça mais específica, o
+  // casamento é refeito sem ela. Cada volta põe uma candidata em `cederam` ou em `naoCedem`, e
+  // nenhuma é testada duas vezes, então o laço sempre termina.
+  const cederam = new Set();
+  const naoCedem = new Set();
+  for (;;) {
+    const resolvidas = resolverSentidos(selecionarCandidatas(candidatas, cederam), textoNormalizado);
+    const cede = expressaoQueCede(resolvidas, naoCedem, textoNormalizado);
+    if (!cede) return resolvidas.map(({ inicio, fim, termo, textoEncontrado }) => ({ inicio, fim, termo, textoEncontrado }));
+    const semEla = new Set([...cederam, cede.candidata]);
+    if (cobreTrecho(selecionarCandidatas(candidatas, semEla), cede.inicio, cede.fim, textoNormalizado)) cederam.add(cede.candidata);
+    else naoCedem.add(cede.candidata);
   }
-
-  // Passo 2: resolve os sentidos olhando as outras peças da descrição.
-  const pecasCertas = selecionadas.filter(c => c.alternativas.length === 1 && (ehPeca(c.alternativas[0]) || ehPecaPorModelo(c.alternativas[0])));
-  return selecionadas.map(candidata => {
-    const outraPeca = pecasCertas.some(p => p !== candidata);
-    const pecaAgasalho = pecasCertas.some(p => p.alternativas[0].indice === 14 || AGASALHO.test(p.alternativas[0].en));
-    const termo = resolverSentido(candidata.alternativas, { outraPeca, pecaAgasalho });
-    return { inicio: candidata.inicio, fim: candidata.fim, termo, textoEncontrado: candidata.textoEncontrado };
-  });
 }
 
 const ehEspanhol = idiomaDestino => String(idiomaDestino).toUpperCase().startsWith('ES');
@@ -285,7 +390,10 @@ const CONECTIVOS = {
   DE: 'DE', DA: 'DE', DO: 'DE', DAS: 'DE', DOS: 'DE', EM: 'DE', NA: 'DE', NO: 'DE', NAS: 'DE', NOS: 'DE',
   SEM: 'SEM', 'S/': 'SEM',
   E: 'E',
-  A: null, O: null, AS: null, OS: null, PARA: null, 'P/': null
+  A: null, O: null, AS: null, OS: null, PARA: null, 'P/': null,
+  // "+" liga peças (KIT BLUSA + SAIA): separa como o E, mas não repete o papel do termo anterior
+  // (em BLUSA COM BOLSO + SAIA, a SAIA é outra peça, não um detalhe).
+  '+': null
 };
 
 // Posição na frase por índice (menor = mais à esquerda). Ordem aprovada em 24/10/2026:
@@ -334,7 +442,7 @@ function analisarDescricao(textoPT) {
   const casos = listarCorrespondencias(textoPT);
 
   const unidades = [];
-  const regexPalavra = /[A-Z0-9/]+/g;
+  const regexPalavra = new RegExp(PALAVRA_OU_MAIS.source, 'g'); // o "+" é um conectivo
   let palavra;
   while ((palavra = regexPalavra.exec(normalizado)) !== null) {
     const inicio = palavra.index;
@@ -374,6 +482,35 @@ function analisarDescricao(textoPT) {
   return { preparado, unidades };
 }
 
+// Peças da descrição (índices de peça ou expressão que a carrega; "COM X" nunca é a peça) e quais
+// são absorvidas por uma peça mais específica da mesma família: o inglês da específica tem mais
+// palavras e termina na mesma palavra de peça (TOP + CORTININHA = TRIANGLE TOP; VESTIDO … SLIP
+// DRESS = SLIP DRESS). TRIANGLE TOP absorve TOP, mas SLIP DRESS não absorve SLIP (a anágua): a
+// última palavra é a peça. Só peças soltas (sem preposição) se juntam: ligadas por E ou +, são
+// duas peças (VESTIDO E VESTIDO REGATA, MEIA CALÇA E MEIA FINA); peça negada (VESTIDO SEM SLIP
+// DRESS) não absorve nem é absorvida, senão a negação sumiria; e a que vem depois de DE/EM/NO
+// (VESTIDO MIDI DE VESTIDO) também fica. O EN tira a genérica; o ES não repete o começo comum.
+function pecasDaDescricao(unidades) {
+  const termos = unidades.filter(u => u.tipo === 'termo');
+  let pecas = termos.filter(u => u.prep !== 'COM' && ehPeca(u.termo));
+  if (!pecas.length) pecas = termos.filter(u => u.prep !== 'COM' && ehPecaPorModelo(u.termo)); // PARKA sozinha, HOT PANTS
+  const palavrasEN = u => u.termo.en.split(' ');
+  const ligadas = (a, b) => {
+    const [de, ate] = [unidades.indexOf(a), unidades.indexOf(b)].sort((x, y) => x - y);
+    return unidades.slice(de + 1, ate).some(u => u.tipo === 'conectivo' && (u.papel === 'E' || u.palavra === '+'));
+  };
+  const soltas = pecas.filter(u => u.prep === null);
+  const absorvedora = new Map(); // peça genérica → peça específica que a absorve
+  for (const generica of soltas) {
+    const especifica = soltas.find(p => p !== generica
+      && palavrasEN(p).length > palavrasEN(generica).length
+      && palavrasEN(p).at(-1) === palavrasEN(generica).at(-1)
+      && !ligadas(generica, p));
+    if (especifica) absorvedora.set(generica, especifica);
+  }
+  return { pecas, absorvedora };
+}
+
 function montarTraducaoEN(textoPT) {
   const { preparado, unidades } = analisarDescricao(textoPT);
   const termos = unidades.filter(u => u.tipo === 'termo');
@@ -383,16 +520,12 @@ function montarTraducaoEN(textoPT) {
     return { estado: desconhecidas.length ? 'desconhecida' : 'sem-peca', traducao: preparado.originalMaiusculo.trim(), desconhecidas, termos: [] };
   }
 
-  // Peça (núcleo): índices de peça ou expressão que a carrega; "COM X" nunca é a peça.
-  let candidatas = termos.filter(u => u.prep !== 'COM' && ehPeca(u.termo));
-  if (!candidatas.length) candidatas = termos.filter(u => u.prep !== 'COM' && ehPecaPorModelo(u.termo)); // PARKA sozinha, HOT PANTS
-  // Peça específica absorve a genérica: TOP + CORTININHA (TRIANGLE TOP) é uma peça só.
-  const absorvidas = new Set(candidatas.filter(generica => candidatas.some(especifica => especifica !== generica
-    && especifica.termo.en.split(' ').length > generica.termo.en.split(' ').length
-    && especifica.termo.en.split(' ').includes(generica.termo.en.split(' ').at(-1)))));
-  candidatas = candidatas.filter(c => !absorvidas.has(c));
-  const nucleo = candidatas[0] || null;
-  const outrasPecas = candidatas.slice(1);
+  // Peça (núcleo): a primeira peça que não foi absorvida por outra mais específica. A peça negada
+  // (SEM VESTIDO) nunca é o núcleo: sem outra peça, a linha fica "sem peça" e vai para revisão.
+  const { pecas, absorvedora } = pecasDaDescricao(unidades);
+  const candidatas = pecas.filter(c => !absorvedora.has(c));
+  const nucleo = candidatas.find(c => c.prep !== 'SEM') || null;
+  const outrasPecas = candidatas.filter(c => c !== nucleo);
   let nucleoEn = nucleo ? nucleo.termo.en : '';
 
   const antes = [];       // { en, posicao, ordem }
@@ -401,12 +534,14 @@ function montarTraducaoEN(textoPT) {
   let detalheAberto = null;
 
   termos.forEach((unidade, ordem) => {
-    if (unidade === nucleo || absorvidas.has(unidade)) { detalheAberto = null; return; }
+    if (unidade === nucleo || absorvedora.has(unidade)) { detalheAberto = null; return; }
     const { termo, prep } = unidade;
     let en = termo.en;
 
-    // Tecidos JEANS e MOLETOM em calça/short viram a fusão idiomática da própria peça.
-    if (nucleo && NUCLEO.has(nucleo.termo.indice) && termo.indice === 8 && (termo.pt === 'JEANS' || termo.pt === 'MOLETOM')) {
+    // Tecidos JEANS e MOLETOM em calça/short viram a fusão idiomática da própria peça. Com COM ou
+    // SEM, não: CALÇA SEM MOLETOM é PANTS WITHOUT FLEECE, não SWEATPANTS.
+    if (nucleo && NUCLEO.has(nucleo.termo.indice) && termo.indice === 8 && prep !== 'COM' && prep !== 'SEM'
+      && (termo.pt === 'JEANS' || termo.pt === 'MOLETOM')) {
       const fusao = termo.pt === 'JEANS'
         ? { PANTS: 'JEANS', SHORTS: 'JORTS' }
         : { PANTS: 'SWEATPANTS', SHORTS: 'SWEAT SHORTS' };
@@ -498,9 +633,10 @@ function montarTraducaoEN(textoPT) {
  *     PT (CALÇA PIJAMA LISTRADA → PANTALÓN PIJAMA RAYADO; COM GOLA BORDADA → CON CUELLO BORDADO);
  *   - E e + viram Y (E antes de I ou HI, pela ortografia espanhola);
  *   - COM/DE antes de um termo cujo ES é adjetivo cai (BLAZER DE ALFAIATARIA → BLAZER SASTRE);
- *   - REGATA como segunda peça é SIN MANGAS (VESTIDO REGATA → VESTIDO SIN MANGAS).
- * As fusões do EN (JORTS, HOODIE, SWEATPANTS, peça específica que absorve a genérica) valem
- * só no inglês e não existem aqui.
+ *   - REGATA como segunda peça é SIN MANGAS (VESTIDO REGATA → VESTIDO SIN MANGAS);
+ *   - a peça específica que no EN absorve a genérica fica no lugar dela, sem repetir o núcleo
+ *     (VESTIDO MIDI SLIP DRESS → VESTIDO MIDI LENCERO; TOP CORTININHA → TOP TRIANGULAR).
+ * As fusões do EN (JORTS, HOODIE, SWEATPANTS) valem só no inglês e não existem aqui.
  */
 
 // Conectivos do português no espanhol. EM vira DE antes de um termo do glossário (EM PU = DE
@@ -509,7 +645,7 @@ function montarTraducaoEN(textoPT) {
 const CONECTIVOS_ES = {
   COM: 'CON', 'C/': 'CON', SEM: 'SIN', 'S/': 'SIN',
   DE: 'DE', DA: 'DE', DO: 'DE', DAS: 'DE', DOS: 'DE',
-  E: 'Y', A: 'A', PARA: 'PARA', 'P/': 'PARA'
+  E: 'Y', A: 'A', PARA: 'PARA', 'P/': 'PARA', '+': 'Y'
 };
 const ARTIGOS_PT = { NO: ['EN', 'ms'], NA: ['EN', 'fs'], NOS: ['EN', 'mp'], NAS: ['EN', 'fp'], O: ['', 'ms'], OS: ['', 'mp'], AS: ['', 'fp'] };
 const ARTIGOS_ES = { ms: 'EL', fs: 'LA', mp: 'LOS', fp: 'LAS' };
@@ -519,8 +655,8 @@ const CAEM_ANTES_DE_ADJETIVO = new Set(['COM', 'C/', 'DE', 'DA', 'DO', 'DAS', 'D
 // Peças que, coladas depois de outra, fazem papel de modelo dela (decisões de 26 e 29/10/2026:
 // VESTIDO BLAZER, VESTIDO POLO, CAMISA PIJAMA, SAIA PAREO, BLUSA CORSET JEANS, TOP CROPPED
 // LINGERIE, SAIA CURTA ANÁGUA, VESTIDO REGATA). Outra peça colada (CALÇA LEGGING; MEIA CALÇA
-// entrou na tabela em 03/11) é sinal de expressão que falta na tabela, e SLEEP/SLIP esperam o
-// dono: revisão.
+// entrou na tabela em 03/11) é sinal de expressão que falta na tabela, e SLEEP (e SLIP fora de
+// um vestido) espera o dono: revisão.
 const SEGUNDAS_PECAS_ES = new Set(['BLAZER', 'POLO', 'PIJAMA', 'PAREO', 'CORSET JEANS', 'LINGERIE', 'ANAGUA', 'REGATA']);
 
 // Gênero no PT de substantivos cuja terminação engana (chave sem acento; expressão inteira
@@ -581,31 +717,54 @@ function ultimoQue(lista, criterio) {
  * (SEGUNDAS_PECAS_ES: VESTIDO BLAZER, SAIA CURTA ANÁGUA...) e o KIT seguem o PT e não pedem revisão.
  */
 function montarTraducaoES(textoPT) {
-  // "+" liga peças como o E (KIT BLUSA + SAIA) e vira Y.
-  const { unidades } = analisarDescricao(String(textoPT ?? '').replace(/\+/g, ' E '));
+  // O "+" é um conectivo da análise e, no ES, sai Y (KIT BLUSA + SAIA = KIT BLUSA Y FALDA).
+  const { unidades } = analisarDescricao(textoPT);
   const termos = unidades.filter(u => u.tipo === 'termo');
   const desconhecidas = unidades.filter(u => u.tipo === 'desconhecida').map(u => u.valor);
   if (!termos.length) {
     return { estado: desconhecidas.length ? 'desconhecida' : 'sem-peca', traducao: String(textoPT ?? '').toUpperCase().trim(), desconhecidas, termos: [] };
   }
 
-  // Peças, como no EN ("COM X" nunca é a peça).
-  let pecas = termos.filter(u => u.prep !== 'COM' && ehPeca(u.termo));
-  if (!pecas.length) pecas = termos.filter(u => u.prep !== 'COM' && ehPecaPorModelo(u.termo));
-  const nucleo = pecas[0] || null;
+  // Peças, como no EN ("COM X" nunca é a peça; a negada, SEM VESTIDO, nunca é o núcleo).
+  const { pecas, absorvedora } = pecasDaDescricao(unidades);
+  const nucleo = pecas.find(u => u.prep !== 'SEM') || null;
   const ehKit = Boolean(nucleo) && chaveDoTermo(nucleo) === 'KIT';
   // REGATA depois de outra peça é a manga da primeira; num KIT é peça própria (CAMISETA SIN MANGAS).
   const regataComoManga = new Set(pecas.filter(u => u !== nucleo && !ehKit && chaveDoTermo(u) === 'REGATA'));
   const pecasReais = pecas.filter(u => !regataComoManga.has(u));
+  // Peças da mesma família que o EN junta numa só (absorção): o ES segue o PT e não repete o
+  // começo comum. Genérica antes: a específica fica no lugar dela, sem o que repete (VESTIDO
+  // MIDI SLIP DRESS → VESTIDO MIDI LENCERO; TOP CORTININHA → TOP TRIANGULAR; CORTININHA
+  // CORTININHA COM BOJO → TOP TRIANGULAR CON RELLENO). Genérica depois e inteira no começo da
+  // específica: ela cai (BLAZER DE MOLETOM BLAZER JEANS → BLAZER DE FELPA DENIM). Fora disso,
+  // são duas peças e a linha vai para revisão.
+  const semRepetir = new Map(); // peça → o ES dela sem o começo repetido ('' = a peça cai)
+  for (const [generica, especifica] of absorvedora) {
+    const g = generica.termo.es.texto.split(' ');
+    const e = especifica.termo.es.texto.split(' ');
+    let comum = 0;
+    while (comum < g.length && comum < e.length && g[comum] === e[comum]) comum += 1;
+    if (!comum) continue;
+    if (unidades.indexOf(generica) < unidades.indexOf(especifica)) {
+      if (e.length > comum) semRepetir.set(especifica, e.slice(comum).join(' '));
+    } else if (comum === g.length) {
+      semRepetir.set(generica, '');
+    }
+  }
   const colada = u => unidades[unidades.indexOf(u) - 1]?.tipo === 'termo' && SEGUNDAS_PECAS_ES.has(chaveDoTermo(u));
-  const variasPecas = !ehKit && pecas.slice(1).some(u => !colada(u));
+  // A genérica absorvida que o ES não resolve conta como outra peça, mesmo colada: BLAZER depois
+  // de BLAZER DE MOLETOM não é o VESTIDO BLAZER da R14. A REGATA que vira manga continua manga
+  // (CORTININHA COM BOJO REGATA = TOP TRIANGULAR CON RELLENO SIN MANGAS, R15).
+  const outraPecaES = u => !semRepetir.has(u) && (!colada(u) || (absorvedora.has(u) && !regataComoManga.has(u)));
+  const variasPecas = !ehKit && pecas.filter(u => u !== nucleo).some(outraPecaES);
 
   // Substantivos com que um adjetivo pode concordar, na ordem em que aparecem. O modelo de
-  // jaqueta (PUFFER, BOMBER) e a segunda peça colada (CAMISA POLO, VESTIDO BLAZER), que fazem
-  // papel de modelo, cedem o gênero à peça.
+  // jaqueta (PUFFER, BOMBER), a segunda peça colada (CAMISA POLO, VESTIDO BLAZER) e a peça sem o
+  // começo repetido (o LENCERO), que fazem papel de modelo, cedem o gênero à peça; a que cai
+  // também não conta.
   const comoAlvo = u => {
     const es = u.termo.es;
-    if (!es?.genero || regataComoManga.has(u) || (u !== nucleo && colada(u))) return null;
+    if (!es?.genero || regataComoManga.has(u) || semRepetir.has(u) || (u !== nucleo && colada(u))) return null;
     if (u.termo.indice === 14 && nucleo && u !== nucleo) return null;
     const pt = generoNumeroPT(u.termo.pt);
     return { generoPT: pt.genero, numeroPT: pt.numero, formaES: es.genero + (es.numero || 's'), peca: pecasReais.includes(u) };
@@ -664,7 +823,12 @@ function montarTraducaoES(textoPT) {
     }
     const es = u.termo.es;
     let texto;
+    // Genérica que repete o começo da específica anterior: cai, sem mexer no resto da frase (e
+    // fica fora dos termos usados, para o contexto da DeepL não levar um par sem tradução). Como
+    // peça, fecha o detalhe aberto antes dela.
+    if (semRepetir.get(u) === '') { detalheAberto = null; return; }
     if (regataComoManga.has(u)) texto = 'SIN MANGAS';
+    else if (semRepetir.has(u)) texto = semRepetir.get(u);
     else if (es?.classe === 'flexivel') texto = formaConcordada(u);
     else texto = es?.texto || u.termo.pt; // todo termo FECHADO tem ES (um teste confere)
     // Expressão que traz a própria preposição (COM CAPUZ = CON CAPUCHA, ESPINHA DE PEIXE = DE
@@ -679,6 +843,11 @@ function montarTraducaoES(textoPT) {
     if (alvo) {
       alvos.push(alvo);
       detalheAberto = abreDetalhe(u) ? alvo : null;
+    } else if (abreDetalhe(u) || semRepetir.has(u)) {
+      // COM X sem gênero no ES (COM CINTURA ALTA = CON TIRO ALTO) fecha o detalhe anterior: em
+      // CALÇA COM FIVELA COM CINTURA ALTA LISTRADA, LISTRADA é da calça, não da FIVELA. A peça sem
+      // o começo repetido também fecha: SAIA COM PALA SAIA CURTA ESTAMPADA = … CORTA ESTAMPADA.
+      detalheAberto = null;
     }
   });
 
