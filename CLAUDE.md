@@ -24,8 +24,7 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
   `test:`, `refactor:`, `chore:`); os commits anteriores usam, na maioria, `feature/...:`
   (alguns `feat:` e `fix/`).
 - Branches: o trabalho do dia corre na `developer`; a `main` é a versão estável e recebe a
-  `developer` por merge, com tag de versão (decisão de 04/11/2026; até o primeiro merge, a `main`
-  está parada em 13/10/2026).
+  `developer` por merge, com tag de versão (decisão de 04/11/2026; primeiro merge em 04/11/2026, tag `v0.9.0`).
 
 ## Stack e execução
 
@@ -93,7 +92,7 @@ estado do projeto, as decisões já tomadas e as regras de trabalho.
 | `docs/glossario-setor-pt-en-es.tsv` | Lista PT/EN/ES antiga do setor (403 linhas): só histórico; o ES vale o da tabela. |
 | `docs/amostras/` | Planilhas das coleções IN27 e AI27 (base de teste; AI27 traz EN anterior, de qualidade desigual). Fora do git (dados da empresa). |
 | `docs/Traduções - Planilha Base.xlsx` | Modelo das 8 colunas da transação do SAP, com as instruções de cada uma (local, fora do git). Os cabeçalhos (REFERÊNCIA, DESCRIÇÃO, Descrição EN, Descrição ES, TEXTO ECOM, Z_COMPOS_PT, Z_COMPOS_EN, Z_COMPOS_ES) são iguais aos do export em `script.js` (conferido em 04/11/2026); base do teste de contrato previsto no item 13 da fila. |
-| `README.md` | Fluxo e uso da aplicação; sempre atualizado junto com o código. |
+| `README.md` | Apresentação para quem chega ao repositório (problema, como funciona, início rápido, configuração essencial, contrato da planilha, arquitetura, testes, segurança, problemas comuns, limitações, roadmap), reescrita em 04/11/2026. Só o que serve a esse leitor: o detalhe de configuração mora no `.env.example`, as decisões e medições ficam em `docs/` e aqui, e os detalhes de tela ficam para um futuro guia do usuário. Sempre atualizado junto com o código. |
 | `LICENSE` | Aviso de software proprietário e confidencial (PT e EN): autoria de Alexsander Antunes Barbosa, uso interno pela La Moda conforme acordo, dados das coleções da La Moda. |
 | `.env.example` | Manual de configuração da TI: toda variável, com padrão e motivo; nenhuma chave real. |
 | `historico/` | Arquivos antigos e planilhas fora de uso, guardados pelo dono só para leitura (desde 04/11/2026): conversas com Gemini e ChatGPT, protótipos, base antiga de 645 termos e requisitos (ago a out/2026); a exportação v2 da tabela de 22/10 (806 entradas); as revisões do ChatGPT de 29/10 e 30/10; a planilha de validação de 30/10; e cópias das amostras. Ignorada pelo git (um dos arquivos tem uma chave antiga da DeepL, já revogada). **Nunca é referência de tradução nem de decisão**; as planilhas de revisão que estão aqui só servem de insumo para a sessão de SIM/NÃO (item 13 da fila). |
